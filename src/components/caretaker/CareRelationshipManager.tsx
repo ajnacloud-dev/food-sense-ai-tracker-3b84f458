@@ -21,7 +21,7 @@ interface CareRelationship {
   status: string;
   created_at: string;
   notes?: string;
-  patient?: {
+  participant?: {
     full_name: string;
     email: string;
   };
@@ -56,7 +56,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
         .from('care_relationships')
         .select(`
           *,
-          patient:users!care_relationships_user_id_fkey (full_name, email)
+          participant:users!care_relationships_user_id_fkey (full_name, email)
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
@@ -69,7 +69,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
         status: rel.status,
         created_at: rel.created_at,
         notes: rel.notes,
-        patient: rel.patient
+        participant: rel.participant
       }));
 
       setRelationships(formattedData);
@@ -81,7 +81,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
     }
   };
 
-  const handleInvitePatient = async () => {
+  const handleInviteParticipant = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -186,30 +186,30 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
             <div>
               <CardTitle>Care Relationships</CardTitle>
               <CardDescription>
-                Manage your patient relationships and permissions
+                Manage your participant relationships and permissions
               </CardDescription>
             </div>
             <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Invite Patient
+                  Invite Participant
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Invite New Patient</DialogTitle>
+                  <DialogTitle>Invite New Participant</DialogTitle>
                   <DialogDescription>
                     Send a care relationship invitation to a user
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="email">Patient Email</Label>
+                    <Label htmlFor="email">Participant Email</Label>
                     <Input
                       id="email"
                       type="email"
-                      placeholder="patient@example.com"
+                      placeholder="participant@example.com"
                       value={inviteForm.email}
                       onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                     />
@@ -256,7 +256,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
                       onChange={(e) => setInviteForm({ ...inviteForm, notes: e.target.value })}
                     />
                   </div>
-                  <Button onClick={handleInvitePatient} className="w-full">
+                  <Button onClick={handleInviteParticipant} className="w-full">
                     <Mail className="h-4 w-4 mr-2" />
                     Send Invitation
                   </Button>
@@ -269,7 +269,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Patient</TableHead>
+                <TableHead>Participant</TableHead>
                 <TableHead>Your Role</TableHead>
                 <TableHead>Permission</TableHead>
                 <TableHead>Status</TableHead>
@@ -282,8 +282,8 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
                 <TableRow key={relationship.id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{relationship.patient?.full_name || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{relationship.patient?.email || 'Unknown'}</div>
+                      <div className="font-medium">{relationship.participant?.full_name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500">{relationship.participant?.email || 'Unknown'}</div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -345,7 +345,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
               {relationships.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    No care relationships yet. Invite your first patient to get started.
+                    No care relationships yet. Invite your first participant to get started.
                   </TableCell>
                 </TableRow>
               )}

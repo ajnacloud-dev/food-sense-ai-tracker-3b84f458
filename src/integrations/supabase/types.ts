@@ -236,6 +236,75 @@ export type Database = {
           },
         ]
       }
+      participant_permissions: {
+        Row: {
+          caretaker_id: string
+          category: Database["public"]["Enums"]["permission_category"]
+          granted_at: string | null
+          id: string
+          is_granted: boolean
+          notes: string | null
+          participant_id: string
+          requested_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          caretaker_id: string
+          category: Database["public"]["Enums"]["permission_category"]
+          granted_at?: string | null
+          id?: string
+          is_granted?: boolean
+          notes?: string | null
+          participant_id: string
+          requested_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          caretaker_id?: string
+          category?: Database["public"]["Enums"]["permission_category"]
+          granted_at?: string | null
+          id?: string
+          is_granted?: boolean
+          notes?: string | null
+          participant_id?: string
+          requested_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      permission_requests: {
+        Row: {
+          caretaker_id: string
+          category: Database["public"]["Enums"]["permission_category"]
+          created_at: string
+          id: string
+          message: string | null
+          participant_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          caretaker_id: string
+          category: Database["public"]["Enums"]["permission_category"]
+          created_at?: string
+          id?: string
+          message?: string | null
+          participant_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          caretaker_id?: string
+          category?: Database["public"]["Enums"]["permission_category"]
+          created_at?: string
+          id?: string
+          message?: string | null
+          participant_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       prompts: {
         Row: {
           category: Database["public"]["Enums"]["prompt_category"]
@@ -458,7 +527,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_category_permission: {
+        Args: {
+          _participant_id: string
+          _caretaker_id: string
+          _category: Database["public"]["Enums"]["permission_category"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       caretaker_type:
@@ -466,6 +542,12 @@ export type Database = {
         | "family_member"
         | "healthcare_provider"
         | "personal_trainer"
+      permission_category:
+        | "food_entries"
+        | "receipts"
+        | "workouts"
+        | "goals"
+        | "health_metrics"
       permission_level: "view_only" | "interactive" | "full_access"
       prompt_category: "food" | "receipt" | "workout" | "general"
       relationship_status: "pending" | "active" | "inactive" | "rejected"
@@ -595,6 +677,13 @@ export const Constants = {
         "family_member",
         "healthcare_provider",
         "personal_trainer",
+      ],
+      permission_category: [
+        "food_entries",
+        "receipts",
+        "workouts",
+        "goals",
+        "health_metrics",
       ],
       permission_level: ["view_only", "interactive", "full_access"],
       prompt_category: ["food", "receipt", "workout", "general"],
