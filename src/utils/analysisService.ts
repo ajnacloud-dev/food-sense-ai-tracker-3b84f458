@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // Type definitions for better type safety
@@ -58,20 +59,60 @@ const ensureStorageBucket = async (): Promise<void> => {
   }
 };
 
+// Helper function to create a meaningful description from analysis
+const createMeaningfulDescription = (analysis: any, originalDescription?: string): string => {
+  if (originalDescription && originalDescription !== 'AI-analyzed content' && originalDescription.trim().length > 0) {
+    return originalDescription;
+  }
+
+  // Try to create description from analysis
+  if (analysis?.meal_summary?.dish_names && Array.isArray(analysis.meal_summary.dish_names)) {
+    const dishes = analysis.meal_summary.dish_names.filter((dish: string) => dish !== 'unspecified' && dish.trim().length > 0);
+    if (dishes.length > 0) {
+      const mealType = analysis.meal_summary.meal_type && analysis.meal_summary.meal_type !== 'unspecified' 
+        ? analysis.meal_summary.meal_type 
+        : '';
+      return mealType ? `${mealType}: ${dishes.join(', ')}` : dishes.join(', ');
+    }
+  }
+
+  // Try to get from food items
+  if (analysis?.food_items && Array.isArray(analysis.food_items)) {
+    const items = analysis.food_items
+      .map((item: any) => item.name)
+      .filter((name: string) => name !== 'unspecified' && name.trim().length > 0);
+    if (items.length > 0) {
+      return items.join(', ');
+    }
+  }
+
+  // Fallback to meal type or generic description
+  if (analysis?.meal_summary?.meal_type && analysis.meal_summary.meal_type !== 'unspecified') {
+    return `${analysis.meal_summary.meal_type} meal`;
+  }
+
+  return originalDescription || 'Food entry';
+};
+
 export const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string): Promise<string> => {
   try {
     let entryId: string;
 
     switch (category) {
       case 'food': {
+        // Create meaningful description
+        const meaningfulDescription = createMeaningfulDescription(analysis, description);
+        
         const foodData: FoodEntryData = {
           user_id: userId,
           image_url: imageUrl,
-          description: description || 'AI-analyzed content',
+          description: meaningfulDescription,
           calories: analysis.meal_summary?.total_nutrition?.calories || analysis.calories || 0,
           ingredients: analysis.food_items || analysis.ingredients || {},
           extracted_nutrients: analysis,
         };
+
+        console.log('Inserting food entry with description:', meaningfulDescription);
 
         const { data, error } = await supabase
           .from('food_entries')
