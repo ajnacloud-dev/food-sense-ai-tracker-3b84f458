@@ -8,6 +8,63 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// LangSmith tracing configuration
+const LANGCHAIN_API_KEY = Deno.env.get('LANGCHAIN_API_KEY');
+const LANGCHAIN_PROJECT = 'health-ai-classifier';
+
+// LangSmith trace helper
+async function createLangSmithTrace(name: string, inputs: any, sessionId?: string) {
+  if (!LANGCHAIN_API_KEY) return null;
+  
+  try {
+    const response = await fetch('https://api.smith.langchain.com/runs', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        run_type: 'chain',
+        inputs,
+        session_name: sessionId || 'default',
+        project_name: LANGCHAIN_PROJECT,
+        start_time: new Date().toISOString(),
+      }),
+    });
+    
+    if (response.ok) {
+      const trace = await response.json();
+      return trace.id;
+    }
+  } catch (error) {
+    console.error('Failed to create LangSmith trace:', error);
+  }
+  return null;
+}
+
+// Update LangSmith trace
+async function updateLangSmithTrace(traceId: string, outputs: any, error?: string) {
+  if (!LANGCHAIN_API_KEY || !traceId) return;
+  
+  try {
+    await fetch(`https://api.smith.langchain.com/runs/${traceId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        outputs,
+        error: error ? { message: error } : undefined,
+        end_time: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.error('Failed to update LangSmith trace:', err);
+  }
+}
+
 // Utility function to convert image URL to base64
 async function imageUrlToBase64(imageUrl: string): Promise<string> {
   try {
@@ -56,13 +113,46 @@ async function logProcessingStatus(
   }
 }
 
+// Safe JSON parser with better error handling
+function safeJsonParse(text: string, context: string): any {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error(`Failed to parse JSON in ${context}:`, text);
+    console.error('Parse error:', error);
+    
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[1]);
+      } catch (e) {
+        console.error('Failed to parse extracted JSON:', e);
+      }
+    }
+    
+    // Try to find JSON-like content
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      try {
+        return JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+      } catch (e) {
+        console.error('Failed to parse substring JSON:', e);
+      }
+    }
+    
+    throw new Error(`Invalid JSON response in ${context}: ${text.substring(0, 200)}...`);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   const startTime = Date.now();
-  let processingLogId: string | null = null;
+  let traceId: string | null = null;
 
   try {
     const { description, imageUrl } = await req.json();
@@ -79,6 +169,13 @@ serve(async (req) => {
     if (!user) {
       throw new Error("User not authenticated");
     }
+
+    // Create LangSmith trace
+    traceId = await createLangSmithTrace('auto-classify-and-analyze', {
+      description: description ? 'provided' : 'none',
+      imageUrl: imageUrl ? 'provided' : 'none',
+      userId: user.id
+    }, user.id);
 
     console.log(`Starting auto-classification for user ${user.id} at ${new Date().toISOString()}`);
     console.log(`Input - Description: ${description ? 'provided' : 'none'}, Image: ${imageUrl ? 'provided' : 'none'}`);
@@ -98,16 +195,16 @@ Input:
 ${description ? `Description: ${description}` : 'No description provided'}
 ${imageUrl ? 'An image is provided for analysis.' : 'No image provided'}
 
-Return ONLY a JSON object with this format:
+IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, no code blocks):
 {
-  "category": "food|receipt|workout",
+  "category": "food",
   "confidence": 0.95,
   "reasoning": "Brief explanation of classification"
 }`;
 
     // Prepare classification messages
     const classificationMessages = [
-      { role: 'system', content: 'You are a precise content classifier. Always respond with valid JSON only.' },
+      { role: 'system', content: 'You are a precise content classifier. Always respond with valid JSON only, no markdown formatting.' },
       { role: 'user', content: classificationPrompt }
     ];
 
@@ -162,7 +259,10 @@ Return ONLY a JSON object with this format:
     }
 
     const classificationData = await classificationResponse.json();
-    const classificationResult = JSON.parse(classificationData.choices[0].message.content);
+    const classificationContent = classificationData.choices[0].message.content;
+    console.log('Raw classification response:', classificationContent);
+    
+    const classificationResult = safeJsonParse(classificationContent, 'classification');
     const category = classificationResult.category;
 
     console.log(`Classification result: ${category} (confidence: ${classificationResult.confidence})`);
@@ -182,22 +282,26 @@ Return ONLY a JSON object with this format:
     // Step 3: Detailed analysis using category-specific prompt
     const userPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
     
+    const analysisPrompt = `${userPrompt}
+
+IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The response must be parseable JSON.`;
+    
     const analysisMessages = [
-      { role: 'system', content: prompt.system_prompt },
-      { role: 'user', content: userPrompt }
+      { role: 'system', content: `${prompt.system_prompt}\n\nALWAYS respond with valid JSON only, no markdown formatting.` },
+      { role: 'user', content: analysisPrompt }
     ];
 
     // Add image to analysis if provided using the same method that worked for classification
     if (imageUrl && imageProcessingMethod !== 'failed') {
       if (imageProcessingMethod === 'url') {
         analysisMessages[1].content = [
-          { type: 'text', text: userPrompt },
+          { type: 'text', text: analysisPrompt },
           { type: 'image_url', image_url: { url: imageUrl } }
         ];
       } else if (imageProcessingMethod === 'base64') {
         const base64Image = await imageUrlToBase64(imageUrl);
         analysisMessages[1].content = [
-          { type: 'text', text: userPrompt },
+          { type: 'text', text: analysisPrompt },
           { type: 'image_url', image_url: { url: base64Image } }
         ];
       }
@@ -226,18 +330,12 @@ Return ONLY a JSON object with this format:
     }
 
     const analysisData = await analysisResponse.json();
-    const analysisResult = analysisData.choices[0].message.content;
+    const analysisContent = analysisData.choices[0].message.content;
+    console.log('Raw analysis response:', analysisContent);
+    
+    const parsedAnalysis = safeJsonParse(analysisContent, 'analysis');
     
     console.log('Analysis completed');
-
-    // Parse the analysis JSON response
-    let parsedAnalysis;
-    try {
-      parsedAnalysis = JSON.parse(analysisResult);
-    } catch (e) {
-      console.error('Failed to parse analysis response as JSON:', analysisResult);
-      throw new Error('Invalid response format from AI analysis');
-    }
 
     // Calculate total cost
     const modelUsed = imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini';
@@ -273,9 +371,7 @@ Return ONLY a JSON object with this format:
     // Log successful completion
     await logProcessingStatus(supabaseClient, user.id, imageUrl, 'completed', imageProcessingMethod);
 
-    console.log(`Auto-classification and analysis completed. Category: ${category}, Cost: $${cost.toFixed(6)}, Time: ${processingTime}ms, Method: ${imageProcessingMethod}`);
-
-    return new Response(JSON.stringify({ 
+    const result = {
       category: category,
       analysis: parsedAnalysis,
       classification: classificationResult,
@@ -286,13 +382,27 @@ Return ONLY a JSON object with this format:
         processingTime: processingTime,
         imageProcessingMethod: imageProcessingMethod
       }
-    }), {
+    };
+
+    // Update LangSmith trace with success
+    if (traceId) {
+      await updateLangSmithTrace(traceId, result);
+    }
+
+    console.log(`Auto-classification and analysis completed. Category: ${category}, Cost: $${cost.toFixed(6)}, Time: ${processingTime}ms, Method: ${imageProcessingMethod}`);
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
     console.error("Error in auto-classify-and-analyze function:", error);
+    
+    // Update LangSmith trace with error
+    if (traceId) {
+      await updateLangSmithTrace(traceId, {}, error.message);
+    }
     
     // Log error if we have user context
     try {

@@ -8,6 +8,95 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// LangSmith tracing configuration
+const LANGCHAIN_API_KEY = Deno.env.get('LANGCHAIN_API_KEY');
+const LANGCHAIN_PROJECT = 'health-ai-workflow';
+
+// LangSmith trace helper
+async function createLangSmithTrace(name: string, inputs: any, sessionId?: string) {
+  if (!LANGCHAIN_API_KEY) return null;
+  
+  try {
+    const response = await fetch('https://api.smith.langchain.com/runs', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        run_type: 'chain',
+        inputs,
+        session_name: sessionId || 'default',
+        project_name: LANGCHAIN_PROJECT,
+        start_time: new Date().toISOString(),
+      }),
+    });
+    
+    if (response.ok) {
+      const trace = await response.json();
+      return trace.id;
+    }
+  } catch (error) {
+    console.error('Failed to create LangSmith trace:', error);
+  }
+  return null;
+}
+
+// Update LangSmith trace
+async function updateLangSmithTrace(traceId: string, outputs: any, error?: string) {
+  if (!LANGCHAIN_API_KEY || !traceId) return;
+  
+  try {
+    await fetch(`https://api.smith.langchain.com/runs/${traceId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        outputs,
+        error: error ? { message: error } : undefined,
+        end_time: new Date().toISOString(),
+      }),
+    });
+  } catch (err) {
+    console.error('Failed to update LangSmith trace:', err);
+  }
+}
+
+// Safe JSON parser with better error handling
+function safeJsonParse(text: string, context: string): any {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error(`Failed to parse JSON in ${context}:`, text);
+    
+    // Try to extract JSON from markdown code blocks
+    const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[1]);
+      } catch (e) {
+        console.error('Failed to parse extracted JSON:', e);
+      }
+    }
+    
+    // Try to find JSON-like content
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      try {
+        return JSON.parse(text.substring(jsonStart, jsonEnd + 1));
+      } catch (e) {
+        console.error('Failed to parse substring JSON:', e);
+      }
+    }
+    
+    throw new Error(`Invalid JSON response in ${context}: ${text.substring(0, 200)}...`);
+  }
+}
+
 interface WorkflowNode {
   id: string;
   type: 'classifier' | 'analyzer' | 'enricher' | 'validator';
@@ -87,12 +176,14 @@ class LangGraphWorkflow {
   private workflow: WorkflowDefinition;
   private supabaseClient: any;
   private openaiKey: string;
+  private traceId: string | null = null;
 
   constructor(
     input: { description?: string; imageUrl?: string; category?: string },
     supabaseClient: any,
     openaiKey: string,
-    customWorkflow?: WorkflowDefinition
+    customWorkflow?: WorkflowDefinition,
+    traceId?: string | null
   ) {
     this.state = {
       input,
@@ -107,6 +198,7 @@ class LangGraphWorkflow {
     this.workflow = customWorkflow || DEFAULT_WORKFLOW;
     this.supabaseClient = supabaseClient;
     this.openaiKey = openaiKey;
+    this.traceId = traceId;
   }
 
   async executeWorkflow(): Promise<WorkflowState> {
@@ -169,14 +261,14 @@ Input:
 ${this.state.input.description ? `Description: ${this.state.input.description}` : 'No description'}
 ${this.state.input.imageUrl ? 'Image provided' : 'No image'}
 
-Return JSON: {"category": "food|receipt|workout", "confidence": 0.95, "reasoning": "explanation"}`;
+IMPORTANT: Return ONLY valid JSON (no markdown): {"category": "food|receipt|workout", "confidence": 0.95, "reasoning": "explanation"}`;
 
     const result = await this.callOpenAI([
-      { role: 'system', content: 'You are a content classifier. Return only valid JSON.' },
+      { role: 'system', content: 'You are a content classifier. Return only valid JSON, no markdown formatting.' },
       { role: 'user', content: prompt }
     ], node.config);
 
-    this.state.classification = JSON.parse(result.content);
+    this.state.classification = safeJsonParse(result.content, 'classification');
     this.updateMetadata(result.usage);
   }
 
@@ -199,17 +291,19 @@ Return JSON: {"category": "food|receipt|workout", "confidence": 0.95, "reasoning
       throw new Error(`No prompt found for category: ${category}`);
     }
 
-    const userPrompt = prompt.user_prompt_template.replace(
+    const userPrompt = `${prompt.user_prompt_template.replace(
       '{description}', 
       this.state.input.description || 'No description provided'
-    );
+    )}
+
+IMPORTANT: Return ONLY valid JSON (no markdown formatting).`;
 
     const result = await this.callOpenAI([
-      { role: 'system', content: prompt.system_prompt },
+      { role: 'system', content: `${prompt.system_prompt}\n\nALWAYS respond with valid JSON only, no markdown formatting.` },
       { role: 'user', content: userPrompt }
     ], node.config);
 
-    this.state.analysis = JSON.parse(result.content);
+    this.state.analysis = safeJsonParse(result.content, 'analysis');
     this.updateMetadata(result.usage);
   }
 
@@ -223,14 +317,15 @@ Return JSON: {"category": "food|receipt|workout", "confidence": 0.95, "reasoning
 Original Analysis: ${JSON.stringify(this.state.analysis)}
 Category: ${this.state.classification?.category}
 
-Add health insights, recommendations, and contextual information. Return enhanced JSON.`;
+Add health insights, recommendations, and contextual information. 
+IMPORTANT: Return ONLY valid JSON (no markdown formatting).`;
 
     const result = await this.callOpenAI([
-      { role: 'system', content: 'You enhance data analysis with health insights and recommendations.' },
+      { role: 'system', content: 'You enhance data analysis with health insights and recommendations. Always respond with valid JSON only, no markdown formatting.' },
       { role: 'user', content: enrichmentPrompt }
     ], node.config);
 
-    this.state.enrichment = JSON.parse(result.content);
+    this.state.enrichment = safeJsonParse(result.content, 'enrichment');
     this.updateMetadata(result.usage);
   }
 
@@ -241,14 +336,15 @@ Classification: ${JSON.stringify(this.state.classification)}
 Analysis: ${JSON.stringify(this.state.analysis)}
 Enrichment: ${JSON.stringify(this.state.enrichment)}
 
-Check for inconsistencies, validate ranges, and return a cleaned version. Return JSON with validation status.`;
+Check for inconsistencies, validate ranges, and return a cleaned version. 
+IMPORTANT: Return ONLY valid JSON with validation status (no markdown formatting).`;
 
     const result = await this.callOpenAI([
-      { role: 'system', content: 'You validate and clean data analysis results.' },
+      { role: 'system', content: 'You validate and clean data analysis results. Always respond with valid JSON only, no markdown formatting.' },
       { role: 'user', content: validationPrompt }
     ], node.config);
 
-    this.state.validation = JSON.parse(result.content);
+    this.state.validation = safeJsonParse(result.content, 'validation');
     this.updateMetadata(result.usage);
   }
 
@@ -293,6 +389,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let traceId: string | null = null;
+
   try {
     const { description, imageUrl, workflowConfig } = await req.json();
     
@@ -314,6 +412,14 @@ serve(async (req) => {
       throw new Error("OpenAI API key not configured");
     }
 
+    // Create LangSmith trace
+    traceId = await createLangSmithTrace('langgraph-workflow', {
+      description: description ? 'provided' : 'none',
+      imageUrl: imageUrl ? 'provided' : 'none',
+      userId: user.id,
+      workflowConfig: workflowConfig || 'default'
+    }, user.id);
+
     console.log(`Starting LangGraph workflow for user ${user.id}`);
 
     // Create and execute workflow
@@ -321,7 +427,8 @@ serve(async (req) => {
       { description, imageUrl },
       supabaseClient,
       openaiKey,
-      workflowConfig
+      workflowConfig,
+      traceId
     );
 
     const result = await workflow.executeWorkflow();
@@ -340,9 +447,7 @@ serve(async (req) => {
         category: result.classification?.category || 'unknown'
       });
 
-    console.log(`LangGraph workflow completed. Tokens: ${result.metadata.tokensUsed}, Cost: $${result.metadata.costs.toFixed(6)}`);
-
-    return new Response(JSON.stringify({
+    const response = {
       success: true,
       result: {
         classification: result.classification,
@@ -352,13 +457,28 @@ serve(async (req) => {
         errors: result.errors,
         metadata: result.metadata
       }
-    }), {
+    };
+
+    // Update LangSmith trace with success
+    if (traceId) {
+      await updateLangSmithTrace(traceId, response);
+    }
+
+    console.log(`LangGraph workflow completed. Tokens: ${result.metadata.tokensUsed}, Cost: $${result.metadata.costs.toFixed(6)}`);
+
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
     console.error("Error in langgraph-workflow function:", error);
+    
+    // Update LangSmith trace with error
+    if (traceId) {
+      await updateLangSmithTrace(traceId, {}, error.message);
+    }
+
     return new Response(JSON.stringify({ 
       success: false,
       error: error.message,
