@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Edit, Save, X, Receipt, DollarSign, Store } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Receipt, DollarSign, Store, CreditCard, Calendar, Hash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
@@ -97,26 +97,71 @@ const ReceiptDetails = () => {
     });
   };
 
-  const renderItems = (items: any) => {
-    if (!items || !Array.isArray(items)) return null;
+  const formatTime = (timeString: string) => {
+    if (!timeString) return '';
+    try {
+      const [hours, minutes, seconds] = timeString.split(':');
+      const date = new Date();
+      date.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds || '0'));
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return timeString;
+    }
+  };
+
+  const renderItems = (receiptData: any) => {
+    // Handle both old format (items directly) and new format (items.items)
+    const items = receiptData?.items || receiptData;
+    
+    if (!items || !Array.isArray(items)) {
+      console.log('No items found in receipt data:', receiptData);
+      return (
+        <div className="text-center py-4 text-gray-500">
+          No items found in this receipt
+        </div>
+      );
+    }
 
     return (
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Item</TableHead>
+            <TableHead>Item Name</TableHead>
+            <TableHead>Generic Name</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Quantity</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Qty</TableHead>
             <TableHead>Price</TableHead>
+            <TableHead>SKU</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((item: any, index: number) => (
             <TableRow key={index}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell className="text-sm text-gray-600">{item.description || '-'}</TableCell>
+              <TableCell className="font-medium">{item.name || '-'}</TableCell>
+              <TableCell>
+                {item.generic_name ? (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                    {item.generic_name}
+                  </Badge>
+                ) : '-'}
+              </TableCell>
+              <TableCell className="text-sm text-gray-600 max-w-xs">
+                {item.description || '-'}
+              </TableCell>
+              <TableCell className="text-sm">
+                {item.category && item.subcategory 
+                  ? `${item.category} > ${item.subcategory}`
+                  : item.category || '-'
+                }
+              </TableCell>
               <TableCell>{item.quantity || 1}</TableCell>
-              <TableCell>{formatCurrency(item.price || 0)}</TableCell>
+              <TableCell className="font-medium">{formatCurrency(item.price || 0)}</TableCell>
+              <TableCell className="text-sm text-gray-500">{item.sku || '-'}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -124,23 +169,127 @@ const ReceiptDetails = () => {
     );
   };
 
-  const renderMerchantInfo = (items: any) => {
-    if (!items?.merchant) return null;
-
-    const merchant = items.merchant;
+  const renderFinancialSummary = (receiptData: any) => {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Store className="h-4 w-4" />
-          <span className="font-medium">{merchant.store_name}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Transaction Summary */}
+        <div className="space-y-4">
+          <h3 className="font-semibold text-lg">Transaction Summary</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span>Subtotal:</span>
+              <span>{formatCurrency(receiptData?.subtotal || 0)}</span>
+            </div>
+            
+            {receiptData?.tax_details?.map((tax: any, index: number) => (
+              <div key={index} className="flex justify-between text-sm">
+                <span>Tax ({(tax.tax_rate * 100).toFixed(1)}%):</span>
+                <span>{formatCurrency(tax.tax_amount || 0)}</span>
+              </div>
+            ))}
+            
+            {receiptData?.discount_details?.map((discount: any, index: number) => (
+              <div key={index} className="flex justify-between text-sm text-green-600">
+                <span>Discount ({discount.discount_name}):</span>
+                <span>-{formatCurrency(discount.discount_amount || 0)}</span>
+              </div>
+            ))}
+            
+            <div className="border-t pt-2 flex justify-between font-semibold text-lg">
+              <span>Total:</span>
+              <span className="text-green-600">{formatCurrency(receiptData?.total || receipt?.total_amount || 0)}</span>
+            </div>
+          </div>
         </div>
+
+        {/* Payment Information */}
+        <div className="space-y-4">
+          <h3 className="font-semibold text-lg">Payment Details</h3>
+          <div className="space-y-2">
+            {receiptData?.payment?.method && (
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span className="text-sm">Method: {receiptData.payment.method}</span>
+              </div>
+            )}
+            
+            {receiptData?.payment?.card_last_digits && (
+              <div className="flex items-center gap-2">
+                <Hash className="h-4 w-4" />
+                <span className="text-sm">Card ending: ****{receiptData.payment.card_last_digits}</span>
+              </div>
+            )}
+            
+            {receiptData?.payment?.transaction_id && (
+              <div className="text-sm text-gray-600">
+                Transaction ID: {receiptData.payment.transaction_id}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTransactionDetails = (receiptData: any) => {
+    if (!receiptData?.transaction) return null;
+
+    const transaction = receiptData.transaction;
+    return (
+      <div className="space-y-3">
+        {transaction.receipt_id && (
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-blue-500" />
+            <span className="font-medium">Receipt ID:</span>
+            <code className="bg-gray-100 px-2 py-1 rounded text-sm">{transaction.receipt_id}</code>
+          </div>
+        )}
+        
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-blue-500" />
+          <span className="font-medium">Date & Time:</span>
+          <span>
+            {transaction.date && formatDate(transaction.date)}
+            {transaction.time && ` at ${formatTime(transaction.time)}`}
+          </span>
+        </div>
+        
+        {transaction.purchase_channel && (
+          <div className="flex items-center gap-2">
+            <Store className="h-4 w-4 text-blue-500" />
+            <span className="font-medium">Purchase Channel:</span>
+            <span>{transaction.purchase_channel}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderMerchantInfo = (receiptData: any) => {
+    if (!receiptData?.merchant) return null;
+
+    const merchant = receiptData.merchant;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Store className="h-5 w-5 text-blue-500" />
+          <span className="font-semibold text-lg">{merchant.store_name}</span>
+        </div>
+        
         {merchant.store_address && (
-          <p className="text-sm text-gray-600">
-            {merchant.store_address}
-            {merchant.city && `, ${merchant.city}`}
-            {merchant.state && `, ${merchant.state}`}
-            {merchant.postal_code && ` ${merchant.postal_code}`}
-          </p>
+          <div className="text-gray-600 ml-7">
+            <p>{merchant.store_address}</p>
+            {(merchant.city || merchant.state || merchant.postal_code) && (
+              <p>
+                {merchant.city && `${merchant.city}`}
+                {merchant.state && `, ${merchant.state}`}
+                {merchant.postal_code && ` ${merchant.postal_code}`}
+              </p>
+            )}
+            {merchant.country && merchant.country !== 'USA' && (
+              <p>{merchant.country}</p>
+            )}
+          </div>
         )}
       </div>
     );
@@ -168,7 +317,7 @@ const ReceiptDetails = () => {
 
   return (
     <SidebarLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button variant="outline" onClick={() => navigate("/receipts")}>
@@ -180,7 +329,7 @@ const ReceiptDetails = () => {
                 <Receipt className="h-8 w-8 text-blue-500" />
                 Receipt Details
               </h1>
-              <p className="text-gray-600">View and edit your receipt</p>
+              <p className="text-gray-600">View and edit your receipt information</p>
             </div>
           </div>
           {!editing ? (
@@ -205,6 +354,9 @@ const ReceiptDetails = () => {
         {/* Image */}
         {receipt.image_url && (
           <Card>
+            <CardHeader>
+              <CardTitle>Receipt Image</CardTitle>
+            </CardHeader>
             <CardContent className="p-6">
               <img
                 src={receipt.image_url}
@@ -257,6 +409,18 @@ const ReceiptDetails = () => {
           </CardContent>
         </Card>
 
+        {/* Transaction Details */}
+        {receipt.items?.transaction && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {renderTransactionDetails(receipt.items)}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Merchant Information */}
         {receipt.items?.merchant && (
           <Card>
@@ -269,11 +433,24 @@ const ReceiptDetails = () => {
           </Card>
         )}
 
+        {/* Financial Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Summary</CardTitle>
+            <CardDescription>Breakdown of costs, taxes, and payment details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {renderFinancialSummary(receipt.items)}
+          </CardContent>
+        </Card>
+
         {/* Items */}
         <Card>
           <CardHeader>
             <CardTitle>Items</CardTitle>
-            <CardDescription>Purchased items and their details</CardDescription>
+            <CardDescription>
+              Purchased items with generic names for price tracking across stores
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {renderItems(receipt.items)}
