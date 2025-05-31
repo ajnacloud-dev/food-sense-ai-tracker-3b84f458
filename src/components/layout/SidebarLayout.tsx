@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -13,7 +12,9 @@ import {
   CreditCard,
   Menu,
   LogOut,
-  Brain
+  Brain,
+  Settings,
+  Users
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string>('user');
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -34,6 +36,17 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
+        
+        // Fetch user role from database
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData?.role) {
+          setUserRole(userData.role);
+        }
       } else {
         navigate("/auth");
       }
@@ -56,6 +69,15 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     { icon: BarChart3, label: "Insights", path: "/insights" },
     { icon: CreditCard, label: "Billing", path: "/billing" },
   ];
+
+  // Add role-specific menu items
+  if (userRole === 'caretaker' || userRole === 'dietitian') {
+    menuItems.push({ icon: Users, label: "My Patients", path: "/caretaker" });
+  }
+
+  if (userRole === 'admin') {
+    menuItems.push({ icon: Settings, label: "Admin", path: "/admin" });
+  }
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -98,6 +120,9 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
               {user?.user_metadata?.full_name || user?.email}
             </p>
             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            {userRole !== 'user' && (
+              <p className="text-xs text-blue-600 capitalize">{userRole}</p>
+            )}
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleSignOut} className="w-full">
