@@ -53,14 +53,15 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
     throw new Error('No data returned from insert operation');
   }
   
-  // Type assertion since we know the structure after successful insert
-  const insertedData = data as { id: string };
-  
-  if (!insertedData.id) {
-    throw new Error('No ID returned from insert operation');
+  // Check if data has the id property and return it
+  if (typeof data === 'object' && data !== null && 'id' in data) {
+    const id = (data as any).id;
+    if (typeof id === 'string') {
+      return id;
+    }
   }
   
-  return insertedData.id;
+  throw new Error('Invalid response format: missing or invalid ID');
 };
 
 export const uploadImage = async (file: File, userId: string) => {
