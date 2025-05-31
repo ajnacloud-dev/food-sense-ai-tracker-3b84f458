@@ -11,15 +11,17 @@ import type { Database } from "@/integrations/supabase/types";
 
 type PermissionCategory = Database['public']['Enums']['permission_category'];
 
+interface CaretakerUser {
+  full_name: string | null;
+  email: string;
+}
+
 interface CaretakerRelationship {
   id: string;
   caretaker_id: string;
   caretaker_type: string;
   status: string;
-  caretaker: {
-    full_name: string;
-    email: string;
-  };
+  caretaker: CaretakerUser;
 }
 
 interface Permission {
@@ -38,10 +40,7 @@ interface PermissionRequest {
   status: string;
   message?: string;
   created_at: string;
-  caretaker: {
-    full_name: string;
-    email: string;
-  } | null;
+  caretaker: CaretakerUser;
 }
 
 const PermissionManager = () => {
@@ -69,7 +68,7 @@ const PermissionManager = () => {
       if (!user) return;
 
       // Fetch caretaker relationships
-      const { data: relationshipsData } = await supabase
+      const { data: relationshipsData, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
           id,
@@ -81,7 +80,37 @@ const PermissionManager = () => {
         .eq('user_id', user.id)
         .eq('status', 'active');
 
-      setRelationships(relationshipsData || []);
+      if (relationshipsError) {
+        console.error('Error fetching relationships:', relationshipsError);
+        toast.error('Failed to load caretaker relationships');
+        return;
+      }
+
+      // Process relationships data with proper type handling
+      const processedRelationships: CaretakerRelationship[] = [];
+      
+      if (relationshipsData) {
+        for (const rel of relationshipsData) {
+          // Type guard to ensure caretaker data exists and is properly structured
+          if (rel.caretaker && typeof rel.caretaker === 'object' && !Array.isArray(rel.caretaker)) {
+            const caretaker = rel.caretaker as any;
+            if (caretaker.full_name !== undefined && caretaker.email) {
+              processedRelationships.push({
+                id: rel.id,
+                caretaker_id: rel.caretaker_id,
+                caretaker_type: rel.caretaker_type,
+                status: rel.status,
+                caretaker: {
+                  full_name: caretaker.full_name,
+                  email: caretaker.email
+                }
+              });
+            }
+          }
+        }
+      }
+
+      setRelationships(processedRelationships);
 
       // Fetch current permissions
       const { data: permissionsData } = await supabase
@@ -92,7 +121,7 @@ const PermissionManager = () => {
       setPermissions(permissionsData || []);
 
       // Fetch pending permission requests
-      const { data: requestsData } = await supabase
+      const { data: requestsData, error: requestsError } = await supabase
         .from('permission_requests')
         .select(`
           *,
@@ -101,42 +130,39 @@ const PermissionManager = () => {
         .eq('participant_id', user.id)
         .eq('status', 'pending');
 
-      if (requestsData) {
-        // Process the requests data and handle potential caretaker data issues
-        const validRequests: PermissionRequest[] = [];
-        
-        for (const request of requestsData) {
-          // Type guard to check if caretaker data is valid
-          const hasValidCaretaker = (
-            request.caretaker && 
-            typeof request.caretaker === 'object' &&
-            !Array.isArray(request.caretaker) &&
-            'full_name' in request.caretaker &&
-            'email' in request.caretaker &&
-            typeof request.caretaker.full_name === 'string' &&
-            typeof request.caretaker.email === 'string'
-          );
+      if (requestsError) {
+        console.error('Error fetching permission requests:', requestsError);
+        toast.error('Failed to load permission requests');
+        return;
+      }
 
-          if (hasValidCaretaker) {
-            validRequests.push({
-              id: request.id,
-              caretaker_id: request.caretaker_id,
-              category: request.category,
-              status: request.status,
-              message: request.message,
-              created_at: request.created_at,
-              caretaker: {
-                full_name: request.caretaker.full_name as string,
-                email: request.caretaker.email as string
-              }
-            });
+      // Process requests data with proper type handling
+      const processedRequests: PermissionRequest[] = [];
+      
+      if (requestsData) {
+        for (const request of requestsData) {
+          // Type guard to ensure caretaker data exists and is properly structured
+          if (request.caretaker && typeof request.caretaker === 'object' && !Array.isArray(request.caretaker)) {
+            const caretaker = request.caretaker as any;
+            if (caretaker.full_name !== undefined && caretaker.email) {
+              processedRequests.push({
+                id: request.id,
+                caretaker_id: request.caretaker_id,
+                category: request.category,
+                status: request.status,
+                message: request.message,
+                created_at: request.created_at,
+                caretaker: {
+                  full_name: caretaker.full_name,
+                  email: caretaker.email
+                }
+              });
+            }
           }
         }
-        
-        setPendingRequests(validRequests);
-      } else {
-        setPendingRequests([]);
       }
+      
+      setPendingRequests(processedRequests);
 
     } catch (error) {
       console.error('Error fetching permission data:', error);
@@ -273,7 +299,7 @@ const PermissionManager = () => {
                       <Icon className={`h-5 w-5 ${category?.color || 'text-gray-600'}`} />
                       <div>
                         <div className="font-medium">
-                          {request.caretaker.full_name} wants access to {category?.label || request.category}
+                          {request.caretaker.full_name || 'Unknown User'} wants access to {category?.label || request.category}
                         </div>
                         <div className="text-sm text-gray-500">{request.caretaker.email}</div>
                         {request.message && (
@@ -321,7 +347,7 @@ const PermissionManager = () => {
                 <div key={relationship.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="font-medium">{relationship.caretaker.full_name}</div>
+                      <div className="font-medium">{relationship.caretaker.full_name || 'Unknown User'}</div>
                       <div className="text-sm text-gray-500">{relationship.caretaker.email}</div>
                       <Badge variant="outline" className="mt-1">
                         {relationship.caretaker_type.replace('_', ' ')}
