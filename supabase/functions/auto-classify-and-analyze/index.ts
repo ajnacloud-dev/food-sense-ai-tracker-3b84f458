@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -10,14 +9,16 @@ const corsHeaders = {
 
 // LangSmith tracing configuration
 const LANGCHAIN_API_KEY = Deno.env.get('LANGCHAIN_API_KEY');
-const LANGCHAIN_PROJECT = 'health-ai-classifier';
+const LANGCHAIN_PROJECT = Deno.env.get('LANGSMITH_PROJECT') || 'nutriwealth';
+const LANGCHAIN_ENDPOINT = Deno.env.get('LANGSMITH_ENDPOINT') || 'https://api.smith.langchain.com';
+const LANGSMITH_TRACING = Deno.env.get('LANGSMITH_TRACING') === 'true';
 
 // LangSmith trace helper
 async function createLangSmithTrace(name: string, inputs: any, sessionId?: string) {
-  if (!LANGCHAIN_API_KEY) return null;
+  if (!LANGCHAIN_API_KEY || !LANGSMITH_TRACING) return null;
   
   try {
-    const response = await fetch('https://api.smith.langchain.com/runs', {
+    const response = await fetch(`${LANGCHAIN_ENDPOINT}/runs`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
@@ -45,10 +46,10 @@ async function createLangSmithTrace(name: string, inputs: any, sessionId?: strin
 
 // Update LangSmith trace
 async function updateLangSmithTrace(traceId: string, outputs: any, error?: string) {
-  if (!LANGCHAIN_API_KEY || !traceId) return;
+  if (!LANGCHAIN_API_KEY || !traceId || !LANGSMITH_TRACING) return;
   
   try {
-    await fetch(`https://api.smith.langchain.com/runs/${traceId}`, {
+    await fetch(`${LANGCHAIN_ENDPOINT}/runs/${traceId}`, {
       method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
