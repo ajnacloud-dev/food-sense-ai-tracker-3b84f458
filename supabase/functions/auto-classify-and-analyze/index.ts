@@ -8,10 +8,61 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Utility function to convert image URL to base64
+async function imageUrlToBase64(imageUrl: string): Promise<string> {
+  try {
+    console.log(`Converting image to base64: ${imageUrl}`);
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+    const base64 = btoa(binary);
+    
+    // Get content type from response headers
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    throw error;
+  }
+}
+
+// Utility function to log processing status
+async function logProcessingStatus(
+  supabaseClient: any, 
+  userId: string, 
+  imageUrl: string | null, 
+  status: string, 
+  method: string, 
+  errorMessage?: string
+) {
+  try {
+    await supabaseClient
+      .from('image_processing_log')
+      .insert({
+        user_id: userId,
+        image_url: imageUrl,
+        processing_status: status,
+        processing_method: method,
+        error_message: errorMessage,
+        completed_at: status === 'completed' || status === 'failed' ? new Date().toISOString() : null
+      });
+  } catch (error) {
+    console.error('Failed to log processing status:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const startTime = Date.now();
+  let processingLogId: string | null = null;
 
   try {
     const { description, imageUrl } = await req.json();
@@ -29,7 +80,11 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    console.log(`Starting auto-classification for user ${user.id}`);
+    console.log(`Starting auto-classification for user ${user.id} at ${new Date().toISOString()}`);
+    console.log(`Input - Description: ${description ? 'provided' : 'none'}, Image: ${imageUrl ? 'provided' : 'none'}`);
+
+    // Log start of processing
+    await logProcessingStatus(supabaseClient, user.id, imageUrl, 'pending', imageUrl ? 'url' : 'text_only');
 
     // Step 1: Classification prompt
     const classificationPrompt = `You are an AI classifier that determines the category of content based on images and descriptions.
@@ -56,15 +111,34 @@ Return ONLY a JSON object with this format:
       { role: 'user', content: classificationPrompt }
     ];
 
-    // Add image to classification if provided
+    // Add image to classification if provided - try URL first, fallback to base64
+    let imageProcessingMethod = 'text_only';
     if (imageUrl) {
-      classificationMessages[1].content = [
-        { type: 'text', text: classificationPrompt },
-        { type: 'image_url', image_url: { url: imageUrl } }
-      ];
+      try {
+        console.log('Step 1a: Attempting to use image URL directly...');
+        classificationMessages[1].content = [
+          { type: 'text', text: classificationPrompt },
+          { type: 'image_url', image_url: { url: imageUrl } }
+        ];
+        imageProcessingMethod = 'url';
+      } catch (urlError) {
+        console.log('Step 1b: URL failed, converting to base64...');
+        try {
+          const base64Image = await imageUrlToBase64(imageUrl);
+          classificationMessages[1].content = [
+            { type: 'text', text: classificationPrompt },
+            { type: 'image_url', image_url: { url: base64Image } }
+          ];
+          imageProcessingMethod = 'base64';
+        } catch (base64Error) {
+          console.error('Both URL and base64 methods failed:', base64Error);
+          imageProcessingMethod = 'failed';
+          // Continue without image
+        }
+      }
     }
 
-    console.log('Step 1: Calling OpenAI for classification...');
+    console.log(`Step 1: Calling OpenAI for classification using method: ${imageProcessingMethod}...`);
 
     // Get classification
     const classificationResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -74,7 +148,7 @@ Return ONLY a JSON object with this format:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: imageUrl ? 'gpt-4o' : 'gpt-4o-mini',
+        model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
         messages: classificationMessages,
         temperature: 0.1,
         max_tokens: 200,
@@ -82,7 +156,9 @@ Return ONLY a JSON object with this format:
     });
 
     if (!classificationResponse.ok) {
-      throw new Error(`Classification API error: ${classificationResponse.status}`);
+      const errorText = await classificationResponse.text();
+      console.error('Classification API error:', errorText);
+      throw new Error(`Classification API error: ${classificationResponse.status} - ${errorText}`);
     }
 
     const classificationData = await classificationResponse.json();
@@ -111,12 +187,20 @@ Return ONLY a JSON object with this format:
       { role: 'user', content: userPrompt }
     ];
 
-    // Add image to analysis if provided
-    if (imageUrl) {
-      analysisMessages[1].content = [
-        { type: 'text', text: userPrompt },
-        { type: 'image_url', image_url: { url: imageUrl } }
-      ];
+    // Add image to analysis if provided using the same method that worked for classification
+    if (imageUrl && imageProcessingMethod !== 'failed') {
+      if (imageProcessingMethod === 'url') {
+        analysisMessages[1].content = [
+          { type: 'text', text: userPrompt },
+          { type: 'image_url', image_url: { url: imageUrl } }
+        ];
+      } else if (imageProcessingMethod === 'base64') {
+        const base64Image = await imageUrlToBase64(imageUrl);
+        analysisMessages[1].content = [
+          { type: 'text', text: userPrompt },
+          { type: 'image_url', image_url: { url: base64Image } }
+        ];
+      }
     }
 
     console.log('Step 2: Calling OpenAI for detailed analysis...');
@@ -128,7 +212,7 @@ Return ONLY a JSON object with this format:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: imageUrl ? 'gpt-4o' : 'gpt-4o-mini',
+        model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
         messages: analysisMessages,
         temperature: 0.3,
         max_tokens: 1000,
@@ -136,7 +220,9 @@ Return ONLY a JSON object with this format:
     });
 
     if (!analysisResponse.ok) {
-      throw new Error(`Analysis API error: ${analysisResponse.status}`);
+      const errorText = await analysisResponse.text();
+      console.error('Analysis API error:', errorText);
+      throw new Error(`Analysis API error: ${analysisResponse.status} - ${errorText}`);
     }
 
     const analysisData = await analysisResponse.json();
@@ -154,7 +240,7 @@ Return ONLY a JSON object with this format:
     }
 
     // Calculate total cost
-    const modelUsed = imageUrl ? 'gpt-4o' : 'gpt-4o-mini';
+    const modelUsed = imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini';
     const totalPromptTokens = (classificationData.usage?.prompt_tokens || 0) + (analysisData.usage?.prompt_tokens || 0);
     const totalCompletionTokens = (classificationData.usage?.completion_tokens || 0) + (analysisData.usage?.completion_tokens || 0);
     const totalTokens = totalPromptTokens + totalCompletionTokens;
@@ -167,6 +253,8 @@ Return ONLY a JSON object with this format:
     
     const cost = (totalPromptTokens / 1000 * pricing[modelUsed].input) + 
                  (totalCompletionTokens / 1000 * pricing[modelUsed].output);
+
+    const processingTime = Date.now() - startTime;
 
     // Log API usage and cost
     await supabaseClient
@@ -182,7 +270,10 @@ Return ONLY a JSON object with this format:
         category: category
       });
 
-    console.log(`Auto-classification and analysis completed. Category: ${category}, Cost: $${cost.toFixed(6)}`);
+    // Log successful completion
+    await logProcessingStatus(supabaseClient, user.id, imageUrl, 'completed', imageProcessingMethod);
+
+    console.log(`Auto-classification and analysis completed. Category: ${category}, Cost: $${cost.toFixed(6)}, Time: ${processingTime}ms, Method: ${imageProcessingMethod}`);
 
     return new Response(JSON.stringify({ 
       category: category,
@@ -191,7 +282,9 @@ Return ONLY a JSON object with this format:
       metadata: {
         model: modelUsed,
         tokens: totalTokens,
-        cost: cost
+        cost: cost,
+        processingTime: processingTime,
+        imageProcessingMethod: imageProcessingMethod
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -200,7 +293,29 @@ Return ONLY a JSON object with this format:
 
   } catch (error) {
     console.error("Error in auto-classify-and-analyze function:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Log error if we have user context
+    try {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await supabaseClient.auth.getUser(token);
+        if (user) {
+          await logProcessingStatus(supabaseClient, user.id, null, 'failed', 'unknown', error.message);
+        }
+      }
+    } catch (logError) {
+      console.error("Failed to log error:", logError);
+    }
+
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -110,15 +110,14 @@ const PermissionManager = () => {
           const hasValidCaretaker = (
             request.caretaker && 
             typeof request.caretaker === 'object' &&
-            !('error' in request.caretaker) &&
+            !Array.isArray(request.caretaker) &&
             'full_name' in request.caretaker &&
             'email' in request.caretaker &&
-            typeof (request.caretaker as any).full_name === 'string' &&
-            typeof (request.caretaker as any).email === 'string'
+            typeof request.caretaker.full_name === 'string' &&
+            typeof request.caretaker.email === 'string'
           );
 
           if (hasValidCaretaker) {
-            const caretaker = request.caretaker as { full_name: string; email: string };
             validRequests.push({
               id: request.id,
               caretaker_id: request.caretaker_id,
@@ -127,8 +126,8 @@ const PermissionManager = () => {
               message: request.message,
               created_at: request.created_at,
               caretaker: {
-                full_name: caretaker.full_name,
-                email: caretaker.email
+                full_name: request.caretaker.full_name as string,
+                email: request.caretaker.email as string
               }
             });
           }
