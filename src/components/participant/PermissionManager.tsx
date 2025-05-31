@@ -103,17 +103,28 @@ const PermissionManager = () => {
         .eq('status', 'pending');
 
       if (requestsData) {
-        // Filter out any requests with malformed caretaker data and properly type them
+        // Filter and type-safe transform the requests data
         const validRequests: PermissionRequest[] = requestsData
-          .filter(request => 
-            request.caretaker && 
-            typeof request.caretaker === 'object' &&
-            'full_name' in request.caretaker &&
-            'email' in request.caretaker
-          )
+          .filter((request): request is typeof request & { caretaker: { full_name: string; email: string } } => {
+            return request.caretaker !== null && 
+                   typeof request.caretaker === 'object' &&
+                   !('error' in request.caretaker) &&
+                   'full_name' in request.caretaker &&
+                   'email' in request.caretaker &&
+                   typeof request.caretaker.full_name === 'string' &&
+                   typeof request.caretaker.email === 'string';
+          })
           .map(request => ({
-            ...request,
-            caretaker: request.caretaker as { full_name: string; email: string; }
+            id: request.id,
+            caretaker_id: request.caretaker_id,
+            category: request.category,
+            status: request.status,
+            message: request.message,
+            created_at: request.created_at,
+            caretaker: {
+              full_name: request.caretaker.full_name,
+              email: request.caretaker.email
+            }
           }));
         
         setPendingRequests(validRequests);
