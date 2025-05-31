@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,32 +121,34 @@ const Dashboard = () => {
           <p className="text-gray-600">Welcome back! Here's your health overview.</p>
         </div>
 
-        {/* Usage Status */}
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-blue-500" />
-                  Today's Usage
-                </CardTitle>
-                <CardDescription>
-                  {stats.isSubscribed ? "Unlimited analyses available" : `${stats.usageToday}/2 free analyses used`}
-                </CardDescription>
+        {/* Usage Status - Only show for non-subscribed users */}
+        {!stats.isSubscribed && (
+          <Card className="border-l-4 border-l-blue-500">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-blue-500" />
+                    Today's Usage
+                  </CardTitle>
+                  <CardDescription>
+                    {`${stats.usageToday}/2 free analyses used`}
+                  </CardDescription>
+                </div>
+                <Badge variant={stats.usageToday >= 2 ? "destructive" : "secondary"}>
+                  {stats.usageToday >= 2 ? "Limit Reached" : "Free Trial"}
+                </Badge>
               </div>
-              <Badge variant={stats.isSubscribed ? "default" : stats.usageToday >= 2 ? "destructive" : "secondary"}>
-                {stats.isSubscribed ? "Pro" : stats.usageToday >= 2 ? "Limit Reached" : "Free Trial"}
-              </Badge>
-            </div>
-          </CardHeader>
-          {!stats.isSubscribed && stats.usageToday >= 2 && (
-            <CardContent>
-              <Button onClick={() => navigate("/billing")} className="w-full">
-                Upgrade to Pro for Unlimited Access
-              </Button>
-            </CardContent>
-          )}
-        </Card>
+            </CardHeader>
+            {stats.usageToday >= 2 && (
+              <CardContent>
+                <Button onClick={() => navigate("/billing")} className="w-full">
+                  Upgrade to Pro for Unlimited Access
+                </Button>
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

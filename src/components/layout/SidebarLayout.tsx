@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
   LayoutDashboard,
@@ -17,7 +19,8 @@ import {
   Settings,
   Users,
   UserCheck,
-  User
+  User,
+  Crown
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +35,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('user');
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const [caretakerMode, setCaretakerMode] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
 
@@ -41,15 +45,18 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       if (user) {
         setUser(user);
         
-        // Fetch user role from database
+        // Fetch user role and subscription status from database
         const { data: userData } = await supabase
           .from('users')
-          .select('role')
+          .select('role, is_subscribed')
           .eq('id', user.id)
           .single();
         
         if (userData?.role) {
           setUserRole(userData.role);
+        }
+        if (userData?.is_subscribed !== undefined) {
+          setIsSubscribed(userData.is_subscribed);
         }
 
         // Load mode preference from localStorage
@@ -189,9 +196,17 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
-              {user?.user_metadata?.full_name || user?.email}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium truncate">
+                {user?.user_metadata?.full_name || user?.email}
+              </p>
+              {isSubscribed && (
+                <Badge variant="default" className="bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 text-xs">
+                  <Crown className="h-3 w-3 mr-1" />
+                  Pro
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
             {userRole !== 'user' && (
               <p className="text-xs text-blue-600 capitalize">{userRole}</p>
