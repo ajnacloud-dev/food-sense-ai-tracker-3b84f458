@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -85,19 +84,31 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     toast.success(`Switched to ${checked ? 'Caretaker' : 'User'} mode`);
   };
 
-  // Check if user has caretaker capabilities
+  // Check if user is admin
+  const isAdmin = userRole === 'admin';
+  
+  // Check if user has caretaker capabilities (for mode toggle)
   const hasCaretakerCapabilities = ['caretaker', 'dietitian', 'admin'].includes(userRole);
 
   // Define menu items based on current mode
-  const getUserModeItems = () => [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Camera, label: "Capture", path: "/capture" },
-    { icon: Utensils, label: "Food Analysis", path: "/food" },
-    { icon: Receipt, label: "Receipts", path: "/receipts" },
-    { icon: Dumbbell, label: "Workouts", path: "/workouts" },
-    { icon: BarChart3, label: "Insights", path: "/insights" },
-    { icon: CreditCard, label: "Billing", path: "/billing" },
-  ];
+  const getUserModeItems = () => {
+    const items = [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+      { icon: Camera, label: "Capture", path: "/capture" },
+      { icon: Utensils, label: "Food Analysis", path: "/food" },
+      { icon: Receipt, label: "Receipts", path: "/receipts" },
+      { icon: Dumbbell, label: "Workouts", path: "/workouts" },
+      { icon: BarChart3, label: "Insights", path: "/insights" },
+      { icon: CreditCard, label: "Billing", path: "/billing" },
+    ];
+    
+    // Admin users always see Admin menu regardless of mode
+    if (isAdmin) {
+      items.push({ icon: Settings, label: "Admin", path: "/admin" });
+    }
+    
+    return items;
+  };
 
   const getCaretakerModeItems = () => {
     const items = [
@@ -105,7 +116,8 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       { icon: BarChart3, label: "Insights", path: "/insights" },
     ];
     
-    if (userRole === 'admin') {
+    // Admin users always see Admin menu regardless of mode
+    if (isAdmin) {
       items.push({ icon: Settings, label: "Admin", path: "/admin" });
     }
     
