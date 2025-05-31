@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,14 +43,14 @@ const Capture = () => {
         .single();
 
       if (!userData?.is_subscribed) {
-        const { data: usage } = await supabase
+        const { data: currentUsage } = await supabase
           .from('api_usage_log')
           .select('usage_count')
           .eq('user_id', user.id)
           .eq('usage_date', today)
           .single();
 
-        if (usage && usage.usage_count >= 2) {
+        if (currentUsage && currentUsage.usage_count >= 2) {
           toast.error("Daily limit reached. Upgrade to Pro for unlimited access.");
           navigate("/billing");
           return;
@@ -138,7 +137,7 @@ const Capture = () => {
           .upsert({
             user_id: user.id,
             usage_date: today,
-            usage_count: (usage?.usage_count || 0) + 1
+            usage_count: (currentUsage?.usage_count || 0) + 1
           });
       }
 
