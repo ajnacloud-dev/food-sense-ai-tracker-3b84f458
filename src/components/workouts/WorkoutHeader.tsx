@@ -1,16 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Edit, Save, X, Dumbbell } from "lucide-react";
-
-interface WorkoutEntry {
-  id: string;
-  workout_type: string;
-  duration: number;
-  calories_burned: number;
-  notes: string;
-  created_at: string;
-}
+import { WorkoutEntry } from "@/types/workout";
 
 interface WorkoutHeaderProps {
   workout: WorkoutEntry;

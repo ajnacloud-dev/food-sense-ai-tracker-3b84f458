@@ -1,15 +1,6 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-interface WorkoutEntry {
-  id: string;
-  workout_type: string;
-  duration: number;
-  calories_burned: number;
-  notes: string;
-  created_at: string;
-}
+import { WorkoutEntry } from "@/types/workout";
 
 interface WorkoutExercisesProps {
   workout: WorkoutEntry;

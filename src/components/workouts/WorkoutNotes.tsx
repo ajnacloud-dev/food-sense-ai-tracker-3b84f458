@@ -1,15 +1,6 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-
-interface WorkoutEntry {
-  id: string;
-  workout_type: string;
-  duration: number;
-  calories_burned: number;
-  notes: string;
-  created_at: string;
-}
+import { WorkoutEntry } from "@/types/workout";
 
 interface WorkoutNotesProps {
   workout: WorkoutEntry;

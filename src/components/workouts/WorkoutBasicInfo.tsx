@@ -1,19 +1,8 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Clock, Flame } from "lucide-react";
-
-type WorkoutType = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
-
-interface WorkoutEntry {
-  id: string;
-  workout_type: WorkoutType;
-  duration: number;
-  calories_burned: number;
-  notes: string;
-  created_at: string;
-}
+import { WorkoutType, WorkoutEntry } from "@/types/workout";
 
 interface WorkoutBasicInfoProps {
   workout: WorkoutEntry;

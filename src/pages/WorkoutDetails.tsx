@@ -1,14 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Edit, Save, X, Dumbbell, Clock, Flame, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
@@ -17,17 +10,7 @@ import { WorkoutBasicInfo } from "@/components/workouts/WorkoutBasicInfo";
 import { WorkoutAnalysis } from "@/components/workouts/WorkoutAnalysis";
 import { WorkoutExercises } from "@/components/workouts/WorkoutExercises";
 import { WorkoutNotes } from "@/components/workouts/WorkoutNotes";
-
-type WorkoutType = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
-
-interface WorkoutEntry {
-  id: string;
-  workout_type: WorkoutType;
-  duration: number;
-  calories_burned: number;
-  notes: string;
-  created_at: string;
-}
+import { WorkoutType, WorkoutEntry } from "@/types/workout";
 
 const WorkoutDetails = () => {
   const { id } = useParams();
@@ -136,7 +119,7 @@ const WorkoutDetails = () => {
               workout={workout}
               editing={editing}
               editedData={editedData}
-              onEditedDataChange={setEditedData}
+              onEditedDataChange={(data) => setEditedData({ ...editedData, ...data })}
             />
           </div>
 
@@ -162,7 +145,7 @@ const WorkoutDetails = () => {
                   workout={workout}
                   editing={editing}
                   editedData={editedData}
-                  onEditedDataChange={setEditedData}
+                  onEditedDataChange={(data) => setEditedData({ ...editedData, ...data })}
                 />
               </TabsContent>
             </Tabs>
