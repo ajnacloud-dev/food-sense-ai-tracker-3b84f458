@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import {
   LayoutDashboard,
   Camera,
@@ -14,7 +16,9 @@ import {
   LogOut,
   Brain,
   Settings,
-  Users
+  Users,
+  UserCheck,
+  User
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +33,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const location = useLocation();
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('user');
+  const [caretakerMode, setCaretakerMode] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -47,6 +52,12 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         if (userData?.role) {
           setUserRole(userData.role);
         }
+
+        // Load mode preference from localStorage
+        const savedMode = localStorage.getItem('caretaker_mode');
+        if (savedMode === 'true') {
+          setCaretakerMode(true);
+        }
       } else {
         navigate("/auth");
       }
@@ -60,7 +71,25 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     navigate("/");
   };
 
-  const menuItems = [
+  const handleModeToggle = (checked: boolean) => {
+    setCaretakerMode(checked);
+    localStorage.setItem('caretaker_mode', checked.toString());
+    
+    // Navigate to appropriate dashboard based on mode
+    if (checked) {
+      navigate("/caretaker");
+    } else {
+      navigate("/dashboard");
+    }
+    
+    toast.success(`Switched to ${checked ? 'Caretaker' : 'User'} mode`);
+  };
+
+  // Check if user has caretaker capabilities
+  const hasCaretakerCapabilities = ['caretaker', 'dietitian', 'admin'].includes(userRole);
+
+  // Define menu items based on current mode
+  const getUserModeItems = () => [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
     { icon: Camera, label: "Capture", path: "/capture" },
     { icon: Utensils, label: "Food Analysis", path: "/food" },
@@ -70,14 +99,20 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     { icon: CreditCard, label: "Billing", path: "/billing" },
   ];
 
-  // Add role-specific menu items
-  if (userRole === 'caretaker' || userRole === 'dietitian') {
-    menuItems.push({ icon: Users, label: "My Patients", path: "/caretaker" });
-  }
+  const getCaretakerModeItems = () => {
+    const items = [
+      { icon: Users, label: "My Patients", path: "/caretaker" },
+      { icon: BarChart3, label: "Insights", path: "/insights" },
+    ];
+    
+    if (userRole === 'admin') {
+      items.push({ icon: Settings, label: "Admin", path: "/admin" });
+    }
+    
+    return items;
+  };
 
-  if (userRole === 'admin') {
-    menuItems.push({ icon: Settings, label: "Admin", path: "/admin" });
-  }
+  const menuItems = caretakerMode ? getCaretakerModeItems() : getUserModeItems();
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -108,6 +143,32 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       </nav>
 
       <div className="p-4 border-t">
+        {/* Mode Toggle - Only show for users with caretaker capabilities */}
+        {hasCaretakerCapabilities && (
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                {caretakerMode ? (
+                  <UserCheck className="h-4 w-4 text-blue-600" />
+                ) : (
+                  <User className="h-4 w-4 text-gray-600" />
+                )}
+                <span className="text-sm font-medium">
+                  {caretakerMode ? 'Caretaker Mode' : 'User Mode'}
+                </span>
+              </div>
+              <Switch
+                checked={caretakerMode}
+                onCheckedChange={handleModeToggle}
+                aria-label="Toggle caretaker mode"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {caretakerMode ? 'Managing patients' : 'Personal dashboard'}
+            </p>
+          </div>
+        )}
+
         <div className="flex items-center space-x-3 mb-4">
           <Avatar>
             <AvatarImage src={user?.user_metadata?.avatar_url} />

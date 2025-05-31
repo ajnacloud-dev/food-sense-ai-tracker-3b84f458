@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Utensils, Receipt, Dumbbell, TrendingUp, Plus, Zap, Heart } from "lucide-react";
+import { Utensils, Receipt, Dumbbell, TrendingUp, Plus, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
@@ -111,18 +111,6 @@ const Dashboard = () => {
     }
   ];
 
-  // Add caretaker dashboard option for eligible users
-  const isCaretakerRole = ['caretaker', 'dietitian', 'admin'].includes(stats.userRole);
-  if (isCaretakerRole) {
-    quickActions.push({
-      icon: Heart,
-      title: "Caretaker Dashboard",
-      description: "Monitor your patients",
-      action: () => navigate("/caretaker"),
-      color: "bg-pink-500"
-    });
-  }
-
   return (
     <SidebarLayout>
       <div className="space-y-6">
@@ -130,28 +118,6 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here's your health overview.</p>
         </div>
-
-        {/* Caretaker Access Banner */}
-        {isCaretakerRole && (
-          <Card className="border-l-4 border-l-pink-500 bg-pink-50">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Heart className="h-5 w-5 text-pink-500" />
-                    Caretaker Access Available
-                  </CardTitle>
-                  <CardDescription>
-                    You have caretaker permissions. Access your patient dashboard to monitor and support their health journey.
-                  </CardDescription>
-                </div>
-                <Button onClick={() => navigate("/caretaker")} className="bg-pink-500 hover:bg-pink-600">
-                  Open Caretaker Dashboard
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
-        )}
 
         {/* Usage Status */}
         <Card className="border-l-4 border-l-blue-500">
