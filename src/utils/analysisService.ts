@@ -49,7 +49,11 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
     throw insertError;
   }
   
-  if (!data || !data.id) {
+  if (!data) {
+    throw new Error('No data returned from insert operation');
+  }
+  
+  if (!data.id) {
     throw new Error('No ID returned from insert operation');
   }
   
