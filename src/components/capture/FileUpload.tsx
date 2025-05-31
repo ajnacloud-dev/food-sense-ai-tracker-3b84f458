@@ -1,5 +1,5 @@
 
-import { Upload } from "lucide-react";
+import { Upload, Image } from "lucide-react";
 import { toast } from "sonner";
 
 interface FileUploadProps {
@@ -21,38 +21,65 @@ export const FileUpload = ({ file, onFileChange }: FileUploadProps) => {
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       if (!allowedTypes.includes(selectedFile.type)) {
-        toast.error("Please upload a valid image file (JPEG, PNG, WebP, or GIF)");
+        toast.error("Please upload a valid image file");
         return;
       }
       
       onFileChange(selectedFile);
-      toast.success(`File selected: ${selectedFile.name}`);
+      toast.success(`Image selected: ${selectedFile.name}`);
     }
+  };
+
+  const handleRemoveFile = () => {
+    onFileChange(null);
+    toast.success("Image removed");
   };
 
   return (
     <div className="space-y-2">
-      <label htmlFor="image" className="text-sm font-medium">Upload Image (Optional)</label>
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-        <input
-          id="image"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <label htmlFor="image" className="cursor-pointer">
-          <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-sm text-gray-600">
-            {file ? (
-              <span className="text-green-600 font-medium">{file.name}</span>
-            ) : (
-              "Click to upload or drag and drop"
-            )}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">JPEG, PNG, WebP, GIF up to 10MB</p>
-        </label>
-      </div>
+      <label htmlFor="image" className="text-sm font-medium">Upload Image</label>
+      
+      {file ? (
+        <div className="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Image className="h-8 w-8 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-green-800">{file.name}</p>
+                <p className="text-xs text-green-600">
+                  {(file.size / 1024 / 1024).toFixed(1)} MB
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleRemoveFile}
+              className="text-xs text-red-600 hover:text-red-800 px-2 py-1 hover:bg-red-50 rounded"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+          <input
+            id="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <label htmlFor="image" className="cursor-pointer block p-6 text-center">
+            <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+            <p className="text-sm text-gray-600 mb-1">
+              Tap to upload an image
+            </p>
+            <p className="text-xs text-gray-500">
+              JPEG, PNG, WebP, GIF up to 10MB
+            </p>
+          </label>
+        </div>
+      )}
     </div>
   );
 };

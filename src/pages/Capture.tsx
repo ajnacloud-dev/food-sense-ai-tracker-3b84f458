@@ -3,15 +3,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Camera, Loader2, Workflow } from "lucide-react";
+import { Sparkles, Camera, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FileUpload } from "@/components/capture/FileUpload";
-import { ProcessingMethodSelector } from "@/components/capture/ProcessingMethodSelector";
 import { ProcessingIndicator } from "@/components/capture/ProcessingIndicator";
-import { ProcessingTips } from "@/components/capture/ProcessingTips";
 import { insertAnalysisResult, uploadImage } from "@/utils/analysisService";
 import { navigateToCategory } from "@/utils/navigationUtils";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
@@ -21,7 +19,6 @@ const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
-  const [processingMethod, setProcessingMethod] = useState<'standard' | 'langgraph'>('standard');
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const navigate = useNavigate();
   const { checkUsageLimits, updateUsageLog } = useUsageCheck();
@@ -48,7 +45,7 @@ const Capture = () => {
     }
 
     setLoading(true);
-    setUploadProgress('Initializing...');
+    setUploadProgress('Preparing...');
     
     try {
       setUploadProgress('Checking usage limits...');
@@ -63,52 +60,46 @@ const Capture = () => {
       if (file) {
         setUploadProgress('Uploading image...');
         imageUrl = await uploadImage(file, user.id);
-        setUploadProgress('Image uploaded successfully...');
       }
 
       setUploadProgress('AI is analyzing your content...');
 
-      if (processingMethod === 'langgraph') {
-        console.log('Using LangGraph workflow for analysis...');
+      // Use intelligent auto-selection of processing method
+      // For most users, standard processing is optimal
+      const useAdvancedProcessing = userData?.is_subscribed || false;
+
+      if (useAdvancedProcessing) {
+        console.log('Using advanced workflow for subscribed user...');
         
         const { data: workflowResult, error: workflowError } = await supabase.functions
           .invoke('langgraph-workflow', {
             body: {
               description,
               imageUrl,
-              workflowConfig: null // Use default workflow
+              workflowConfig: null
             }
           });
 
         if (workflowError) {
-          console.error('LangGraph workflow error:', workflowError);
-          throw new Error(workflowError.message || 'LangGraph workflow failed');
+          console.error('Advanced workflow error:', workflowError);
+          throw new Error(workflowError.message || 'Analysis failed');
         }
 
         if (!workflowResult.success) {
-          throw new Error(workflowResult.error || 'Workflow execution failed');
+          throw new Error(workflowResult.error || 'Analysis failed');
         }
 
         const { classification, analysis, enrichment, validation, metadata } = workflowResult.result;
-        
-        console.log('LangGraph workflow completed:', {
-          category: classification?.category,
-          tokens: metadata?.tokensUsed,
-          cost: metadata?.costs
-        });
-
-        // Use the final validation result or fall back to analysis
         const finalAnalysis = validation?.cleanedData || analysis;
         const category = classification?.category;
 
-        // Insert into appropriate table based on classification
         const entryId = await insertAnalysisResult(user.id, category, finalAnalysis, imageUrl, description);
         
-        toast.success(`LangGraph analysis complete! Category: ${category}. Cost: $${metadata?.costs?.toFixed(6) || '0.00'}`);
+        toast.success(`Analysis complete! Categorized as ${category}`);
         navigateToCategory(navigate, category, entryId);
 
       } else {
-        console.log('Using standard auto-classification...');
+        console.log('Using standard analysis...');
 
         const { data: analysisResult, error: analysisError } = await supabase.functions
           .invoke('auto-classify-and-analyze', {
@@ -123,28 +114,26 @@ const Capture = () => {
           throw new Error(analysisError.message || 'Analysis failed');
         }
 
-        const { category, analysis, metadata } = analysisResult;
-        console.log('Standard analysis completed:', {
-          category,
-          method: metadata?.imageProcessingMethod,
-          cost: metadata?.cost
-        });
+        const { category, analysis } = analysisResult;
 
-        // Insert into appropriate table based on AI classification
         const entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
 
-        toast.success(`AI classified as ${category}! Analysis complete. Cost: $${metadata?.cost?.toFixed(6) || '0.00'}`);
+        toast.success(`AI classified as ${category}! Analysis complete.`);
         navigateToCategory(navigate, category, entryId);
       }
 
-      // Update usage log
+      // Update usage log for non-subscribed users
       if (!userData?.is_subscribed) {
         await updateUsageLog(user.id, currentUsage);
       }
 
+      // Reset form
+      setFile(null);
+      setDescription("");
+
     } catch (error: any) {
       console.error('Processing error:', error);
-      toast.error(error.message || "Failed to process upload");
+      toast.error(error.message || "Failed to process content");
     } finally {
       setLoading(false);
       setUploadProgress('');
@@ -152,50 +141,50 @@ const Capture = () => {
   };
 
   if (!user) {
-    return null; // Will redirect in useEffect
+    return null;
   }
 
   return (
     <SidebarLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Sparkles className="h-8 w-8 text-blue-500" />
-            AI Smart Capture
+      <div className="max-w-lg mx-auto space-y-4 p-4">
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
+            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-blue-500" />
+            Smart Capture
           </h1>
-          <p className="text-gray-600">AI will automatically identify and analyze your content</p>
+          <p className="text-sm md:text-base text-gray-600">
+            AI will automatically analyze and organize your content
+          </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Camera className="h-5 w-5" />
-              Intelligent Auto-Classification
+              Capture & Analyze
             </CardTitle>
-            <CardDescription>
-              Advanced AI will automatically classify your content and extract detailed information
+            <CardDescription className="text-sm">
+              Upload an image or describe what you want to track
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <ProcessingMethodSelector 
-                value={processingMethod} 
-                onChange={setProcessingMethod} 
-              />
-
+            <form onSubmit={handleSubmit} className="space-y-4">
               <FileUpload 
                 file={file} 
                 onFileChange={setFile} 
               />
 
               <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-medium">Description (Optional)</label>
+                <label htmlFor="description" className="text-sm font-medium">
+                  Description (Optional)
+                </label>
                 <Textarea
                   id="description"
-                  placeholder="Describe what you're capturing... (AI will use this to improve classification accuracy)"
+                  placeholder="Describe what you're capturing..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
+                  rows={3}
+                  className="text-base"
                 />
               </div>
 
@@ -204,19 +193,20 @@ const Capture = () => {
                 progress={uploadProgress} 
               />
 
-              <Button type="submit" disabled={loading || (!file && !description)} className="w-full">
+              <Button 
+                type="submit" 
+                disabled={loading || (!file && !description)} 
+                className="w-full h-12 text-base"
+                size="lg"
+              >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {processingMethod === 'langgraph' ? 'Running LangGraph workflow...' : 'AI is analyzing and classifying...'}
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Analyzing...
                   </>
                 ) : (
                   <>
-                    {processingMethod === 'langgraph' ? (
-                      <Workflow className="mr-2 h-4 w-4" />
-                    ) : (
-                      <Sparkles className="mr-2 h-4 w-4" />
-                    )}
+                    <Sparkles className="mr-2 h-5 w-5" />
                     Analyze with AI
                   </>
                 )}
@@ -225,7 +215,11 @@ const Capture = () => {
           </CardContent>
         </Card>
 
-        <ProcessingTips />
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            AI will automatically categorize and extract insights from your content
+          </p>
+        </div>
       </div>
     </SidebarLayout>
   );
