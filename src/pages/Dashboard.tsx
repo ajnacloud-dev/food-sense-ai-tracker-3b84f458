@@ -6,6 +6,7 @@ import { Utensils, Receipt, Dumbbell, TrendingUp, Plus, Zap } from "lucide-react
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -215,6 +216,8 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+      
+      <FloatingCaptureButton />
     </SidebarLayout>
   );
 };

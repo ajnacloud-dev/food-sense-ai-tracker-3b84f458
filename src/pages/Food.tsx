@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 
 interface FoodEntry {
   id: string;
@@ -278,6 +278,7 @@ const Food = () => {
           </CardContent>
         </Card>
       </div>
+      <FloatingCaptureButton />
     </SidebarLayout>
   );
 };

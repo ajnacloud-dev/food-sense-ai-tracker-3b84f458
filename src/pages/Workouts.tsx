@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { WorkoutStatsCards } from "@/components/workouts/WorkoutStatsCards";
 import { WorkoutTable } from "@/components/workouts/WorkoutTable";
 import { WorkoutCards } from "@/components/workouts/WorkoutCards";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 
 interface WorkoutEntry {
   id: string;
@@ -188,6 +188,7 @@ const Workouts = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <FloatingCaptureButton />
     </SidebarLayout>
   );
 };
