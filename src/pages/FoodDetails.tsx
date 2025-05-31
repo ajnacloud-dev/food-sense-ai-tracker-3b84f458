@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Edit, Save, X, Utensils, Flame } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
@@ -83,6 +83,21 @@ const FoodDetails = () => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   if (loading) {
     return (
       <SidebarLayout>
@@ -105,94 +120,118 @@ const FoodDetails = () => {
 
   return (
     <SidebarLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={() => navigate("/food")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Food
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Utensils className="h-8 w-8 text-green-500" />
-                Food Details
-              </h1>
-              <p className="text-gray-600">View and edit your food entry</p>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <Button variant="outline" size="sm" onClick={() => navigate("/food")}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Utensils className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Food Details</h1>
+                  <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>{formatDate(foodEntry.created_at)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="h-3 w-3" />
+                      <span>{formatTime(foodEntry.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+            {!editing ? (
+              <Button onClick={() => setEditing(true)} size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button onClick={handleSave} size="sm">
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {setEditing(false); setEditedData(foodEntry);}}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            )}
           </div>
-          {!editing ? (
-            <Button onClick={() => setEditing(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button onClick={handleSave}>
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-              <Button variant="outline" onClick={() => {setEditing(false); setEditedData(foodEntry);}}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-            </div>
-          )}
         </div>
 
-        {/* Image */}
-        {foodEntry.image_url && (
-          <Card>
-            <CardContent className="p-6">
-              <img
-                src={foodEntry.image_url}
-                alt="Food"
-                className="w-full max-w-md mx-auto rounded-lg shadow-md"
-              />
-            </CardContent>
-          </Card>
-        )}
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Image and Basic Info */}
+          <div className="space-y-6">
+            {/* Image */}
+            {foodEntry.image_url && (
+              <Card>
+                <CardContent className="p-0">
+                  <img
+                    src={foodEntry.image_url}
+                    alt="Food"
+                    className="w-full h-64 object-cover rounded-lg"
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Basic Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Description</label>
-              {editing ? (
-                <Textarea
-                  value={editedData.description || ''}
-                  onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
-                  className="mt-1"
-                />
-              ) : (
-                <p className="text-gray-900 mt-1">{foodEntry.description}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium">Calories</label>
-              {editing ? (
-                <Input
-                  type="number"
-                  value={editedData.calories || 0}
-                  onChange={(e) => setEditedData({ ...editedData, calories: parseInt(e.target.value) || 0 })}
-                  className="mt-1"
-                />
-              ) : (
-                <div className="flex items-center gap-2 mt-1">
-                  <Flame className="h-4 w-4 text-orange-500" />
-                  <span className="text-gray-900">{foodEntry.calories || 0} calories</span>
+            {/* Basic Info */}
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Description</label>
+                  {editing ? (
+                    <Textarea
+                      value={editedData.description || ''}
+                      onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
+                      className="min-h-[100px]"
+                      placeholder="Describe your food..."
+                    />
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-3 min-h-[100px]">
+                      <p className="text-gray-900">{foodEntry.description || 'No description provided'}</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Calories</label>
+                  {editing ? (
+                    <Input
+                      type="number"
+                      value={editedData.calories || 0}
+                      onChange={(e) => setEditedData({ ...editedData, calories: parseInt(e.target.value) || 0 })}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-3 bg-orange-50 rounded-lg p-3">
+                      <Flame className="h-5 w-5 text-orange-500" />
+                      <span className="text-lg font-semibold text-orange-700">{foodEntry.calories || 0} calories</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Comprehensive Nutrition Display */}
-        {foodEntry.extracted_nutrients && (
-          <NutritionDisplay nutritionData={foodEntry.extracted_nutrients} />
-        )}
+          {/* Right Column - Nutrition Data */}
+          <div className="lg:col-span-2">
+            {foodEntry.extracted_nutrients && (
+              <NutritionDisplay nutritionData={foodEntry.extracted_nutrients} />
+            )}
+          </div>
+        </div>
       </div>
     </SidebarLayout>
   );
