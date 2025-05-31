@@ -26,7 +26,7 @@ interface CostEntry {
   cost_usd: number;
   category: string;
   created_at: string;
-  users?: { email: string; full_name: string };
+  users?: { email: string; full_name: string } | null;
 }
 
 const AdminDashboard = () => {
@@ -82,7 +82,20 @@ const AdminDashboard = () => {
         totalAnalyses: allCosts?.length || 0
       });
 
-      setRecentCosts(costs || []);
+      // Filter out any entries where the join failed and map to proper type
+      const validCosts: CostEntry[] = (costs || []).map(cost => ({
+        id: cost.id,
+        user_id: cost.user_id,
+        function_name: cost.function_name,
+        model_used: cost.model_used,
+        total_tokens: cost.total_tokens,
+        cost_usd: cost.cost_usd,
+        category: cost.category || 'unknown',
+        created_at: cost.created_at,
+        users: Array.isArray(cost.users) ? cost.users[0] : cost.users
+      }));
+
+      setRecentCosts(validCosts);
 
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -201,7 +214,7 @@ const AdminDashboard = () => {
                       <TableCell>
                         <div>
                           <div className="font-medium">{cost.users?.full_name || 'Unknown'}</div>
-                          <div className="text-sm text-gray-500">{cost.users?.email}</div>
+                          <div className="text-sm text-gray-500">{cost.users?.email || 'Unknown'}</div>
                         </div>
                       </TableCell>
                       <TableCell>

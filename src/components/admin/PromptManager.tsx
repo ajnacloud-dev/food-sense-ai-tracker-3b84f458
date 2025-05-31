@@ -12,9 +12,11 @@ import { Plus, Edit, Trash2, Save, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type PromptCategory = 'food' | 'receipt' | 'workout' | 'general';
+
 interface Prompt {
   id: string;
-  category: string;
+  category: PromptCategory;
   name: string;
   system_prompt: string;
   user_prompt_template: string;
@@ -23,13 +25,21 @@ interface Prompt {
   updated_at: string;
 }
 
+interface FormData {
+  category: PromptCategory;
+  name: string;
+  system_prompt: string;
+  user_prompt_template: string;
+  is_active: boolean;
+}
+
 const PromptManager = () => {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     category: 'food',
     name: '',
     system_prompt: '',
@@ -131,7 +141,7 @@ const PromptManager = () => {
     }
   };
 
-  const categories = ['food', 'receipt', 'workout', 'general'];
+  const categories: PromptCategory[] = ['food', 'receipt', 'workout', 'general'];
 
   if (loading) {
     return <div>Loading prompts...</div>;
@@ -168,7 +178,7 @@ const PromptManager = () => {
                       id="category"
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value as PromptCategory })}
                     >
                       {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
