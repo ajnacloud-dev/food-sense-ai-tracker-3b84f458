@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Edit, Save, X, Dumbbell, Clock, Flame, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 
+type WorkoutType = 'cardio' | 'strength' | 'flexibility' | 'sports' | 'other';
+
 interface WorkoutEntry {
   id: string;
-  workout_type: string;
+  workout_type: WorkoutType;
   duration: number;
   calories_burned: number;
   notes: string;
@@ -65,14 +68,23 @@ const WorkoutDetails = () => {
 
   const handleSave = async () => {
     try {
+      // Ensure workout_type is valid
+      const allowedWorkoutTypes: WorkoutType[] = ['cardio', 'strength', 'flexibility', 'sports', 'other'];
+      const updateData = {
+        ...editedData,
+        workout_type: allowedWorkoutTypes.includes(editedData.workout_type as WorkoutType) 
+          ? editedData.workout_type as WorkoutType 
+          : 'other' as WorkoutType
+      };
+
       const { error } = await supabase
         .from('workouts')
-        .update(editedData)
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
 
-      setWorkout({ ...workout!, ...editedData });
+      setWorkout({ ...workout!, ...updateData });
       setEditing(false);
       toast.success("Workout updated successfully");
     } catch (error: any) {
@@ -247,11 +259,21 @@ const WorkoutDetails = () => {
             <div>
               <label className="text-sm font-medium">Workout Type</label>
               {editing ? (
-                <Input
-                  value={editedData.workout_type || ''}
-                  onChange={(e) => setEditedData({ ...editedData, workout_type: e.target.value })}
-                  className="mt-1"
-                />
+                <Select 
+                  value={editedData.workout_type || 'other'} 
+                  onValueChange={(value: WorkoutType) => setEditedData({ ...editedData, workout_type: value })}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cardio">Cardio</SelectItem>
+                    <SelectItem value="strength">Strength</SelectItem>
+                    <SelectItem value="flexibility">Flexibility</SelectItem>
+                    <SelectItem value="sports">Sports</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               ) : (
                 <div className="mt-1">
                   <Badge className={getWorkoutTypeColor(workout.workout_type)}>

@@ -47,7 +47,6 @@ const Capture = () => {
     };
 
     let tableName = '';
-    let insertedId = '';
 
     switch (category) {
       case 'food':
@@ -65,7 +64,10 @@ const Capture = () => {
         break;
       case 'workout':
         tableName = 'workouts';
-        insertData.workout_type = analysis.workout_summary?.workout_type || analysis.type || 'other';
+        const workoutType = analysis.workout_summary?.workout_type || analysis.type || 'other';
+        // Ensure workout type is one of the allowed enum values
+        const allowedWorkoutTypes = ['cardio', 'strength', 'flexibility', 'sports', 'other'];
+        insertData.workout_type = allowedWorkoutTypes.includes(workoutType) ? workoutType : 'other';
         insertData.duration = analysis.workout_summary?.duration_minutes || analysis.duration || 0;
         insertData.calories_burned = analysis.workout_summary?.estimated_calories_burned || analysis.calories || 0;
         insertData.notes = JSON.stringify(analysis);
@@ -77,10 +79,17 @@ const Capture = () => {
     const { data, error: insertError } = await supabase
       .from(tableName as any)
       .insert(insertData)
-      .select()
+      .select('id')
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      throw insertError;
+    }
+    
+    if (!data || !data.id) {
+      throw new Error('No data returned from insert operation');
+    }
     
     return data.id;
   };
