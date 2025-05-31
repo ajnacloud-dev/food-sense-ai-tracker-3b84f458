@@ -3,12 +3,16 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dumbbell, Clock, Flame, Plus, Trash2, Activity, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { WorkoutStatsCards } from "@/components/workouts/WorkoutStatsCards";
+import { WorkoutTable } from "@/components/workouts/WorkoutTable";
+import { WorkoutCards } from "@/components/workouts/WorkoutCards";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface WorkoutEntry {
   id: string;
@@ -21,6 +25,7 @@ interface WorkoutEntry {
 
 const Workouts = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -84,40 +89,6 @@ const Workouts = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) {
-      return `${minutes}m`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
-  };
-
-  const getWorkoutTypeColor = (type: string) => {
-    switch (type) {
-      case 'cardio':
-        return 'bg-red-100 text-red-800';
-      case 'strength':
-        return 'bg-blue-100 text-blue-800';
-      case 'flexibility':
-        return 'bg-green-100 text-green-800';
-      case 'sports':
-        return 'bg-orange-100 text-orange-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   if (loading) {
     return (
       <SidebarLayout>
@@ -128,151 +99,94 @@ const Workouts = () => {
     );
   }
 
+  const recentWorkouts = workouts.slice(0, 5);
+  const allWorkouts = workouts;
+
   return (
     <SidebarLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Workouts</h1>
             <p className="text-gray-600">Track your fitness progress and activity</p>
           </div>
-          <Button onClick={() => navigate("/capture")} className="flex items-center gap-2">
+          <Button onClick={() => navigate("/capture")} className="flex items-center gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             Add Workout
           </Button>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Workouts</CardTitle>
-              <Dumbbell className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalWorkouts}</div>
-              <p className="text-xs text-muted-foreground">Sessions completed</p>
-            </CardContent>
-          </Card>
+        <WorkoutStatsCards stats={stats} />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Duration</CardTitle>
-              <Clock className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatDuration(stats.totalDuration)}</div>
-              <p className="text-xs text-muted-foreground">Time exercised</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Calories Burned</CardTitle>
-              <Flame className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCalories.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Total burned</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Duration</CardTitle>
-              <Activity className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatDuration(stats.avgDuration)}</div>
-              <p className="text-xs text-muted-foreground">Per workout</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Workouts Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Workout History</CardTitle>
-            <CardDescription>Your fitness activities and performance tracking</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {workouts.length === 0 ? (
-              <div className="text-center py-8">
-                <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No workouts yet</h3>
-                <p className="text-gray-600 mb-4">Start tracking your fitness by adding your first workout</p>
-                <Button onClick={() => navigate("/capture")}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Workout
-                </Button>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Calories</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workouts.map((workout) => (
-                    <TableRow key={workout.id}>
-                      <TableCell>
-                        <Badge className={getWorkoutTypeColor(workout.workout_type)}>
-                          {workout.workout_type?.charAt(0).toUpperCase() + workout.workout_type?.slice(1) || 'Other'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-gray-500" />
-                          {formatDuration(workout.duration || 0)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Flame className="h-3 w-3 text-orange-500" />
-                          {workout.calories_burned || 0} cal
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-xs truncate text-sm text-gray-600">
-                          {workout.notes || 'No notes'}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {formatDate(workout.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/workouts/${workout.id}`)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteWorkout(workout.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        {/* Workouts Content */}
+        <Tabs defaultValue="recent" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="recent">Recent Workouts</TabsTrigger>
+            <TabsTrigger value="all">All Workouts</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="recent" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Your latest 5 workouts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {recentWorkouts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No workouts yet</h3>
+                    <p className="text-gray-600 mb-4">Start tracking your fitness by adding your first workout</p>
+                    <Button onClick={() => navigate("/capture")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Workout
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {isMobile ? (
+                      <WorkoutCards workouts={recentWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
+                    ) : (
+                      <WorkoutTable workouts={recentWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="all" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Workouts</CardTitle>
+                <CardDescription>Complete workout history</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {allWorkouts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No workouts yet</h3>
+                    <p className="text-gray-600 mb-4">Start tracking your fitness by adding your first workout</p>
+                    <Button onClick={() => navigate("/capture")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Workout
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {isMobile ? (
+                      <WorkoutCards workouts={allWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
+                    ) : (
+                      <WorkoutTable workouts={allWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </SidebarLayout>
   );

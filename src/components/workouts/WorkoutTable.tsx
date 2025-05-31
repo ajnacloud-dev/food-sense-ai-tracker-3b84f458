@@ -1,0 +1,126 @@
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Clock, Flame, Eye, Trash2 } from "lucide-react";
+
+interface WorkoutEntry {
+  id: string;
+  workout_type: string;
+  duration: number;
+  calories_burned: number;
+  notes: string;
+  created_at: string;
+}
+
+interface WorkoutTableProps {
+  workouts: WorkoutEntry[];
+  onDelete: (id: string) => void;
+  onView: (id: string) => void;
+}
+
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const formatDuration = (minutes: number) => {
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+};
+
+const getWorkoutTypeColor = (type: string) => {
+  switch (type) {
+    case 'cardio':
+      return 'bg-red-100 text-red-800';
+    case 'strength':
+      return 'bg-blue-100 text-blue-800';
+    case 'flexibility':
+      return 'bg-green-100 text-green-800';
+    case 'sports':
+      return 'bg-orange-100 text-orange-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export const WorkoutTable = ({ workouts, onDelete, onView }: WorkoutTableProps) => {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Type</TableHead>
+          <TableHead>Duration</TableHead>
+          <TableHead>Calories</TableHead>
+          <TableHead className="hidden sm:table-cell">Notes</TableHead>
+          <TableHead className="hidden md:table-cell">Date</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {workouts.map((workout) => (
+          <TableRow key={workout.id}>
+            <TableCell>
+              <Badge className={getWorkoutTypeColor(workout.workout_type)}>
+                {workout.workout_type?.charAt(0).toUpperCase() + workout.workout_type?.slice(1) || 'Other'}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3 text-gray-500" />
+                {formatDuration(workout.duration || 0)}
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-1">
+                <Flame className="h-3 w-3 text-orange-500" />
+                {workout.calories_burned || 0} cal
+              </div>
+            </TableCell>
+            <TableCell className="hidden sm:table-cell">
+              <div className="max-w-xs truncate text-sm text-gray-600">
+                {workout.notes ? (
+                  typeof workout.notes === 'string' && workout.notes.startsWith('{') 
+                    ? 'AI Analysis Available'
+                    : workout.notes.substring(0, 50) + (workout.notes.length > 50 ? '...' : '')
+                ) : 'No notes'}
+              </div>
+            </TableCell>
+            <TableCell className="hidden md:table-cell text-sm text-gray-600">
+              {formatDate(workout.created_at)}
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onView(workout.id)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Eye className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(workout.id)}
+                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+};
