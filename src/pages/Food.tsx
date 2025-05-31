@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,14 @@ const Food = () => {
       console.error('Error deleting food entry:', error);
       toast.error("Failed to delete food entry");
     }
+  };
+
+  const handleRowClick = (entryId: string, event: React.MouseEvent) => {
+    // Prevent row click when clicking on action buttons
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    navigate(`/food/${entryId}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -216,7 +225,11 @@ const Food = () => {
                 </TableHeader>
                 <TableBody>
                   {foodEntries.map((entry) => (
-                    <TableRow key={entry.id}>
+                    <TableRow 
+                      key={entry.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={(e) => handleRowClick(entry.id, e)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {entry.image_url && (

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,14 @@ const Receipts = () => {
       console.error('Error deleting receipt:', error);
       toast.error("Failed to delete receipt");
     }
+  };
+
+  const handleRowClick = (receiptId: string, event: React.MouseEvent) => {
+    // Prevent row click when clicking on action buttons
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    navigate(`/receipts/${receiptId}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -204,7 +213,11 @@ const Receipts = () => {
                 </TableHeader>
                 <TableBody>
                   {receipts.map((receipt) => (
-                    <TableRow key={receipt.id}>
+                    <TableRow 
+                      key={receipt.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={(e) => handleRowClick(receipt.id, e)}
+                    >
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {receipt.image_url && (
