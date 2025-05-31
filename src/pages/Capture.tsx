@@ -2,10 +2,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Camera, FileText, Loader2, Sparkles } from "lucide-react";
+import { Upload, Camera, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -14,7 +12,6 @@ import SidebarLayout from "@/components/layout/SidebarLayout";
 const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("food");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -81,15 +78,14 @@ const Capture = () => {
         imageUrl = publicUrl;
       }
 
-      console.log('Calling OpenAI analysis...');
+      console.log('Calling AI for auto-classification and analysis...');
 
-      // Call OpenAI analysis function
+      // Call auto-classification function with enhanced analysis
       const { data: analysisResult, error: analysisError } = await supabase.functions
-        .invoke('analyze-content', {
+        .invoke('auto-classify-and-analyze', {
           body: {
             description,
-            imageUrl,
-            category
+            imageUrl
           }
         });
 
@@ -98,11 +94,12 @@ const Capture = () => {
         throw new Error(analysisError.message || 'Analysis failed');
       }
 
-      const { analysis, metadata } = analysisResult;
+      const { category, analysis, metadata } = analysisResult;
+      console.log('AI classified as:', category);
       console.log('Analysis received:', analysis);
       console.log('Metadata:', metadata);
 
-      // Insert into appropriate table based on category
+      // Insert into appropriate table based on AI classification
       let insertData: any = {
         user_id: user.id,
         image_url: imageUrl,
@@ -136,6 +133,8 @@ const Capture = () => {
           insertData.notes = analysis.notes || description || 'AI-analyzed workout';
           redirectPath = '/workouts';
           break;
+        default:
+          throw new Error(`Unsupported category: ${category}`);
       }
 
       const { error: insertError } = await supabase
@@ -155,7 +154,7 @@ const Capture = () => {
           });
       }
 
-      toast.success(`Successfully analyzed and saved as ${category}! Cost: $${metadata.cost.toFixed(6)}`);
+      toast.success(`AI classified as ${category}! Analysis complete. Cost: $${metadata.cost.toFixed(6)}`);
       navigate(redirectPath);
 
     } catch (error: any) {
@@ -172,41 +171,26 @@ const Capture = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
             <Sparkles className="h-8 w-8 text-blue-500" />
-            AI Capture
+            AI Smart Capture
           </h1>
-          <p className="text-gray-600">Upload images or describe your content for intelligent AI analysis</p>
+          <p className="text-gray-600">AI will automatically identify and analyze your content</p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Smart Analysis with OpenAI
+              Intelligent Auto-Classification
             </CardTitle>
             <CardDescription>
-              Advanced AI will analyze your content and extract detailed information
+              Advanced AI will automatically classify your content and extract detailed information
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Category Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="category">Content Category</Label>
-                <select
-                  id="category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="food">Food & Nutrition</option>
-                  <option value="receipt">Receipt & Expenses</option>
-                  <option value="workout">Workout & Fitness</option>
-                </select>
-              </div>
-
               {/* Image Upload */}
               <div className="space-y-2">
-                <Label htmlFor="image">Upload Image (Optional)</Label>
+                <label htmlFor="image" className="text-sm font-medium">Upload Image (Optional)</label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                   <input
                     id="image"
@@ -227,10 +211,10 @@ const Capture = () => {
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <label htmlFor="description" className="text-sm font-medium">Description (Optional)</label>
                 <Textarea
                   id="description"
-                  placeholder="Describe what you're uploading..."
+                  placeholder="Describe what you're capturing... (AI will use this to improve classification accuracy)"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
@@ -242,12 +226,12 @@ const Capture = () => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing with AI...
+                    AI is analyzing and classifying...
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-4 w-4" />
-                    Analyze with OpenAI
+                    Analyze with AI
                   </>
                 )}
               </Button>
@@ -258,14 +242,15 @@ const Capture = () => {
         {/* Enhanced Tips */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">AI Analysis Features</CardTitle>
+            <CardTitle className="text-lg">AI Auto-Classification Features</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li>• <strong>Food:</strong> Nutrition analysis, calorie estimation, ingredient identification</li>
-              <li>• <strong>Receipts:</strong> Expense extraction, vendor detection, itemized lists</li>
-              <li>• <strong>Workouts:</strong> Exercise classification, duration estimation, calorie burn calculation</li>
-              <li>• <strong>Smart Vision:</strong> AI can analyze images to enhance accuracy</li>
+              <li>• <strong>Smart Detection:</strong> AI automatically identifies food, receipts, or workout content</li>
+              <li>• <strong>Food Analysis:</strong> Nutrition facts, calorie estimation, ingredient identification</li>
+              <li>• <strong>Receipt Processing:</strong> Expense extraction, vendor detection, itemized lists</li>
+              <li>• <strong>Workout Recognition:</strong> Exercise classification, duration estimation, calorie burn</li>
+              <li>• <strong>Visual Intelligence:</strong> Advanced image analysis for enhanced accuracy</li>
               <li>• <strong>Cost Tracking:</strong> Real-time API usage and cost monitoring</li>
             </ul>
           </CardContent>
