@@ -35,6 +35,31 @@ interface WorkoutData {
   notes: string;
 }
 
+// Ensure storage bucket exists
+const ensureStorageBucket = async (): Promise<void> => {
+  try {
+    // Check if bucket exists by trying to list objects
+    const { error } = await supabase.storage.from('uploads').list('', { limit: 1 });
+    
+    if (error && error.message.includes('not found')) {
+      console.log('Storage bucket not found, creating it...');
+      
+      // Call our edge function to create the bucket
+      const { error: setupError } = await supabase.functions.invoke('setup-storage');
+      
+      if (setupError) {
+        console.error('Failed to setup storage bucket:', setupError);
+        throw new Error(`Storage setup failed: ${setupError.message}`);
+      }
+      
+      console.log('Storage bucket created successfully');
+    }
+  } catch (error) {
+    console.error('Error ensuring storage bucket:', error);
+    // Don't throw here - let the upload attempt and fail with a more specific error
+  }
+};
+
 export const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string): Promise<string> => {
   try {
     let entryId: string;
@@ -147,6 +172,9 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
 
 export const uploadImage = async (file: File, userId: string) => {
   try {
+    // Ensure storage bucket exists before attempting upload
+    await ensureStorageBucket();
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     
@@ -161,7 +189,26 @@ export const uploadImage = async (file: File, userId: string) => {
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      throw new Error(`Upload failed: ${uploadError.message}`);
+      
+      // If bucket doesn't exist, try to create it and retry
+      if (uploadError.message.includes('not found')) {
+        console.log('Bucket not found, attempting to create and retry...');
+        await ensureStorageBucket();
+        
+        // Retry upload
+        const { error: retryError } = await supabase.storage
+          .from('uploads')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+          
+        if (retryError) {
+          throw new Error(`Upload failed after retry: ${retryError.message}`);
+        }
+      } else {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
     }
 
     const { data: { publicUrl } } = supabase.storage
