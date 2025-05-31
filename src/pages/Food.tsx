@@ -228,6 +228,14 @@ const Food = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/food/${entry.id}`)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
                           {entry.image_url && (
                             <Button
                               variant="outline"

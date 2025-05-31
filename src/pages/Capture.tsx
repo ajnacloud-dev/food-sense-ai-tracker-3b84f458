@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +36,68 @@ const Capture = () => {
       
       setFile(selectedFile);
       toast.success(`File selected: ${selectedFile.name}`);
+    }
+  };
+
+  const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string) => {
+    let insertData: any = {
+      user_id: userId,
+      image_url: imageUrl,
+      description: description || 'AI-analyzed content',
+    };
+
+    let tableName = '';
+    let insertedId = '';
+
+    switch (category) {
+      case 'food':
+        tableName = 'food_entries';
+        insertData.calories = analysis.meal_summary?.total_nutrition?.calories || analysis.calories || 0;
+        insertData.ingredients = analysis.food_items || analysis.ingredients || {};
+        insertData.extracted_nutrients = analysis;
+        break;
+      case 'receipt':
+        tableName = 'receipts';
+        insertData.vendor = analysis.merchant?.store_name || analysis.vendor || 'Unknown Store';
+        insertData.receipt_date = analysis.transaction?.date || analysis.date || new Date().toISOString().split('T')[0];
+        insertData.total_amount = analysis.total || 0;
+        insertData.items = analysis;
+        break;
+      case 'workout':
+        tableName = 'workouts';
+        insertData.workout_type = analysis.workout_summary?.workout_type || analysis.type || 'other';
+        insertData.duration = analysis.workout_summary?.duration_minutes || analysis.duration || 0;
+        insertData.calories_burned = analysis.workout_summary?.estimated_calories_burned || analysis.calories || 0;
+        insertData.notes = JSON.stringify(analysis);
+        break;
+      default:
+        throw new Error(`Unsupported category: ${category}`);
+    }
+
+    const { data, error: insertError } = await supabase
+      .from(tableName as any)
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    
+    return data.id;
+  };
+
+  const navigateToCategory = (category: string, entryId?: string) => {
+    switch (category) {
+      case 'food':
+        navigate(entryId ? `/food/${entryId}` : '/food');
+        break;
+      case 'receipt':
+        navigate(entryId ? `/receipts/${entryId}` : '/receipts');
+        break;
+      case 'workout':
+        navigate(entryId ? `/workouts/${entryId}` : '/workouts');
+        break;
+      default:
+        navigate('/dashboard');
     }
   };
 
@@ -149,10 +210,10 @@ const Capture = () => {
         const category = classification?.category;
 
         // Insert into appropriate table based on classification
-        await insertAnalysisResult(user.id, category, finalAnalysis, imageUrl, description);
+        const entryId = await insertAnalysisResult(user.id, category, finalAnalysis, imageUrl, description);
         
         toast.success(`LangGraph analysis complete! Category: ${category}. Cost: $${metadata?.costs?.toFixed(6) || '0.00'}`);
-        navigateToCategory(category);
+        navigateToCategory(category, entryId);
 
       } else {
         console.log('Using standard auto-classification...');
@@ -178,10 +239,10 @@ const Capture = () => {
         });
 
         // Insert into appropriate table based on AI classification
-        await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
+        const entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
 
         toast.success(`AI classified as ${category}! Analysis complete. Cost: $${metadata?.cost?.toFixed(6) || '0.00'}`);
-        navigateToCategory(category);
+        navigateToCategory(category, entryId);
       }
 
       // Update usage log
@@ -201,63 +262,6 @@ const Capture = () => {
     } finally {
       setLoading(false);
       setUploadProgress('');
-    }
-  };
-
-  const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string) => {
-    let insertData: any = {
-      user_id: userId,
-      image_url: imageUrl,
-      description: description || 'AI-analyzed content',
-    };
-
-    let tableName = '';
-
-    switch (category) {
-      case 'food':
-        tableName = 'food_entries';
-        insertData.calories = analysis.calories || 0;
-        insertData.ingredients = analysis.ingredients || {};
-        insertData.extracted_nutrients = analysis.nutrients || {};
-        break;
-      case 'receipt':
-        tableName = 'receipts';
-        insertData.vendor = analysis.vendor || 'Unknown Store';
-        insertData.receipt_date = analysis.date || new Date().toISOString().split('T')[0];
-        insertData.total_amount = analysis.total || 0;
-        insertData.items = analysis.items || [];
-        break;
-      case 'workout':
-        tableName = 'workouts';
-        insertData.workout_type = analysis.type || 'other';
-        insertData.duration = analysis.duration || 0;
-        insertData.calories_burned = analysis.calories || 0;
-        insertData.notes = analysis.notes || description || 'AI-analyzed workout';
-        break;
-      default:
-        throw new Error(`Unsupported category: ${category}`);
-    }
-
-    const { error: insertError } = await supabase
-      .from(tableName as any)
-      .insert(insertData);
-
-    if (insertError) throw insertError;
-  };
-
-  const navigateToCategory = (category: string) => {
-    switch (category) {
-      case 'food':
-        navigate('/food');
-        break;
-      case 'receipt':
-        navigate('/receipts');
-        break;
-      case 'workout':
-        navigate('/workouts');
-        break;
-      default:
-        navigate('/dashboard');
     }
   };
 
