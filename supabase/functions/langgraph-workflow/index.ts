@@ -1,55 +1,65 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Client } from "https://esm.sh/langsmith@0.1.56";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// LangSmith configuration
+// LangSmith configuration - simplified without the problematic import
 const LANGCHAIN_API_KEY = Deno.env.get('LANGCHAIN_API_KEY');
 const LANGCHAIN_PROJECT = Deno.env.get('LANGSMITH_PROJECT') || 'nutriwealth';
 const LANGSMITH_TRACING = Deno.env.get('LANGSMITH_TRACING') === 'true';
 
-// Initialize LangSmith client
-let langsmithClient: Client | null = null;
-if (LANGCHAIN_API_KEY && LANGSMITH_TRACING) {
-  langsmithClient = new Client({
-    apiKey: LANGCHAIN_API_KEY,
-    apiUrl: Deno.env.get('LANGSMITH_ENDPOINT') || 'https://api.smith.langchain.com',
-  });
-}
-
-// LangSmith trace helper
+// Simple LangSmith trace helper without the client import
 async function createLangSmithTrace(name: string, inputs: any, sessionId?: string) {
-  if (!langsmithClient) return null;
+  if (!LANGCHAIN_API_KEY || !LANGSMITH_TRACING) return null;
   
   try {
-    const run = await langsmithClient.createRun({
-      name,
-      runType: 'chain',
-      inputs,
-      sessionName: sessionId || 'default',
-      projectName: LANGCHAIN_PROJECT,
+    const response = await fetch('https://api.smith.langchain.com/runs', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        run_type: 'chain',
+        inputs,
+        session_name: sessionId || 'default',
+        project_name: LANGCHAIN_PROJECT,
+        start_time: Date.now(),
+      }),
     });
-    return run.id;
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.id;
+    }
   } catch (error) {
     console.error('Failed to create LangSmith trace:', error);
-    return null;
   }
+  
+  return null;
 }
 
 // Update LangSmith trace
 async function updateLangSmithTrace(traceId: string, outputs: any, error?: string) {
-  if (!langsmithClient || !traceId) return;
+  if (!LANGCHAIN_API_KEY || !LANGSMITH_TRACING || !traceId) return;
   
   try {
-    await langsmithClient.updateRun(traceId, {
-      outputs,
-      error: error ? { message: error } : undefined,
-      endTime: Date.now(),
+    await fetch(`https://api.smith.langchain.com/runs/${traceId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${LANGCHAIN_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        outputs,
+        error: error ? { message: error } : undefined,
+        end_time: Date.now(),
+      }),
     });
   } catch (err) {
     console.error('Failed to update LangSmith trace:', err);

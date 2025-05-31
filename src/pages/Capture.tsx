@@ -65,38 +65,66 @@ const Capture = () => {
       setUploadProgress('AI is analyzing your content...');
 
       // Use intelligent auto-selection of processing method
-      // For most users, standard processing is optimal
       const useAdvancedProcessing = userData?.is_subscribed || false;
+      let category, analysis, entryId;
 
       if (useAdvancedProcessing) {
-        console.log('Using advanced workflow for subscribed user...');
+        console.log('Attempting advanced workflow for subscribed user...');
         
-        const { data: workflowResult, error: workflowError } = await supabase.functions
-          .invoke('langgraph-workflow', {
-            body: {
-              description,
-              imageUrl,
-              workflowConfig: null
-            }
-          });
+        try {
+          const { data: workflowResult, error: workflowError } = await supabase.functions
+            .invoke('langgraph-workflow', {
+              body: {
+                description,
+                imageUrl,
+                workflowConfig: null
+              }
+            });
 
-        if (workflowError) {
-          console.error('Advanced workflow error:', workflowError);
-          throw new Error(workflowError.message || 'Analysis failed');
+          if (workflowError) {
+            console.error('Advanced workflow error:', workflowError);
+            throw new Error(workflowError.message || 'Advanced workflow failed');
+          }
+
+          if (!workflowResult?.success) {
+            throw new Error(workflowResult?.error || 'Advanced workflow failed');
+          }
+
+          const { classification, analysis: workflowAnalysis, enrichment, validation } = workflowResult.result;
+          const finalAnalysis = validation?.cleanedData || workflowAnalysis;
+          category = classification?.category;
+          analysis = finalAnalysis;
+
+          entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
+          
+          toast.success(`Advanced analysis complete! Categorized as ${category}`);
+
+        } catch (advancedError) {
+          console.error('Advanced workflow failed, falling back to standard analysis:', advancedError);
+          
+          // Fallback to standard analysis
+          setUploadProgress('Advanced analysis unavailable, using standard analysis...');
+          
+          const { data: analysisResult, error: analysisError } = await supabase.functions
+            .invoke('auto-classify-and-analyze', {
+              body: {
+                description,
+                imageUrl
+              }
+            });
+
+          if (analysisError) {
+            console.error('Standard analysis error:', analysisError);
+            throw new Error(analysisError.message || 'Analysis failed');
+          }
+
+          category = analysisResult.category;
+          analysis = analysisResult.analysis;
+
+          entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
+          
+          toast.success(`Analysis complete! Categorized as ${category}`);
         }
-
-        if (!workflowResult.success) {
-          throw new Error(workflowResult.error || 'Analysis failed');
-        }
-
-        const { classification, analysis, enrichment, validation, metadata } = workflowResult.result;
-        const finalAnalysis = validation?.cleanedData || analysis;
-        const category = classification?.category;
-
-        const entryId = await insertAnalysisResult(user.id, category, finalAnalysis, imageUrl, description);
-        
-        toast.success(`Analysis complete! Categorized as ${category}`);
-        navigateToCategory(navigate, category, entryId);
 
       } else {
         console.log('Using standard analysis...');
@@ -114,13 +142,15 @@ const Capture = () => {
           throw new Error(analysisError.message || 'Analysis failed');
         }
 
-        const { category, analysis } = analysisResult;
+        category = analysisResult.category;
+        analysis = analysisResult.analysis;
 
-        const entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
+        entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
 
         toast.success(`AI classified as ${category}! Analysis complete.`);
-        navigateToCategory(navigate, category, entryId);
       }
+
+      navigateToCategory(navigate, category, entryId);
 
       // Update usage log for non-subscribed users
       if (!userData?.is_subscribed) {
@@ -146,7 +176,7 @@ const Capture = () => {
 
   return (
     <SidebarLayout>
-      <div className="max-w-lg mx-auto space-y-4 p-4">
+      <div className="max-w-lg mx-auto space-y-4 p-4 pt-16 lg:pt-4">
         <div className="text-center space-y-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
             <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-blue-500" />
