@@ -8,6 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Utensils, Receipt, Dumbbell, Target, Heart, Check, X, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type PermissionCategory = Database['public']['Enums']['permission_category'];
 
 interface CaretakerRelationship {
   id: string;
@@ -23,7 +26,7 @@ interface CaretakerRelationship {
 interface Permission {
   id: string;
   caretaker_id: string;
-  category: string;
+  category: PermissionCategory;
   is_granted: boolean;
   requested_at: string;
   granted_at?: string;
@@ -32,7 +35,7 @@ interface Permission {
 interface PermissionRequest {
   id: string;
   caretaker_id: string;
-  category: string;
+  category: PermissionCategory;
   status: string;
   message?: string;
   created_at: string;
@@ -49,11 +52,11 @@ const PermissionManager = () => {
   const [loading, setLoading] = useState(true);
 
   const categories = [
-    { key: 'food_entries', label: 'Food Entries', icon: Utensils, color: 'text-green-600' },
-    { key: 'receipts', label: 'Receipts', icon: Receipt, color: 'text-blue-600' },
-    { key: 'workouts', label: 'Workouts', icon: Dumbbell, color: 'text-purple-600' },
-    { key: 'goals', label: 'Goals', icon: Target, color: 'text-orange-600' },
-    { key: 'health_metrics', label: 'Health Metrics', icon: Heart, color: 'text-red-600' }
+    { key: 'food_entries' as PermissionCategory, label: 'Food Entries', icon: Utensils, color: 'text-green-600' },
+    { key: 'receipts' as PermissionCategory, label: 'Receipts', icon: Receipt, color: 'text-blue-600' },
+    { key: 'workouts' as PermissionCategory, label: 'Workouts', icon: Dumbbell, color: 'text-purple-600' },
+    { key: 'goals' as PermissionCategory, label: 'Goals', icon: Target, color: 'text-orange-600' },
+    { key: 'health_metrics' as PermissionCategory, label: 'Health Metrics', icon: Heart, color: 'text-red-600' }
   ];
 
   useEffect(() => {
@@ -99,7 +102,19 @@ const PermissionManager = () => {
         .eq('participant_id', user.id)
         .eq('status', 'pending');
 
-      setPendingRequests(requestsData || []);
+      if (requestsData) {
+        // Filter out any requests with malformed caretaker data
+        const validRequests = requestsData.filter(request => 
+          request.caretaker && 
+          typeof request.caretaker === 'object' &&
+          'full_name' in request.caretaker &&
+          'email' in request.caretaker
+        ) as PermissionRequest[];
+        
+        setPendingRequests(validRequests);
+      } else {
+        setPendingRequests([]);
+      }
 
     } catch (error) {
       console.error('Error fetching permission data:', error);
@@ -109,7 +124,7 @@ const PermissionManager = () => {
     }
   };
 
-  const togglePermission = async (caretakerId: string, category: string, currentlyGranted: boolean) => {
+  const togglePermission = async (caretakerId: string, category: PermissionCategory, currentlyGranted: boolean) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -195,7 +210,7 @@ const PermissionManager = () => {
     }
   };
 
-  const getPermissionStatus = (caretakerId: string, category: string) => {
+  const getPermissionStatus = (caretakerId: string, category: PermissionCategory) => {
     const permission = permissions.find(p => 
       p.caretaker_id === caretakerId && p.category === category
     );

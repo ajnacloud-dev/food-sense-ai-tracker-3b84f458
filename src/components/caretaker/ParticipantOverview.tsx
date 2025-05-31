@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Utensils, Receipt, Dumbbell, MessageSquare, Target, Lock, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type PermissionCategory = Database['public']['Enums']['permission_category'];
 
 interface ParticipantData {
   id: string;
@@ -185,7 +187,7 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
         .insert({
           participant_id: participantId,
           caretaker_id: user.id,
-          category: category,
+          category: category as PermissionCategory,
           message: `Requesting access to ${category.replace('_', ' ')} data`
         });
 
