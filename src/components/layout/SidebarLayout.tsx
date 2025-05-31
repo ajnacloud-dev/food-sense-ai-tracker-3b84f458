@@ -1,0 +1,140 @@
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  LayoutDashboard,
+  Camera,
+  Utensils,
+  Receipt,
+  Dumbbell,
+  BarChart3,
+  CreditCard,
+  Menu,
+  LogOut,
+  Brain
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface SidebarLayoutProps {
+  children: React.ReactNode;
+}
+
+const SidebarLayout = ({ children }: SidebarLayoutProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [user, setUser] = useState<any>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+      } else {
+        navigate("/auth");
+      }
+    };
+    getUser();
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out successfully");
+    navigate("/");
+  };
+
+  const menuItems = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+    { icon: Camera, label: "Capture", path: "/capture" },
+    { icon: Utensils, label: "Food Analysis", path: "/food" },
+    { icon: Receipt, label: "Receipts", path: "/receipts" },
+    { icon: Dumbbell, label: "Workouts", path: "/workouts" },
+    { icon: BarChart3, label: "Insights", path: "/insights" },
+    { icon: CreditCard, label: "Billing", path: "/billing" },
+  ];
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="p-6 border-b">
+        <div className="flex items-center space-x-2">
+          <Brain className="h-8 w-8 text-blue-600" />
+          <span className="text-xl font-bold">NutriWealth</span>
+        </div>
+      </div>
+      
+      <nav className="flex-1 p-4">
+        <div className="space-y-2">
+          {menuItems.map((item) => (
+            <Button
+              key={item.path}
+              variant={location.pathname === item.path ? "default" : "ghost"}
+              className="w-full justify-start"
+              onClick={() => {
+                navigate(item.path);
+                setOpen(false);
+              }}
+            >
+              <item.icon className="mr-2 h-4 w-4" />
+              {item.label}
+            </Button>
+          ))}
+        </div>
+      </nav>
+
+      <div className="p-4 border-t">
+        <div className="flex items-center space-x-3 mb-4">
+          <Avatar>
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarFallback>
+              {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {user?.user_metadata?.full_name || user?.email}
+            </p>
+            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleSignOut} className="w-full">
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign Out
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block w-64 bg-white border-r">
+        <SidebarContent />
+      </div>
+
+      {/* Mobile Sidebar */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="icon" className="lg:hidden fixed top-4 left-4 z-40">
+            <Menu className="h-4 w-4" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="p-0 w-64">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <main className="flex-1 p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default SidebarLayout;

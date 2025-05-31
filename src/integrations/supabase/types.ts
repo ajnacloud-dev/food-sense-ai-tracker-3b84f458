@@ -9,7 +9,200 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      api_usage_log: {
+        Row: {
+          id: string
+          usage_count: number | null
+          usage_date: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          usage_count?: number | null
+          usage_date?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          usage_count?: number | null
+          usage_date?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_entries: {
+        Row: {
+          calories: number | null
+          created_at: string | null
+          description: string | null
+          extracted_nutrients: Json | null
+          id: string
+          image_url: string | null
+          ingredients: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          calories?: number | null
+          created_at?: string | null
+          description?: string | null
+          extracted_nutrients?: Json | null
+          id?: string
+          image_url?: string | null
+          ingredients?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          calories?: number | null
+          created_at?: string | null
+          description?: string | null
+          extracted_nutrients?: Json | null
+          id?: string
+          image_url?: string | null
+          ingredients?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipts: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string | null
+          items: Json | null
+          receipt_date: string | null
+          tags: string[] | null
+          total_amount: number | null
+          updated_at: string | null
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          items?: Json | null
+          receipt_date?: string | null
+          tags?: string[] | null
+          total_amount?: number | null
+          updated_at?: string | null
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          items?: Json | null
+          receipt_date?: string | null
+          tags?: string[] | null
+          total_amount?: number | null
+          updated_at?: string | null
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+          is_subscribed: boolean | null
+          subscription_id: string | null
+          trial_used_today: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          full_name?: string | null
+          id: string
+          is_subscribed?: boolean | null
+          subscription_id?: string | null
+          trial_used_today?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          is_subscribed?: boolean | null
+          subscription_id?: string | null
+          trial_used_today?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      workouts: {
+        Row: {
+          calories_burned: number | null
+          created_at: string | null
+          duration: number | null
+          id: string
+          notes: string | null
+          updated_at: string | null
+          user_id: string
+          workout_type: Database["public"]["Enums"]["workout_type_enum"] | null
+        }
+        Insert: {
+          calories_burned?: number | null
+          created_at?: string | null
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id: string
+          workout_type?: Database["public"]["Enums"]["workout_type_enum"] | null
+        }
+        Update: {
+          calories_burned?: number | null
+          created_at?: string | null
+          duration?: number | null
+          id?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id?: string
+          workout_type?: Database["public"]["Enums"]["workout_type_enum"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +211,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      workout_type_enum:
+        | "cardio"
+        | "strength"
+        | "flexibility"
+        | "sports"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +331,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      workout_type_enum: [
+        "cardio",
+        "strength",
+        "flexibility",
+        "sports",
+        "other",
+      ],
+    },
   },
 } as const
