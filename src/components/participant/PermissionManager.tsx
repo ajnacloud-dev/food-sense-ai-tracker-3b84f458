@@ -106,15 +106,19 @@ const PermissionManager = () => {
         const validRequests: PermissionRequest[] = [];
         
         for (const request of requestsData) {
-          // Check if caretaker data is valid
-          if (request.caretaker && 
-              typeof request.caretaker === 'object' &&
-              !('error' in request.caretaker) &&
-              'full_name' in request.caretaker &&
-              'email' in request.caretaker &&
-              typeof request.caretaker.full_name === 'string' &&
-              typeof request.caretaker.email === 'string') {
-            
+          // Type guard to check if caretaker data is valid
+          const hasValidCaretaker = (
+            request.caretaker && 
+            typeof request.caretaker === 'object' &&
+            !('error' in request.caretaker) &&
+            'full_name' in request.caretaker &&
+            'email' in request.caretaker &&
+            typeof (request.caretaker as any).full_name === 'string' &&
+            typeof (request.caretaker as any).email === 'string'
+          );
+
+          if (hasValidCaretaker) {
+            const caretaker = request.caretaker as { full_name: string; email: string };
             validRequests.push({
               id: request.id,
               caretaker_id: request.caretaker_id,
@@ -123,8 +127,8 @@ const PermissionManager = () => {
               message: request.message,
               created_at: request.created_at,
               caretaker: {
-                full_name: request.caretaker.full_name,
-                email: request.caretaker.email
+                full_name: caretaker.full_name,
+                email: caretaker.email
               }
             });
           }
@@ -270,9 +274,9 @@ const PermissionManager = () => {
                       <Icon className={`h-5 w-5 ${category?.color || 'text-gray-600'}`} />
                       <div>
                         <div className="font-medium">
-                          {request.caretaker?.full_name || 'Unknown'} wants access to {category?.label || request.category}
+                          {request.caretaker.full_name} wants access to {category?.label || request.category}
                         </div>
-                        <div className="text-sm text-gray-500">{request.caretaker?.email || 'No email'}</div>
+                        <div className="text-sm text-gray-500">{request.caretaker.email}</div>
                         {request.message && (
                           <div className="text-sm text-gray-600 mt-1">{request.message}</div>
                         )}
