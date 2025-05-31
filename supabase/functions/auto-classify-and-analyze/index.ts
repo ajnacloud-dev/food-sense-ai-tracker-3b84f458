@@ -1,60 +1,12 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Client } from "https://esm.sh/langsmith@0.1.56";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// LangSmith configuration
-const LANGCHAIN_API_KEY = Deno.env.get('LANGCHAIN_API_KEY');
-const LANGCHAIN_PROJECT = Deno.env.get('LANGSMITH_PROJECT') || 'nutriwealth';
-const LANGSMITH_TRACING = Deno.env.get('LANGSMITH_TRACING') === 'true';
-
-// Initialize LangSmith client
-let langsmithClient: Client | null = null;
-if (LANGCHAIN_API_KEY && LANGSMITH_TRACING) {
-  langsmithClient = new Client({
-    apiKey: LANGCHAIN_API_KEY,
-    apiUrl: Deno.env.get('LANGSMITH_ENDPOINT') || 'https://api.smith.langchain.com',
-  });
-}
-
-// LangSmith trace helper
-async function createLangSmithTrace(name: string, inputs: any, sessionId?: string) {
-  if (!langsmithClient) return null;
-  
-  try {
-    const run = await langsmithClient.createRun({
-      name,
-      runType: 'chain',
-      inputs,
-      sessionName: sessionId || 'default',
-      projectName: LANGCHAIN_PROJECT,
-    });
-    return run.id;
-  } catch (error) {
-    console.error('Failed to create LangSmith trace:', error);
-    return null;
-  }
-}
-
-// Update LangSmith trace
-async function updateLangSmithTrace(traceId: string, outputs: any, error?: string) {
-  if (!langsmithClient || !traceId) return;
-  
-  try {
-    await langsmithClient.updateRun(traceId, {
-      outputs,
-      error: error ? { message: error } : undefined,
-      endTime: Date.now(),
-    });
-  } catch (err) {
-    console.error('Failed to update LangSmith trace:', err);
-  }
-}
 
 // Utility function to convert image URL to base64
 async function imageUrlToBase64(imageUrl: string): Promise<string> {
@@ -143,7 +95,6 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
-  let traceId: string | null = null;
 
   try {
     const { description, imageUrl } = await req.json();
@@ -160,13 +111,6 @@ serve(async (req) => {
     if (!user) {
       throw new Error("User not authenticated");
     }
-
-    // Create LangSmith trace
-    traceId = await createLangSmithTrace('auto-classify-and-analyze', {
-      description: description ? 'provided' : 'none',
-      imageUrl: imageUrl ? 'provided' : 'none',
-      userId: user.id
-    }, user.id);
 
     console.log(`Starting auto-classification for user ${user.id} at ${new Date().toISOString()}`);
     console.log(`Input - Description: ${description ? 'provided' : 'none'}, Image: ${imageUrl ? 'provided' : 'none'}`);
@@ -375,11 +319,6 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
       }
     };
 
-    // Update LangSmith trace with success
-    if (traceId) {
-      await updateLangSmithTrace(traceId, result);
-    }
-
     console.log(`Auto-classification and analysis completed. Category: ${category}, Cost: $${cost.toFixed(6)}, Time: ${processingTime}ms, Method: ${imageProcessingMethod}`);
 
     return new Response(JSON.stringify(result), {
@@ -389,11 +328,6 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
 
   } catch (error) {
     console.error("Error in auto-classify-and-analyze function:", error);
-    
-    // Update LangSmith trace with error
-    if (traceId) {
-      await updateLangSmithTrace(traceId, {}, error.message);
-    }
     
     // Log error if we have user context
     try {
