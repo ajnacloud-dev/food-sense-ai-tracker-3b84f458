@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -103,29 +102,33 @@ const PermissionManager = () => {
         .eq('status', 'pending');
 
       if (requestsData) {
-        // Filter and type-safe transform the requests data
-        const validRequests: PermissionRequest[] = requestsData
-          .filter((request): request is typeof request & { caretaker: { full_name: string; email: string } } => {
-            return request.caretaker !== null && 
-                   typeof request.caretaker === 'object' &&
-                   !('error' in request.caretaker) &&
-                   'full_name' in request.caretaker &&
-                   'email' in request.caretaker &&
-                   typeof request.caretaker.full_name === 'string' &&
-                   typeof request.caretaker.email === 'string';
-          })
-          .map(request => ({
-            id: request.id,
-            caretaker_id: request.caretaker_id,
-            category: request.category,
-            status: request.status,
-            message: request.message,
-            created_at: request.created_at,
-            caretaker: {
-              full_name: request.caretaker.full_name,
-              email: request.caretaker.email
-            }
-          }));
+        // Process the requests data and handle potential caretaker data issues
+        const validRequests: PermissionRequest[] = [];
+        
+        for (const request of requestsData) {
+          // Check if caretaker data is valid
+          if (request.caretaker && 
+              typeof request.caretaker === 'object' &&
+              !('error' in request.caretaker) &&
+              'full_name' in request.caretaker &&
+              'email' in request.caretaker &&
+              typeof request.caretaker.full_name === 'string' &&
+              typeof request.caretaker.email === 'string') {
+            
+            validRequests.push({
+              id: request.id,
+              caretaker_id: request.caretaker_id,
+              category: request.category,
+              status: request.status,
+              message: request.message,
+              created_at: request.created_at,
+              caretaker: {
+                full_name: request.caretaker.full_name,
+                email: request.caretaker.email
+              }
+            });
+          }
+        }
         
         setPendingRequests(validRequests);
       } else {
