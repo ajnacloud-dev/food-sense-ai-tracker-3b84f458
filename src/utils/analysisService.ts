@@ -54,7 +54,7 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
   }
   
   // Check if data has the id property and return it
-  if (typeof data === 'object' && data !== null && 'id' in data) {
+  if (data && typeof data === 'object' && 'id' in data) {
     const id = (data as any).id;
     if (typeof id === 'string') {
       return id;
