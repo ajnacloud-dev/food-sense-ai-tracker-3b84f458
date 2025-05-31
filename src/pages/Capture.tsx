@@ -1,10 +1,11 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Camera, FileText, Loader2 } from "lucide-react";
+import { Upload, Camera, FileText, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -13,6 +14,7 @@ import SidebarLayout from "@/components/layout/SidebarLayout";
 const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("food");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -79,22 +81,32 @@ const Capture = () => {
         imageUrl = publicUrl;
       }
 
-      // For now, we'll create a simple classification based on description keywords
-      // In production, this would call an AI service
-      let category = 'food'; // default
-      const desc = description.toLowerCase();
-      
-      if (desc.includes('receipt') || desc.includes('grocery') || desc.includes('store') || desc.includes('purchase')) {
-        category = 'receipt';
-      } else if (desc.includes('workout') || desc.includes('exercise') || desc.includes('gym') || desc.includes('run')) {
-        category = 'workout';
+      console.log('Calling OpenAI analysis...');
+
+      // Call OpenAI analysis function
+      const { data: analysisResult, error: analysisError } = await supabase.functions
+        .invoke('analyze-content', {
+          body: {
+            description,
+            imageUrl,
+            category
+          }
+        });
+
+      if (analysisError) {
+        console.error('Analysis error:', analysisError);
+        throw new Error(analysisError.message || 'Analysis failed');
       }
 
-      // Insert into appropriate table
+      const { analysis, metadata } = analysisResult;
+      console.log('Analysis received:', analysis);
+      console.log('Metadata:', metadata);
+
+      // Insert into appropriate table based on category
       let insertData: any = {
         user_id: user.id,
         image_url: imageUrl,
-        description: description || 'Uploaded image',
+        description: description || 'AI-analyzed content',
       };
 
       let tableName = '';
@@ -103,25 +115,25 @@ const Capture = () => {
       switch (category) {
         case 'food':
           tableName = 'food_entries';
-          insertData.calories = Math.floor(Math.random() * 600) + 200; // Mock data
-          insertData.ingredients = { main: ['Sample ingredient'] };
-          insertData.extracted_nutrients = { protein: 20, carbs: 30, fat: 15 };
+          insertData.calories = analysis.calories || 0;
+          insertData.ingredients = analysis.ingredients || {};
+          insertData.extracted_nutrients = analysis.nutrients || {};
           redirectPath = '/food';
           break;
         case 'receipt':
           tableName = 'receipts';
-          insertData.vendor = 'Sample Store';
-          insertData.receipt_date = new Date().toISOString().split('T')[0];
-          insertData.total_amount = (Math.random() * 100 + 10).toFixed(2);
-          insertData.items = [{ name: 'Sample item', price: 10.99 }];
+          insertData.vendor = analysis.vendor || 'Unknown Store';
+          insertData.receipt_date = analysis.date || new Date().toISOString().split('T')[0];
+          insertData.total_amount = analysis.total || 0;
+          insertData.items = analysis.items || [];
           redirectPath = '/receipts';
           break;
         case 'workout':
           tableName = 'workouts';
-          insertData.workout_type = 'cardio';
-          insertData.duration = Math.floor(Math.random() * 60) + 30;
-          insertData.calories_burned = Math.floor(Math.random() * 400) + 200;
-          insertData.notes = description || 'Workout session';
+          insertData.workout_type = analysis.type || 'other';
+          insertData.duration = analysis.duration || 0;
+          insertData.calories_burned = analysis.calories || 0;
+          insertData.notes = analysis.notes || description || 'AI-analyzed workout';
           redirectPath = '/workouts';
           break;
       }
@@ -143,7 +155,7 @@ const Capture = () => {
           });
       }
 
-      toast.success(`Successfully analyzed and saved as ${category}!`);
+      toast.success(`Successfully analyzed and saved as ${category}! Cost: $${metadata.cost.toFixed(6)}`);
       navigate(redirectPath);
 
     } catch (error: any) {
@@ -158,22 +170,40 @@ const Capture = () => {
     <SidebarLayout>
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">AI Capture</h1>
-          <p className="text-gray-600">Upload images or describe your food, receipts, or workouts for AI analysis</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <Sparkles className="h-8 w-8 text-blue-500" />
+            AI Capture
+          </h1>
+          <p className="text-gray-600">Upload images or describe your content for intelligent AI analysis</p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Smart Analysis
+              Smart Analysis with OpenAI
             </CardTitle>
             <CardDescription>
-              Our AI will automatically detect whether this is food, a receipt, or workout data
+              Advanced AI will analyze your content and extract detailed information
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Category Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="category">Content Category</Label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="food">Food & Nutrition</option>
+                  <option value="receipt">Receipt & Expenses</option>
+                  <option value="workout">Workout & Fitness</option>
+                </select>
+              </div>
+
               {/* Image Upload */}
               <div className="space-y-2">
                 <Label htmlFor="image">Upload Image (Optional)</Label>
@@ -200,7 +230,7 @@ const Capture = () => {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe what you're uploading (e.g., 'Chicken salad lunch', 'Grocery receipt from Walmart', 'Morning run workout')..."
+                  placeholder="Describe what you're uploading..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
@@ -212,12 +242,12 @@ const Capture = () => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing...
+                    Analyzing with AI...
                   </>
                 ) : (
                   <>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Analyze with AI
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Analyze with OpenAI
                   </>
                 )}
               </Button>
@@ -225,17 +255,18 @@ const Capture = () => {
           </CardContent>
         </Card>
 
-        {/* Tips */}
+        {/* Enhanced Tips */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tips for Better Results</CardTitle>
+            <CardTitle className="text-lg">AI Analysis Features</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm text-gray-600">
-              <li>• <strong>Food:</strong> Include clear photos and describe ingredients or dishes</li>
-              <li>• <strong>Receipts:</strong> Ensure text is readable and mention the store name</li>
-              <li>• <strong>Workouts:</strong> Describe the type of exercise, duration, and intensity</li>
-              <li>• <strong>Mixed content:</strong> Use keywords like "receipt", "workout", or "food" to help categorization</li>
+              <li>• <strong>Food:</strong> Nutrition analysis, calorie estimation, ingredient identification</li>
+              <li>• <strong>Receipts:</strong> Expense extraction, vendor detection, itemized lists</li>
+              <li>• <strong>Workouts:</strong> Exercise classification, duration estimation, calorie burn calculation</li>
+              <li>• <strong>Smart Vision:</strong> AI can analyze images to enhance accuracy</li>
+              <li>• <strong>Cost Tracking:</strong> Real-time API usage and cost monitoring</li>
             </ul>
           </CardContent>
         </Card>

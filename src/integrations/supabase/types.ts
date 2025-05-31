@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      api_costs: {
+        Row: {
+          category: Database["public"]["Enums"]["prompt_category"] | null
+          completion_tokens: number | null
+          cost_usd: number | null
+          created_at: string | null
+          function_name: string
+          id: string
+          model_used: string | null
+          prompt_tokens: number | null
+          total_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["prompt_category"] | null
+          completion_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string | null
+          function_name: string
+          id?: string
+          model_used?: string | null
+          prompt_tokens?: number | null
+          total_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["prompt_category"] | null
+          completion_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string | null
+          function_name?: string
+          id?: string
+          model_used?: string | null
+          prompt_tokens?: number | null
+          total_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_usage_log: {
         Row: {
           id: string
@@ -82,6 +121,42 @@ export type Database = {
           },
         ]
       }
+      prompts: {
+        Row: {
+          category: Database["public"]["Enums"]["prompt_category"]
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          system_prompt: string
+          updated_at: string | null
+          user_prompt_template: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["prompt_category"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          system_prompt: string
+          updated_at?: string | null
+          user_prompt_template: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["prompt_category"]
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          system_prompt?: string
+          updated_at?: string | null
+          user_prompt_template?: string
+        }
+        Relationships: []
+      }
       receipts: {
         Row: {
           created_at: string | null
@@ -136,6 +211,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_subscribed: boolean | null
+          role: string | null
           subscription_id: string | null
           trial_used_today: number | null
           updated_at: string | null
@@ -146,6 +222,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_subscribed?: boolean | null
+          role?: string | null
           subscription_id?: string | null
           trial_used_today?: number | null
           updated_at?: string | null
@@ -156,6 +233,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_subscribed?: boolean | null
+          role?: string | null
           subscription_id?: string | null
           trial_used_today?: number | null
           updated_at?: string | null
@@ -211,6 +289,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      prompt_category: "food" | "receipt" | "workout" | "general"
       workout_type_enum:
         | "cardio"
         | "strength"
@@ -332,6 +411,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      prompt_category: ["food", "receipt", "workout", "general"],
       workout_type_enum: [
         "cardio",
         "strength",
