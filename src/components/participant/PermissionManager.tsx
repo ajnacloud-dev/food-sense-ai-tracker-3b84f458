@@ -42,7 +42,7 @@ interface PermissionRequest {
   caretaker: {
     full_name: string;
     email: string;
-  };
+  } | null;
 }
 
 const PermissionManager = () => {
@@ -103,13 +103,18 @@ const PermissionManager = () => {
         .eq('status', 'pending');
 
       if (requestsData) {
-        // Filter out any requests with malformed caretaker data
-        const validRequests = requestsData.filter(request => 
-          request.caretaker && 
-          typeof request.caretaker === 'object' &&
-          'full_name' in request.caretaker &&
-          'email' in request.caretaker
-        ) as PermissionRequest[];
+        // Filter out any requests with malformed caretaker data and properly type them
+        const validRequests: PermissionRequest[] = requestsData
+          .filter(request => 
+            request.caretaker && 
+            typeof request.caretaker === 'object' &&
+            'full_name' in request.caretaker &&
+            'email' in request.caretaker
+          )
+          .map(request => ({
+            ...request,
+            caretaker: request.caretaker as { full_name: string; email: string; }
+          }));
         
         setPendingRequests(validRequests);
       } else {
@@ -251,9 +256,9 @@ const PermissionManager = () => {
                       <Icon className={`h-5 w-5 ${category?.color || 'text-gray-600'}`} />
                       <div>
                         <div className="font-medium">
-                          {request.caretaker.full_name} wants access to {category?.label || request.category}
+                          {request.caretaker?.full_name || 'Unknown'} wants access to {category?.label || request.category}
                         </div>
-                        <div className="text-sm text-gray-500">{request.caretaker.email}</div>
+                        <div className="text-sm text-gray-500">{request.caretaker?.email || 'No email'}</div>
                         {request.message && (
                           <div className="text-sm text-gray-600 mt-1">{request.message}</div>
                         )}
