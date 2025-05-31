@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,11 +87,11 @@ const Capture = () => {
       throw insertError;
     }
     
-    if (!data?.id) {
+    if (!data || typeof data !== 'object' || !('id' in data) || !data.id) {
       throw new Error('No ID returned from insert operation');
     }
     
-    return data.id;
+    return data.id as string;
   };
 
   const navigateToCategory = (category: string, entryId?: string) => {
