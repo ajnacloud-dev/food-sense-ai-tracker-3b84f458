@@ -77,6 +77,121 @@ export type Database = {
           },
         ]
       }
+      care_relationships: {
+        Row: {
+          approved_at: string | null
+          caretaker_id: string
+          caretaker_type: Database["public"]["Enums"]["caretaker_type"]
+          created_at: string
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          notes: string | null
+          permission_level: Database["public"]["Enums"]["permission_level"]
+          status: Database["public"]["Enums"]["relationship_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          caretaker_id: string
+          caretaker_type?: Database["public"]["Enums"]["caretaker_type"]
+          created_at?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          notes?: string | null
+          permission_level?: Database["public"]["Enums"]["permission_level"]
+          status?: Database["public"]["Enums"]["relationship_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          caretaker_id?: string
+          caretaker_type?: Database["public"]["Enums"]["caretaker_type"]
+          created_at?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          notes?: string | null
+          permission_level?: Database["public"]["Enums"]["permission_level"]
+          status?: Database["public"]["Enums"]["relationship_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_relationships_caretaker_id_fkey"
+            columns: ["caretaker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_relationships_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_relationships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caretaker_notes: {
+        Row: {
+          author_id: string
+          care_relationship_id: string
+          created_at: string
+          id: string
+          is_visible_to_user: boolean | null
+          note_text: string
+          note_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          care_relationship_id: string
+          created_at?: string
+          id?: string
+          is_visible_to_user?: boolean | null
+          note_text: string
+          note_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          care_relationship_id?: string
+          created_at?: string
+          id?: string
+          is_visible_to_user?: boolean | null
+          note_text?: string
+          note_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caretaker_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caretaker_notes_care_relationship_id_fkey"
+            columns: ["care_relationship_id"]
+            isOneToOne: false
+            referencedRelation: "care_relationships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       food_entries: {
         Row: {
           calories: number | null
@@ -204,6 +319,63 @@ export type Database = {
           },
         ]
       }
+      user_goals: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          description: string | null
+          goal_type: string
+          id: string
+          set_by_caretaker_id: string | null
+          status: string | null
+          target_date: string | null
+          target_value: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type: string
+          id?: string
+          set_by_caretaker_id?: string | null
+          status?: string | null
+          target_date?: string | null
+          target_value?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          goal_type?: string
+          id?: string
+          set_by_caretaker_id?: string | null
+          status?: string | null
+          target_date?: string | null
+          target_value?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_goals_set_by_caretaker_id_fkey"
+            columns: ["set_by_caretaker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
@@ -289,7 +461,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      caretaker_type:
+        | "dietitian"
+        | "family_member"
+        | "healthcare_provider"
+        | "personal_trainer"
+      permission_level: "view_only" | "interactive" | "full_access"
       prompt_category: "food" | "receipt" | "workout" | "general"
+      relationship_status: "pending" | "active" | "inactive" | "rejected"
       workout_type_enum:
         | "cardio"
         | "strength"
@@ -411,7 +590,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      caretaker_type: [
+        "dietitian",
+        "family_member",
+        "healthcare_provider",
+        "personal_trainer",
+      ],
+      permission_level: ["view_only", "interactive", "full_access"],
       prompt_category: ["food", "receipt", "workout", "general"],
+      relationship_status: ["pending", "active", "inactive", "rejected"],
       workout_type_enum: [
         "cardio",
         "strength",
