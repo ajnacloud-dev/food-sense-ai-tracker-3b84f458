@@ -2,11 +2,38 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Receipt, Dumbbell, TrendingUp, Zap, Shield, Users, BarChart3, Brain, Sparkles, ArrowRight } from "lucide-react";
+import { Camera, Receipt, Dumbbell, TrendingUp, Zap, Shield, Users, BarChart3, Brain, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="text-lg text-gray-600">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show landing page to unauthenticated users
+  if (user) {
+    return null; // Will redirect via useEffect
+  }
 
   const features = [
     {
