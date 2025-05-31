@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 // Type definitions for better type safety
@@ -18,7 +17,6 @@ interface FoodEntryData {
 interface ReceiptData {
   user_id: string;
   image_url: string | null;
-  description: string;
   vendor: string;
   receipt_date: string;
   total_amount: number;
@@ -98,7 +96,6 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
         const receiptData: ReceiptData = {
           user_id: userId,
           image_url: imageUrl,
-          description: description || 'AI-analyzed content',
           vendor: analysis.merchant?.store_name || analysis.vendor || 'Unknown Store',
           receipt_date: analysis.transaction?.date || analysis.date || new Date().toISOString().split('T')[0],
           total_amount: analysis.total || 0,
