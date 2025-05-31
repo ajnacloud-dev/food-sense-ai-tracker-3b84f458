@@ -5,11 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Edit, Save, X, Utensils, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { NutritionDisplay } from "@/components/food/NutritionDisplay";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FoodEntry {
   id: string;
@@ -24,25 +25,26 @@ interface FoodEntry {
 const FoodDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [foodEntry, setFoodEntry] = useState<FoodEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<FoodEntry>>({});
 
   useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     if (id) {
       fetchFoodEntry();
     }
-  }, [id]);
+  }, [id, user, navigate]);
 
   const fetchFoodEntry = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!user) return;
 
+    try {
       const { data, error } = await supabase
         .from('food_entries')
         .select('*')
@@ -79,51 +81,6 @@ const FoodDetails = () => {
       console.error('Error updating food entry:', error);
       toast.error("Failed to update food entry");
     }
-  };
-
-  const renderNutritionInfo = (nutrition: any) => {
-    if (!nutrition) return null;
-
-    if (nutrition.total_nutrition) {
-      // New format from updated prompts
-      return (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{nutrition.total_nutrition.calories || 0}</div>
-            <div className="text-sm text-gray-600">Calories</div>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{nutrition.total_nutrition.proteins || 0}g</div>
-            <div className="text-sm text-gray-600">Protein</div>
-          </div>
-          <div className="text-center p-3 bg-orange-50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">{nutrition.total_nutrition.carbohydrates || 0}g</div>
-            <div className="text-sm text-gray-600">Carbs</div>
-          </div>
-          <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">{nutrition.total_nutrition.fats || 0}g</div>
-            <div className="text-sm text-gray-600">Fat</div>
-          </div>
-          <div className="text-center p-3 bg-yellow-50 rounded-lg">
-            <div className="text-2xl font-bold text-yellow-600">{nutrition.total_nutrition.fiber || 0}g</div>
-            <div className="text-sm text-gray-600">Fiber</div>
-          </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg">
-            <div className="text-2xl font-bold text-red-600">{nutrition.total_nutrition.sodium || 0}mg</div>
-            <div className="text-sm text-gray-600">Sodium</div>
-          </div>
-        </div>
-      );
-    }
-
-    // Legacy format
-    return (
-      <div className="flex gap-2 flex-wrap">
-        {nutrition.protein && <Badge variant="secondary">Protein: {nutrition.protein}g</Badge>}
-        {nutrition.carbs && <Badge variant="secondary">Carbs: {nutrition.carbs}g</Badge>}
-        {nutrition.fat && <Badge variant="secondary">Fat: {nutrition.fat}g</Badge>}
-      </div>
-    );
   };
 
   if (loading) {
@@ -232,37 +189,9 @@ const FoodDetails = () => {
           </CardContent>
         </Card>
 
-        {/* Nutrition Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Nutrition Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {renderNutritionInfo(foodEntry.extracted_nutrients)}
-          </CardContent>
-        </Card>
-
-        {/* AI Analysis */}
-        {foodEntry.extracted_nutrients?.meal_summary && (
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Analysis</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {foodEntry.extracted_nutrients.meal_summary.meal_suggestion && (
-                <div>
-                  <h4 className="font-medium text-green-600 mb-2">Meal Suggestion</h4>
-                  <p className="text-gray-700">{foodEntry.extracted_nutrients.meal_summary.meal_suggestion}</p>
-                </div>
-              )}
-              {foodEntry.extracted_nutrients.nutrition_focus?.suggestion && (
-                <div>
-                  <h4 className="font-medium text-blue-600 mb-2">Nutrition Focus</h4>
-                  <p className="text-gray-700">{foodEntry.extracted_nutrients.nutrition_focus.suggestion}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Comprehensive Nutrition Display */}
+        {foodEntry.extracted_nutrients && (
+          <NutritionDisplay nutritionData={foodEntry.extracted_nutrients} />
         )}
       </div>
     </SidebarLayout>

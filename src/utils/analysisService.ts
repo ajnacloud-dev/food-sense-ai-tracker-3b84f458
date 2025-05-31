@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string) => {
+export const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string): Promise<string> => {
   let insertData: any = {
     user_id: userId,
     image_url: imageUrl,
@@ -53,11 +53,14 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
     throw new Error('No data returned from insert operation');
   }
   
-  if (!data.id) {
+  // Type assertion since we know the structure after successful insert
+  const insertedData = data as { id: string };
+  
+  if (!insertedData.id) {
     throw new Error('No ID returned from insert operation');
   }
   
-  return data.id as string;
+  return insertedData.id;
 };
 
 export const uploadImage = async (file: File, userId: string) => {

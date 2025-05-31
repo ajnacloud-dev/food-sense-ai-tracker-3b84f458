@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import { ProcessingTips } from "@/components/capture/ProcessingTips";
 import { insertAnalysisResult, uploadImage } from "@/utils/analysisService";
 import { navigateToCategory } from "@/utils/navigationUtils";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -24,6 +25,14 @@ const Capture = () => {
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const navigate = useNavigate();
   const { checkUsageLimits, updateUsageLog } = useUsageCheck();
+  const { user } = useAuth();
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,13 +41,16 @@ const Capture = () => {
       return;
     }
 
+    if (!user) {
+      toast.error("Please sign in to continue");
+      navigate("/auth");
+      return;
+    }
+
     setLoading(true);
     setUploadProgress('Initializing...');
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
       setUploadProgress('Checking usage limits...');
 
       const usageCheck = await checkUsageLimits(user.id);
@@ -138,6 +150,10 @@ const Capture = () => {
       setUploadProgress('');
     }
   };
+
+  if (!user) {
+    return null; // Will redirect in useEffect
+  }
 
   return (
     <SidebarLayout>

@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FoodEntry {
   id: string;
@@ -22,6 +23,7 @@ interface FoodEntry {
 
 const Food = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -31,17 +33,17 @@ const Food = () => {
   });
 
   useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     fetchFoodEntries();
-  }, []);
+  }, [user, navigate]);
 
   const fetchFoodEntries = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!user) return;
 
+    try {
       const { data, error } = await supabase
         .from('food_entries')
         .select('*')
@@ -96,6 +98,19 @@ const Food = () => {
   const renderNutrients = (nutrients: any) => {
     if (!nutrients) return null;
     
+    // Check for new comprehensive format first
+    if (nutrients.meal_summary?.total_nutrition) {
+      const nutrition = nutrients.meal_summary.total_nutrition;
+      return (
+        <div className="flex gap-2 flex-wrap">
+          <Badge variant="secondary">Protein: {nutrition.proteins || 0}g</Badge>
+          <Badge variant="secondary">Carbs: {nutrition.carbohydrates || 0}g</Badge>
+          <Badge variant="secondary">Fat: {nutrition.fats || 0}g</Badge>
+        </div>
+      );
+    }
+    
+    // Legacy format fallback
     return (
       <div className="flex gap-2 flex-wrap">
         {nutrients.protein && (
