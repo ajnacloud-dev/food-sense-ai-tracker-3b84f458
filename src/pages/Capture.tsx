@@ -126,7 +126,7 @@ const Capture = () => {
       }
 
       const { error: insertError } = await supabase
-        .from(tableName)
+        .from(tableName as any)
         .insert(insertData);
 
       if (insertError) throw insertError;
