@@ -42,13 +42,16 @@ const Capture = () => {
         .eq('id', user.id)
         .single();
 
+      let currentUsage = null;
       if (!userData?.is_subscribed) {
-        const { data: currentUsage } = await supabase
+        const { data: usageData } = await supabase
           .from('api_usage_log')
           .select('usage_count')
           .eq('user_id', user.id)
           .eq('usage_date', today)
           .single();
+
+        currentUsage = usageData;
 
         if (currentUsage && currentUsage.usage_count >= 2) {
           toast.error("Daily limit reached. Upgrade to Pro for unlimited access.");
@@ -57,9 +60,8 @@ const Capture = () => {
         }
       }
 
-      let imageUrl = null;
-      
       // Upload image if provided
+      let imageUrl = null;
       if (file) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
