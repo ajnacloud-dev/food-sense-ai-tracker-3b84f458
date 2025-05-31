@@ -21,7 +21,7 @@ interface CareRelationship {
   status: string;
   created_at: string;
   notes?: string;
-  users?: {
+  patient?: {
     full_name: string;
     email: string;
   };
@@ -56,12 +56,23 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
         .from('care_relationships')
         .select(`
           *,
-          users:user_id (full_name, email)
+          patient:users!care_relationships_user_id_fkey (full_name, email)
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
 
-      setRelationships(data || []);
+      const formattedData = (data || []).map(rel => ({
+        id: rel.id,
+        user_id: rel.user_id,
+        caretaker_type: rel.caretaker_type,
+        permission_level: rel.permission_level,
+        status: rel.status,
+        created_at: rel.created_at,
+        notes: rel.notes,
+        patient: rel.patient
+      }));
+
+      setRelationships(formattedData);
     } catch (error) {
       console.error('Error fetching relationships:', error);
       toast.error('Failed to load relationships');
@@ -106,9 +117,9 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
         .insert({
           user_id: existingUser.id,
           caretaker_id: user.id,
-          caretaker_type: inviteForm.caretaker_type,
-          permission_level: inviteForm.permission_level,
-          status: 'pending',
+          caretaker_type: inviteForm.caretaker_type as any,
+          permission_level: inviteForm.permission_level as any,
+          status: 'pending' as any,
           invited_by: user.id,
           notes: inviteForm.notes || null
         });
@@ -132,7 +143,7 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
     }
   };
 
-  const updateRelationshipStatus = async (relationshipId: string, status: string) => {
+  const updateRelationshipStatus = async (relationshipId: string, status: 'active' | 'inactive' | 'rejected') => {
     try {
       const { error } = await supabase
         .from('care_relationships')
@@ -271,8 +282,8 @@ const CareRelationshipManager = ({ onRelationshipUpdated }: CareRelationshipMana
                 <TableRow key={relationship.id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{relationship.users?.full_name || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{relationship.users?.email || 'Unknown'}</div>
+                      <div className="font-medium">{relationship.patient?.full_name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500">{relationship.patient?.email || 'Unknown'}</div>
                     </div>
                   </TableCell>
                   <TableCell>

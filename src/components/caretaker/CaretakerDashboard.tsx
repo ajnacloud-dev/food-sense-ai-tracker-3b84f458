@@ -56,15 +56,15 @@ const CaretakerDashboard = () => {
         .from('care_relationships')
         .select(`
           *,
-          users:user_id (id, full_name, email)
+          patient:users!care_relationships_user_id_fkey (id, full_name, email)
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
 
       const patientData: Patient[] = (relationships || []).map(rel => ({
         id: rel.user_id,
-        full_name: rel.users?.full_name || 'Unknown',
-        email: rel.users?.email || 'Unknown',
+        full_name: rel.patient?.full_name || 'Unknown',
+        email: rel.patient?.email || 'Unknown',
         caretaker_type: rel.caretaker_type,
         permission_level: rel.permission_level,
         status: rel.status,
