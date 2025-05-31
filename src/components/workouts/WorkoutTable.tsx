@@ -54,6 +54,14 @@ const getWorkoutTypeColor = (type: string) => {
 };
 
 export const WorkoutTable = ({ workouts, onDelete, onView }: WorkoutTableProps) => {
+  const handleRowClick = (workoutId: string, event: React.MouseEvent) => {
+    // Prevent row click when clicking on action buttons
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    onView(workoutId);
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -68,7 +76,11 @@ export const WorkoutTable = ({ workouts, onDelete, onView }: WorkoutTableProps) 
       </TableHeader>
       <TableBody>
         {workouts.map((workout) => (
-          <TableRow key={workout.id}>
+          <TableRow 
+            key={workout.id}
+            className="cursor-pointer hover:bg-gray-50"
+            onClick={(e) => handleRowClick(workout.id, e)}
+          >
             <TableCell>
               <Badge className={getWorkoutTypeColor(workout.workout_type)}>
                 {workout.workout_type?.charAt(0).toUpperCase() + workout.workout_type?.slice(1) || 'Other'}
