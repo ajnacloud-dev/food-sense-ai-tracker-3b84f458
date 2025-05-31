@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Check, Star, Zap, Shield, Users } from "lucide-react";
+import { CreditCard, Check, Star, Zap, Shield, Users, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -20,9 +20,20 @@ const Billing = () => {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [usageToday, setUsageToday] = useState(0);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     fetchUserData();
+    
+    // Check for success/cancel URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'true') {
+      toast.success("Subscription activated successfully!");
+      checkSubscription();
+    } else if (urlParams.get('canceled') === 'true') {
+      toast.info("Subscription canceled. You can try again anytime.");
+    }
   }, []);
 
   const fetchUserData = async () => {
@@ -59,14 +70,79 @@ const Billing = () => {
     }
   };
 
-  const handleUpgrade = () => {
-    toast.info("Stripe integration coming soon! This will redirect to checkout.");
-    // This would integrate with Stripe for actual payments
+  const checkSubscription = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      
+      // Refresh user data after checking subscription
+      fetchUserData();
+    } catch (error: any) {
+      console.error('Error checking subscription:', error);
+    }
   };
 
-  const handleManageSubscription = () => {
-    toast.info("Subscription management coming soon!");
-    // This would integrate with Stripe Customer Portal
+  const handleUpgrade = async (priceId?: string) => {
+    try {
+      setUpgradeLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in to upgrade");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { priceId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Open Stripe checkout in a new tab
+      window.open(data.url, '_blank');
+    } catch (error: any) {
+      console.error('Error creating checkout session:', error);
+      toast.error("Failed to start checkout process");
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      setPortalLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in to manage subscription");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      // Open Stripe customer portal in a new tab
+      window.open(data.url, '_blank');
+    } catch (error: any) {
+      console.error('Error opening customer portal:', error);
+      toast.error("Failed to open subscription management");
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   const plans = [
@@ -89,7 +165,8 @@ const Billing = () => {
       buttonText: "Current Plan",
       buttonVariant: "outline" as const,
       popular: false,
-      current: !userData?.is_subscribed
+      current: !userData?.is_subscribed,
+      priceId: null
     },
     {
       name: "Pro",
@@ -109,7 +186,8 @@ const Billing = () => {
       buttonText: userData?.is_subscribed ? "Current Plan" : "Upgrade to Pro",
       buttonVariant: userData?.is_subscribed ? "outline" as const : "default" as const,
       popular: true,
-      current: userData?.is_subscribed || false
+      current: userData?.is_subscribed || false,
+      priceId: "price_pro_monthly" // Replace with your actual Stripe price ID
     },
     {
       name: "Enterprise",
@@ -129,7 +207,8 @@ const Billing = () => {
       buttonText: "Contact Sales",
       buttonVariant: "outline" as const,
       popular: false,
-      current: false
+      current: false,
+      priceId: "price_enterprise_monthly" // Replace with your actual Stripe price ID
     }
   ];
 
@@ -172,17 +251,32 @@ const Billing = () => {
                 <p className="text-sm text-gray-600 mb-1">
                   Email: {userData?.email}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 mb-2">
                   {userData?.is_subscribed 
                     ? "Unlimited AI analyses available" 
                     : `${usageToday}/2 free analyses used today`}
                 </p>
+                {userData?.subscription_id && (
+                  <p className="text-xs text-gray-500">
+                    Subscription ID: {userData.subscription_id}
+                  </p>
+                )}
               </div>
-              {userData?.is_subscribed && (
-                <Button variant="outline" onClick={handleManageSubscription}>
-                  Manage Subscription
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={checkSubscription}>
+                  Refresh Status
                 </Button>
-              )}
+                {userData?.is_subscribed && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleManageSubscription}
+                    disabled={portalLoading}
+                  >
+                    {portalLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Manage Subscription
+                  </Button>
+                )}
+              </div>
             </div>
             
             {!userData?.is_subscribed && (
@@ -256,15 +350,16 @@ const Billing = () => {
                   <Button
                     variant={plan.buttonVariant}
                     className="w-full"
-                    disabled={plan.current}
+                    disabled={plan.current || upgradeLoading}
                     onClick={() => {
                       if (plan.name === 'Pro' && !userData?.is_subscribed) {
-                        handleUpgrade();
+                        handleUpgrade(plan.priceId);
                       } else if (plan.name === 'Enterprise') {
                         toast.info("Enterprise sales coming soon!");
                       }
                     }}
                   >
+                    {upgradeLoading && plan.name === 'Pro' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {plan.current ? "Current Plan" : plan.buttonText}
                   </Button>
                 </CardContent>
