@@ -74,8 +74,7 @@ const PermissionManager = () => {
           id,
           caretaker_id,
           caretaker_type,
-          status,
-          caretaker:users!care_relationships_caretaker_id_fkey (full_name, email)
+          status
         `)
         .eq('user_id', user.id)
         .eq('status', 'active');
@@ -86,26 +85,33 @@ const PermissionManager = () => {
         return;
       }
 
-      // Process relationships data with proper type handling
+      // Fetch caretaker user details separately
       const processedRelationships: CaretakerRelationship[] = [];
       
       if (relationshipsData) {
         for (const rel of relationshipsData) {
-          // Type guard to ensure caretaker data exists and is properly structured
-          if (rel.caretaker && typeof rel.caretaker === 'object' && !Array.isArray(rel.caretaker)) {
-            const caretaker = rel.caretaker as any;
-            if (caretaker.full_name !== undefined && caretaker.email) {
-              processedRelationships.push({
-                id: rel.id,
-                caretaker_id: rel.caretaker_id,
-                caretaker_type: rel.caretaker_type,
-                status: rel.status,
-                caretaker: {
-                  full_name: caretaker.full_name,
-                  email: caretaker.email
-                }
-              });
-            }
+          const { data: caretakerData, error: caretakerError } = await supabase
+            .from('users')
+            .select('full_name, email')
+            .eq('id', rel.caretaker_id)
+            .single();
+
+          if (caretakerError) {
+            console.error('Error fetching caretaker data:', caretakerError);
+            continue;
+          }
+
+          if (caretakerData) {
+            processedRelationships.push({
+              id: rel.id,
+              caretaker_id: rel.caretaker_id,
+              caretaker_type: rel.caretaker_type,
+              status: rel.status,
+              caretaker: {
+                full_name: caretakerData.full_name,
+                email: caretakerData.email
+              }
+            });
           }
         }
       }
@@ -123,10 +129,7 @@ const PermissionManager = () => {
       // Fetch pending permission requests
       const { data: requestsData, error: requestsError } = await supabase
         .from('permission_requests')
-        .select(`
-          *,
-          caretaker:users!permission_requests_caretaker_id_fkey (full_name, email)
-        `)
+        .select('*')
         .eq('participant_id', user.id)
         .eq('status', 'pending');
 
@@ -136,28 +139,35 @@ const PermissionManager = () => {
         return;
       }
 
-      // Process requests data with proper type handling
+      // Fetch caretaker details for pending requests
       const processedRequests: PermissionRequest[] = [];
       
       if (requestsData) {
         for (const request of requestsData) {
-          // Type guard to ensure caretaker data exists and is properly structured
-          if (request.caretaker && typeof request.caretaker === 'object' && !Array.isArray(request.caretaker)) {
-            const caretaker = request.caretaker as any;
-            if (caretaker.full_name !== undefined && caretaker.email) {
-              processedRequests.push({
-                id: request.id,
-                caretaker_id: request.caretaker_id,
-                category: request.category,
-                status: request.status,
-                message: request.message,
-                created_at: request.created_at,
-                caretaker: {
-                  full_name: caretaker.full_name,
-                  email: caretaker.email
-                }
-              });
-            }
+          const { data: caretakerData, error: caretakerError } = await supabase
+            .from('users')
+            .select('full_name, email')
+            .eq('id', request.caretaker_id)
+            .single();
+
+          if (caretakerError) {
+            console.error('Error fetching caretaker data for request:', caretakerError);
+            continue;
+          }
+
+          if (caretakerData) {
+            processedRequests.push({
+              id: request.id,
+              caretaker_id: request.caretaker_id,
+              category: request.category,
+              status: request.status,
+              message: request.message,
+              created_at: request.created_at,
+              caretaker: {
+                full_name: caretakerData.full_name,
+                email: caretakerData.email
+              }
+            });
           }
         }
       }
