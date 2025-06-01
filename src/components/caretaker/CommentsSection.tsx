@@ -56,7 +56,14 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
       const { data, error } = await query;
 
       if (error) throw error;
-      setComments(data || []);
+      
+      // Type assertion to ensure author_type is properly typed
+      const typedComments = (data || []).map(comment => ({
+        ...comment,
+        author_type: comment.author_type as 'caretaker' | 'participant'
+      }));
+      
+      setComments(typedComments);
     } catch (error) {
       console.error('Error fetching comments:', error);
       toast.error('Failed to load comments');

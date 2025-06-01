@@ -27,26 +27,38 @@ const DetailedCaptureView = ({ participantId, captureType, captureId, onBack }: 
   const fetchCaptureData = async () => {
     try {
       setLoading(true);
-      let tableName = '';
       
-      switch (captureType) {
-        case 'food_entry':
-          tableName = 'food_entries';
-          break;
-        case 'workout':
-          tableName = 'workouts';
-          break;
-        case 'receipt':
-          tableName = 'receipts';
-          break;
+      let data, error;
+      
+      // Handle each capture type separately to avoid dynamic table name issues
+      if (captureType === 'food_entry') {
+        const response = await supabase
+          .from('food_entries')
+          .select('*')
+          .eq('id', captureId)
+          .eq('user_id', participantId)
+          .single();
+        data = response.data;
+        error = response.error;
+      } else if (captureType === 'workout') {
+        const response = await supabase
+          .from('workouts')
+          .select('*')
+          .eq('id', captureId)
+          .eq('user_id', participantId)
+          .single();
+        data = response.data;
+        error = response.error;
+      } else if (captureType === 'receipt') {
+        const response = await supabase
+          .from('receipts')
+          .select('*')
+          .eq('id', captureId)
+          .eq('user_id', participantId)
+          .single();
+        data = response.data;
+        error = response.error;
       }
-
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq('id', captureId)
-        .eq('user_id', participantId)
-        .single();
 
       if (error) throw error;
       setCaptureData(data);
