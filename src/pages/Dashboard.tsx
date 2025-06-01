@@ -8,9 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [stats, setStats] = useState({
     foodEntries: 0,
     receipts: 0,
@@ -115,7 +117,7 @@ const Dashboard = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
+      <div className={`space-y-6 ${isMobile ? 'pb-20' : 'pb-6'}`}>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here's your health overview.</p>

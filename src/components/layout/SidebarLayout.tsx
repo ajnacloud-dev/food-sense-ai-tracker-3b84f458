@@ -25,6 +25,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,7 @@ interface SidebarLayoutProps {
 const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>('user');
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
@@ -222,7 +224,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex w-full">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block w-64 bg-white border-r">
         <SidebarContent />
@@ -231,7 +233,11 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       {/* Mobile Sidebar */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="lg:hidden fixed top-4 left-4 z-40">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className={`lg:hidden fixed top-4 left-4 z-40 ${isMobile ? 'h-9 w-9' : ''}`}
+          >
             <Menu className="h-4 w-4" />
           </Button>
         </SheetTrigger>
@@ -242,7 +248,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        <main className="flex-1 p-6 lg:p-8">
+        <main className={`flex-1 ${isMobile ? 'p-4 pt-16' : 'p-6 lg:p-8'}`}>
           {children}
         </main>
       </div>
