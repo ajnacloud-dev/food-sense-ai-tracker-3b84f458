@@ -1,13 +1,13 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings, DollarSign, Users, Activity, Plus } from "lucide-react";
+import { Settings, DollarSign, Users, Activity, Plus, TestTube } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import PromptManager from "./PromptManager";
 
 interface AdminStats {
@@ -30,6 +30,7 @@ interface CostEntry {
 }
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalCosts: 0,
@@ -123,9 +124,18 @@ const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600">Manage prompts, monitor costs, and analyze usage</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-gray-600">Manage prompts, monitor costs, and analyze usage</p>
+        </div>
+        <Button 
+          onClick={() => navigate("/admin/test-workflow")}
+          className="flex items-center gap-2"
+        >
+          <TestTube className="h-4 w-4" />
+          Test Workflow
+        </Button>
       </div>
 
       {/* Stats Overview */}
