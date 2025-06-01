@@ -20,7 +20,15 @@ serve(async (req) => {
 
     const { pendingAnalysisId, description, imageUrl, useAdvanced = false } = await req.json();
 
+    console.log('Starting async analysis:', {
+      pendingAnalysisId,
+      description: description?.substring(0, 100),
+      hasImage: !!imageUrl,
+      useAdvanced
+    });
+
     if (!pendingAnalysisId) {
+      console.error('Missing pendingAnalysisId');
       return new Response(
         JSON.stringify({ error: 'Missing pendingAnalysisId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -28,7 +36,8 @@ serve(async (req) => {
     }
 
     // Update status to processing
-    await supabase
+    console.log('Updating status to processing for:', pendingAnalysisId);
+    const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({ 
         status: 'processing',
@@ -36,7 +45,13 @@ serve(async (req) => {
       })
       .eq('id', pendingAnalysisId);
 
-    // Start background analysis
+    if (updateError) {
+      console.error('Failed to update status to processing:', updateError);
+      throw updateError;
+    }
+
+    // Start background analysis with timeout
+    console.log('Starting background processing for:', pendingAnalysisId);
     EdgeRuntime.waitUntil(processAnalysisInBackground(
       supabase,
       pendingAnalysisId,
@@ -70,10 +85,14 @@ async function processAnalysisInBackground(
   imageUrl: string | null,
   useAdvanced: boolean
 ) {
+  const startTime = Date.now();
+  console.log(`Background processing started for ${pendingAnalysisId}`);
+
   try {
     let result;
     
     if (useAdvanced) {
+      console.log(`Calling advanced workflow for ${pendingAnalysisId}`);
       // Call the advanced workflow
       const { data: workflowResult, error: workflowError } = await supabase.functions
         .invoke('langgraph-workflow', {
@@ -85,11 +104,14 @@ async function processAnalysisInBackground(
         });
 
       if (workflowError) {
-        throw new Error(workflowError.message || 'Advanced workflow failed');
+        console.error(`Advanced workflow error for ${pendingAnalysisId}:`, workflowError);
+        throw new Error(`Advanced workflow failed: ${workflowError.message || 'Unknown error'}`);
       }
 
+      console.log(`Advanced workflow completed for ${pendingAnalysisId}`);
       result = workflowResult;
     } else {
+      console.log(`Calling standard analysis for ${pendingAnalysisId}`);
       // Call standard analysis
       const { data: analysisResult, error: analysisError } = await supabase.functions
         .invoke('auto-classify-and-analyze', {
@@ -97,38 +119,62 @@ async function processAnalysisInBackground(
         });
 
       if (analysisError) {
-        throw new Error(analysisError.message || 'Analysis failed');
+        console.error(`Standard analysis error for ${pendingAnalysisId}:`, analysisError);
+        throw new Error(`Analysis failed: ${analysisError.message || 'Unknown error'}`);
       }
 
+      console.log(`Standard analysis completed for ${pendingAnalysisId}`);
       result = analysisResult;
     }
 
+    // Extract category from result
+    let category = result.category;
+    if (!category && result.result?.classification?.category) {
+      category = result.result.classification.category;
+    }
+    if (!category && result.result?.category) {
+      category = result.result.category;
+    }
+
+    console.log(`Updating analysis ${pendingAnalysisId} as completed with category: ${category}`);
+
     // Update with successful result
-    await supabase
+    const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({
         status: 'completed',
-        category: result.category || (result.result?.classification?.category),
+        category: category || 'unknown',
         analysis_result: result,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingAnalysisId);
 
-    console.log(`Analysis ${pendingAnalysisId} completed successfully`);
+    if (updateError) {
+      console.error(`Failed to update completed analysis ${pendingAnalysisId}:`, updateError);
+      throw updateError;
+    }
+
+    const duration = Date.now() - startTime;
+    console.log(`Analysis ${pendingAnalysisId} completed successfully in ${duration}ms`);
 
   } catch (error) {
-    console.error(`Analysis ${pendingAnalysisId} failed:`, error);
+    const duration = Date.now() - startTime;
+    console.error(`Analysis ${pendingAnalysisId} failed after ${duration}ms:`, error);
     
     // Update with error
-    await supabase
+    const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({
         status: 'failed',
-        error_message: error.message,
+        error_message: error.message || 'Unknown error occurred',
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingAnalysisId);
+
+    if (updateError) {
+      console.error(`Failed to update failed analysis ${pendingAnalysisId}:`, updateError);
+    }
   }
 }

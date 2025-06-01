@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButto
 import { PendingAnalysesCard } from "@/components/capture/PendingAnalysesCard";
 import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -25,15 +27,28 @@ const Dashboard = () => {
   });
 
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUser();
-    fetchDashboardStats();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      fetchDashboardStats();
+    }
+  }, [user]);
+
   const fetchUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      setUser(user);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      setError('Failed to load user data');
+    }
   };
 
   const { pendingAnalyses, loading: pendingLoading } = usePendingAnalyses(user?.id);
@@ -41,57 +56,81 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     if (!user) return;
 
-    // Fetch food entries count
-    const { count: foodCount } = await supabase
-      .from('food_entries')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+    try {
+      setLoading(true);
+      setError(null);
 
-    // Fetch receipts count
-    const { count: receiptsCount } = await supabase
-      .from('receipts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      // Fetch food entries count
+      const { count: foodCount, error: foodError } = await supabase
+        .from('food_entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
 
-    // Fetch workouts count
-    const { count: workoutsCount } = await supabase
-      .from('workouts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+      if (foodError) throw foodError;
 
-    // Fetch total calories from food entries
-    const { data: foodEntries } = await supabase
-      .from('food_entries')
-      .select('calories')
-      .eq('user_id', user.id);
+      // Fetch receipts count
+      const { count: receiptsCount, error: receiptsError } = await supabase
+        .from('receipts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
 
-    const totalCalories = foodEntries?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
+      if (receiptsError) throw receiptsError;
 
-    // Fetch today's usage
-    const today = new Date().toISOString().split('T')[0];
-    const { data: usage } = await supabase
-      .from('api_usage_log')
-      .select('usage_count')
-      .eq('user_id', user.id)
-      .eq('usage_date', today)
-      .single();
+      // Fetch workouts count
+      const { count: workoutsCount, error: workoutsError } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
 
-    // Fetch user subscription status and role
-    const { data: userData } = await supabase
-      .from('users')
-      .select('is_subscribed, role')
-      .eq('id', user.id)
-      .single();
+      if (workoutsError) throw workoutsError;
 
-    setStats({
-      foodEntries: foodCount || 0,
-      receipts: receiptsCount || 0,
-      workouts: workoutsCount || 0,
-      totalCalories,
-      usageToday: usage?.usage_count || 0,
-      isSubscribed: userData?.is_subscribed || false,
-      userRole: userData?.role || 'user'
-    });
+      // Fetch total calories from food entries
+      const { data: foodEntries, error: caloriesError } = await supabase
+        .from('food_entries')
+        .select('calories')
+        .eq('user_id', user.id);
+
+      if (caloriesError) throw caloriesError;
+
+      const totalCalories = foodEntries?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
+
+      // Fetch today's usage
+      const today = new Date().toISOString().split('T')[0];
+      const { data: usage, error: usageError } = await supabase
+        .from('api_usage_log')
+        .select('usage_count')
+        .eq('user_id', user.id)
+        .eq('usage_date', today)
+        .single();
+
+      // Usage error is expected if no entry exists for today
+      const usageCount = usage?.usage_count || 0;
+
+      // Fetch user subscription status and role
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_subscribed, role')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) throw userError;
+
+      setStats({
+        foodEntries: foodCount || 0,
+        receipts: receiptsCount || 0,
+        workouts: workoutsCount || 0,
+        totalCalories,
+        usageToday: usageCount,
+        isSubscribed: userData?.is_subscribed || false,
+        userRole: userData?.role || 'user'
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      setError('Failed to load dashboard statistics');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const quickActions = [
@@ -125,12 +164,41 @@ const Dashboard = () => {
     }
   ];
 
+  if (loading) {
+    return (
+      <SidebarLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p>Loading dashboard...</p>
+          </div>
+        </div>
+      </SidebarLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <SidebarLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchDashboardStats}>Retry</Button>
+          </div>
+        </div>
+      </SidebarLayout>
+    );
+  }
+
   return (
     <SidebarLayout>
       <div className={`space-y-6 ${isMobile ? 'pb-20' : 'pb-6'}`}>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Welcome back! Here's your health overview.</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600">Welcome back! Here's your health overview.</p>
+          </div>
+          <NotificationBell />
         </div>
 
         {/* Pending Analyses */}

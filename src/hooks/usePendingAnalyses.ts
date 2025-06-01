@@ -7,16 +7,23 @@ import { toast } from "sonner";
 export const usePendingAnalyses = (userId: string | undefined) => {
   const [pendingAnalyses, setPendingAnalyses] = useState<PendingAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchPendingAnalyses = async () => {
       try {
+        setError(null);
         const analyses = await getPendingAnalyses(userId);
         setPendingAnalyses(analyses);
+        console.log('Fetched pending analyses:', analyses.length);
       } catch (error) {
         console.error('Failed to fetch pending analyses:', error);
+        setError('Failed to load pending analyses');
       } finally {
         setLoading(false);
       }
@@ -25,6 +32,7 @@ export const usePendingAnalyses = (userId: string | undefined) => {
     fetchPendingAnalyses();
 
     // Set up real-time subscription
+    console.log('Setting up real-time subscription for user:', userId);
     const channel = supabase
       .channel('pending-analyses-changes')
       .on(
@@ -39,7 +47,9 @@ export const usePendingAnalyses = (userId: string | undefined) => {
           console.log('Pending analysis change:', payload);
           
           if (payload.eventType === 'INSERT') {
-            setPendingAnalyses(prev => [payload.new as PendingAnalysis, ...prev]);
+            const newAnalysis = payload.new as PendingAnalysis;
+            setPendingAnalyses(prev => [newAnalysis, ...prev]);
+            console.log('Added new pending analysis:', newAnalysis.id);
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as PendingAnalysis;
             setPendingAnalyses(prev => 
@@ -50,23 +60,58 @@ export const usePendingAnalyses = (userId: string | undefined) => {
 
             // Show notification for completed or failed analyses
             if (updated.status === 'completed') {
-              toast.success(`Analysis complete! Your ${updated.category || 'content'} has been processed.`);
+              toast.success(`Analysis complete!`, {
+                description: `Your ${updated.category || 'content'} has been processed successfully.`
+              });
+              console.log('Analysis completed:', updated.id);
             } else if (updated.status === 'failed') {
-              toast.error(`Analysis failed: ${updated.error_message || 'Unknown error'}`);
+              toast.error(`Analysis failed`, {
+                description: updated.error_message || 'Unknown error occurred'
+              });
+              console.log('Analysis failed:', updated.id, updated.error_message);
+            } else if (updated.status === 'processing') {
+              console.log('Analysis started processing:', updated.id);
             }
           } else if (payload.eventType === 'DELETE') {
             setPendingAnalyses(prev => 
               prev.filter(analysis => analysis.id !== payload.old.id)
             );
+            console.log('Removed pending analysis:', payload.old.id);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        if (status === 'SUBSCRIPTION_ERROR') {
+          console.error('Subscription error for pending analyses');
+          setError('Real-time updates unavailable');
+        }
+      });
 
     return () => {
+      console.log('Cleaning up pending analyses subscription');
       supabase.removeChannel(channel);
     };
   }, [userId]);
 
-  return { pendingAnalyses, loading, setPendingAnalyses };
+  const refetch = async () => {
+    if (!userId) return;
+    
+    try {
+      setError(null);
+      const analyses = await getPendingAnalyses(userId);
+      setPendingAnalyses(analyses);
+    } catch (error) {
+      console.error('Failed to refetch pending analyses:', error);
+      setError('Failed to refresh analyses');
+    }
+  };
+
+  return { 
+    pendingAnalyses, 
+    loading, 
+    error,
+    setPendingAnalyses,
+    refetch
+  };
 };
