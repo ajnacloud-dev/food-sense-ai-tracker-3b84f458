@@ -1,7 +1,7 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getPendingAnalyses, PendingAnalysis } from "@/utils/pendingAnalysisService";
+import { getPendingAnalyses, PendingAnalysis, cleanupInconsistentAnalyses } from "@/utils/pendingAnalysisService";
 import { toast } from "sonner";
 
 export const usePendingAnalyses = (userId: string | undefined) => {
@@ -9,27 +9,44 @@ export const usePendingAnalyses = (userId: string | undefined) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchPendingAnalyses = useCallback(async () => {
     if (!userId) {
       setLoading(false);
       return;
     }
 
-    const fetchPendingAnalyses = async () => {
-      try {
-        setError(null);
-        const analyses = await getPendingAnalyses(userId);
-        setPendingAnalyses(analyses);
-        console.log('Fetched pending analyses:', analyses.length);
-      } catch (error) {
-        console.error('Failed to fetch pending analyses:', error);
-        setError('Failed to load pending analyses');
-      } finally {
-        setLoading(false);
+    try {
+      setError(null);
+      const analyses = await getPendingAnalyses(userId);
+      setPendingAnalyses(analyses);
+      console.log('Fetched pending analyses:', analyses.length);
+      
+      // Auto-cleanup inconsistent data when fetching
+      const inconsistent = analyses.filter(a => 
+        a.status === 'pending' && a.completed_at !== null
+      );
+      
+      if (inconsistent.length > 0) {
+        console.log(`Found ${inconsistent.length} inconsistent analyses, cleaning up...`);
+        await cleanupInconsistentAnalyses(userId);
+        // Refetch after cleanup
+        const cleanedAnalyses = await getPendingAnalyses(userId);
+        setPendingAnalyses(cleanedAnalyses);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch pending analyses:', error);
+      setError('Failed to load pending analyses');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
+  useEffect(() => {
     fetchPendingAnalyses();
+  }, [fetchPendingAnalyses]);
+
+  useEffect(() => {
+    if (!userId) return;
 
     // Set up real-time subscription
     console.log('Setting up real-time subscription for user:', userId);
@@ -43,7 +60,7 @@ export const usePendingAnalyses = (userId: string | undefined) => {
           table: 'pending_analyses',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
+        async (payload) => {
           console.log('Pending analysis change:', payload);
           
           if (payload.eventType === 'INSERT') {
@@ -64,6 +81,11 @@ export const usePendingAnalyses = (userId: string | undefined) => {
                 description: `Your ${updated.category || 'content'} has been processed successfully.`
               });
               console.log('Analysis completed:', updated.id);
+              
+              // Force a refresh to ensure we have the latest data
+              setTimeout(() => {
+                fetchPendingAnalyses();
+              }, 1000);
             } else if (updated.status === 'failed') {
               toast.error(`Analysis failed`, {
                 description: updated.error_message || 'Unknown error occurred'
@@ -82,34 +104,29 @@ export const usePendingAnalyses = (userId: string | undefined) => {
       )
       .subscribe((status) => {
         console.log('Subscription status:', status);
-        // Remove the problematic status check that was causing TypeScript error
-        // Supabase handles connection errors internally
       });
 
     return () => {
       console.log('Cleaning up pending analyses subscription');
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, fetchPendingAnalyses]);
 
-  const refetch = async () => {
-    if (!userId) return;
-    
-    try {
-      setError(null);
-      const analyses = await getPendingAnalyses(userId);
-      setPendingAnalyses(analyses);
-    } catch (error) {
-      console.error('Failed to refetch pending analyses:', error);
-      setError('Failed to refresh analyses');
-    }
-  };
+  const refetch = useCallback(async () => {
+    await fetchPendingAnalyses();
+  }, [fetchPendingAnalyses]);
+
+  const forceRefresh = useCallback(async () => {
+    setLoading(true);
+    await fetchPendingAnalyses();
+  }, [fetchPendingAnalyses]);
 
   return { 
     pendingAnalyses, 
     loading, 
     error,
     setPendingAnalyses,
-    refetch
+    refetch,
+    forceRefresh
   };
 };

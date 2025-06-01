@@ -94,8 +94,11 @@ const Capture = () => {
         description: "Check your dashboard for updates"
       });
 
-      // Navigate back to dashboard
-      navigate("/dashboard");
+      // Navigate back to dashboard with refresh flag
+      navigate("/dashboard", { 
+        state: { shouldRefresh: true },
+        replace: true 
+      });
 
       // Update usage log for non-subscribed users
       if (!userData?.is_subscribed) {

@@ -17,9 +17,10 @@ import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
 interface QuickCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAnalysisStarted?: () => void; // Add callback for when analysis starts
 }
 
-export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) => {
+export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickCaptureModalProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -91,6 +92,9 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
         description: "Check your dashboard for updates"
       });
 
+      // Call the callback to refresh the parent component
+      onAnalysisStarted?.();
+      
       onClose();
 
       // Update usage log for non-subscribed users

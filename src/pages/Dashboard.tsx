@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Utensils, Receipt, Dumbbell, TrendingUp, Plus, Zap } from "lucide-react";
+import { Utensils, Receipt, Dumbbell, TrendingUp, Plus, Zap, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 import { PendingAnalysesCard } from "@/components/capture/PendingAnalysesCard";
@@ -14,6 +15,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const [stats, setStats] = useState({
     foodEntries: 0,
@@ -28,6 +30,7 @@ const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchUser();
@@ -38,6 +41,15 @@ const Dashboard = () => {
       fetchDashboardStats();
     }
   }, [user]);
+
+  // Auto-refresh when navigating back from capture
+  useEffect(() => {
+    const state = location.state as { shouldRefresh?: boolean } | null;
+    if (state?.shouldRefresh && user) {
+      console.log('Auto-refreshing dashboard data after capture');
+      handleManualRefresh();
+    }
+  }, [location.state, user]);
 
   const fetchUser = async () => {
     try {
@@ -50,7 +62,7 @@ const Dashboard = () => {
     }
   };
 
-  const { pendingAnalyses, loading: pendingLoading, refetch: refetchPending } = usePendingAnalyses(user?.id);
+  const { pendingAnalyses, loading: pendingLoading, refetch: refetchPending, forceRefresh } = usePendingAnalyses(user?.id);
 
   const fetchDashboardStats = async () => {
     if (!user) return;
@@ -132,6 +144,23 @@ const Dashboard = () => {
     }
   };
 
+  const handleManualRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchDashboardStats(),
+        forceRefresh()
+      ]);
+      console.log('Dashboard manually refreshed');
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Filter out inconsistent analyses from pending count
   const actualPendingAnalyses = pendingAnalyses.filter(a => 
     (a.status === 'pending' && !a.completed_at) || 
@@ -203,7 +232,18 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">Welcome back! Here's your health overview.</p>
           </div>
-          <NotificationBell />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              className="h-8"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <NotificationBell />
+          </div>
         </div>
 
         {/* Pending Analyses */}
