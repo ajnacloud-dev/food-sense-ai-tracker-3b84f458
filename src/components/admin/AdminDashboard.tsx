@@ -1,32 +1,20 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Settings, DollarSign, Users, Activity, Plus, TestTube } from "lucide-react";
+import { Settings, DollarSign, Users, Activity, TestTube } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import PromptManager from "./PromptManager";
+import CostAnalytics from "./CostAnalytics";
 
 interface AdminStats {
   totalUsers: number;
   totalCosts: number;
   todayCosts: number;
   totalAnalyses: number;
-}
-
-interface CostEntry {
-  id: string;
-  user_id: string;
-  function_name: string;
-  model_used: string;
-  total_tokens: number;
-  cost_usd: number;
-  category: string;
-  created_at: string;
-  users?: { email: string; full_name: string } | null;
 }
 
 const AdminDashboard = () => {
@@ -37,7 +25,6 @@ const AdminDashboard = () => {
     todayCosts: 0,
     totalAnalyses: 0
   });
-  const [recentCosts, setRecentCosts] = useState<CostEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,37 +53,12 @@ const AdminDashboard = () => {
         cost.created_at.startsWith(today)
       ).reduce((sum, cost) => sum + Number(cost.cost_usd), 0) || 0;
 
-      // Fetch recent cost entries with user info
-      const { data: costs } = await supabase
-        .from('api_costs')
-        .select(`
-          *,
-          users:user_id (email, full_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
       setStats({
         totalUsers: userCount || 0,
         totalCosts,
         todayCosts,
         totalAnalyses: allCosts?.length || 0
       });
-
-      // Filter out any entries where the join failed and map to proper type
-      const validCosts: CostEntry[] = (costs || []).map(cost => ({
-        id: cost.id,
-        user_id: cost.user_id,
-        function_name: cost.function_name,
-        model_used: cost.model_used,
-        total_tokens: cost.total_tokens,
-        cost_usd: cost.cost_usd,
-        category: cost.category || 'unknown',
-        created_at: cost.created_at,
-        users: Array.isArray(cost.users) ? cost.users[0] : cost.users
-      }));
-
-      setRecentCosts(validCosts);
 
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -112,10 +74,6 @@ const AdminDashboard = () => {
       currency: 'USD',
       minimumFractionDigits: 4
     }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
   };
 
   if (loading) {
@@ -199,47 +157,7 @@ const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="costs">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent API Usage</CardTitle>
-              <CardDescription>
-                Latest OpenAI API calls and their associated costs
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Tokens</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentCosts.map((cost) => (
-                    <TableRow key={cost.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{cost.users?.full_name || 'Unknown'}</div>
-                          <div className="text-sm text-gray-500">{cost.users?.email || 'Unknown'}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{cost.category}</Badge>
-                      </TableCell>
-                      <TableCell>{cost.model_used}</TableCell>
-                      <TableCell>{cost.total_tokens}</TableCell>
-                      <TableCell>{formatCurrency(Number(cost.cost_usd))}</TableCell>
-                      <TableCell>{formatDate(cost.created_at)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <CostAnalytics />
         </TabsContent>
       </Tabs>
     </div>
