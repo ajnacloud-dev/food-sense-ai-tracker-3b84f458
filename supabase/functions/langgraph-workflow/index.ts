@@ -88,7 +88,8 @@ class LangGraphWorkflow {
     this.state = {
       description,
       imageUrl,
-      workflowConfig: workflowConfig || {}
+      workflowConfig: workflowConfig || {},
+      uploadTime: new Date().toISOString()
     };
 
     try {
@@ -113,97 +114,8 @@ class LangGraphWorkflow {
       };
     } catch (error) {
       console.error('Workflow execution failed:', error);
-      
-      // Return whatever we have so far instead of failing completely
-      return {
-        success: true, // Mark as success but with partial data
-        result: {
-          classification: this.state.classification || { category: 'food', confidence: 0.8, reasoning: 'Fallback classification' },
-          analysis: this.state.analysis || this.createFallbackAnalysis(description),
-          enrichment: this.state.enrichment || this.state.analysis || this.createFallbackAnalysis(description),
-          validation: { cleanedData: this.state.analysis || this.createFallbackAnalysis(description) }
-        },
-        metadata: {
-          totalTokens: this.totalTokens,
-          totalCost: this.totalCost,
-          error: error.message,
-          partialResult: true
-        }
-      };
+      throw error;
     }
-  }
-
-  private createFallbackAnalysis(description: string): any {
-    // Create a reasonable fallback analysis based on the description
-    const estimatedCalories = description.toLowerCase().includes('salad') ? 150 : 
-                             description.toLowerCase().includes('pizza') ? 400 :
-                             description.toLowerCase().includes('sandwich') ? 350 : 250;
-    
-    return {
-      meal_summary: {
-        meal_type: this.guessMealType(),
-        dish_names: [description || 'Food item'],
-        date: new Date().toISOString().split('T')[0],
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        day: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
-        weekday_or_weekend: this.isWeekend() ? 'weekend' : 'weekday',
-        overall_meal_rating: 'Good',
-        total_nutrition: {
-          calories: estimatedCalories,
-          carbohydrates: Math.round(estimatedCalories * 0.5 / 4),
-          proteins: Math.round(estimatedCalories * 0.25 / 4),
-          fats: Math.round(estimatedCalories * 0.25 / 9),
-          fiber: 5,
-          sodium: 400
-        },
-        meal_suggestion: 'Consider adding more vegetables and lean proteins for a balanced meal.'
-      },
-      food_items: [{
-        name: description || 'Food item',
-        serving_size: '1 serving',
-        nutrition_values: {
-          calories: estimatedCalories,
-          carbohydrates: Math.round(estimatedCalories * 0.5 / 4),
-          proteins: Math.round(estimatedCalories * 0.25 / 4),
-          fats: Math.round(estimatedCalories * 0.25 / 9),
-          fiber: 5,
-          sodium: 400
-        },
-        flags: {
-          vegetarian: false,
-          contains_allergens: false,
-          conflicts_with_diet_goal: false
-        }
-      }],
-      nutrition_focus: {
-        nutrients_high: [],
-        nutrients_low: [],
-        suggestion: 'Maintain a balanced diet with variety in food choices.'
-      },
-      health_assessment: {
-        diabetes: {
-          rating: 'Moderate',
-          suggestion: 'Monitor portion sizes and pair with fiber-rich foods.'
-        },
-        hypertension: {
-          rating: 'Moderate',
-          suggestion: 'Consider reducing sodium content when possible.'
-        }
-      }
-    };
-  }
-
-  private guessMealType(): string {
-    const hour = new Date().getHours();
-    if (hour < 10) return 'breakfast';
-    if (hour < 15) return 'lunch';
-    if (hour < 18) return 'snack';
-    return 'dinner';
-  }
-
-  private isWeekend(): boolean {
-    const day = new Date().getDay();
-    return day === 0 || day === 6;
   }
 
   async executeNode(nodeName: string, nodeFunction: Function): Promise<void> {
@@ -217,22 +129,40 @@ class LangGraphWorkflow {
   }
 
   async executeClassifier(): Promise<void> {
+    const currentTime = new Date().toLocaleString('en-US', {
+      timeZone: 'UTC',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
     const prompt = `You are an AI classifier that determines the category of content based on images and descriptions.
 
 Analyze the provided content and classify it into one of these categories:
-- food: Any food items, meals, beverages, nutrition-related content
-- receipt: Shopping receipts, bills, invoices, purchase documents  
-- workout: Exercise activities, fitness routines, sports, physical activities
+- food: Any food items, meals, beverages, nutrition-related content, cooking, restaurants, recipes
+- receipt: Shopping receipts, bills, invoices, purchase documents, store receipts, payment confirmations
+- workout: Exercise activities, fitness routines, sports, physical activities, gym equipment, athletic activities
+
+Current time: ${currentTime}
 
 Input:
 ${this.state.description ? `Description: ${this.state.description}` : 'No description provided'}
 ${this.state.imageUrl ? 'An image is provided for analysis.' : 'No image provided'}
 
-IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, no code blocks):
+IMPORTANT: Carefully analyze the content. Look for visual cues like:
+- Food: plates, utensils, beverages, ingredients, restaurant settings, cooking equipment
+- Receipt: printed text, store logos, itemized lists, prices, payment methods, barcodes
+- Workout: exercise equipment, gyms, sports fields, athletic wear, people exercising
+
+Return ONLY a valid JSON object with this exact format (no markdown, no code blocks):
 {
   "category": "food",
   "confidence": 0.95,
-  "reasoning": "Brief explanation of classification"
+  "reasoning": "Brief explanation of classification based on visual and textual analysis"
 }`;
 
     const messages = [
@@ -253,7 +183,7 @@ IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, 
       }
     }
 
-    const response = await this.callOpenAI(messages, 'gpt-4o', 200);
+    const response = await this.callOpenAI(messages, 'gpt-4o', 300);
     this.state.classification = safeJsonParse(response.content, 'classification');
   }
 
@@ -261,19 +191,55 @@ IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, 
     const { data: prompt } = await this.supabaseClient
       .from('prompts')
       .select('system_prompt, user_prompt_template')
-      .eq('category', 'food')
+      .eq('category', this.state.classification.category)
       .eq('is_active', true)
       .single();
 
     if (!prompt) {
-      throw new Error('No active prompt found for food category');
+      throw new Error(`No active prompt found for category: ${this.state.classification.category}`);
     }
 
-    const userPrompt = prompt.user_prompt_template.replace('{description}', this.state.description || 'No description provided');
-    const analysisPrompt = `${userPrompt}
+    // Get current time info for meal type determination
+    const now = new Date();
+    const hour = now.getHours();
+    const timeContext = `
+Current time: ${now.toLocaleString('en-US', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true
+})}
+Hour (24h format): ${hour}
+Upload time: ${this.state.uploadTime}`;
 
-IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The response must be parseable JSON with complete food analysis including nutrition values, meal details, and health assessments.`;
+    let enhancedUserPrompt = prompt.user_prompt_template.replace('{description}', this.state.description || 'No description provided');
+    
+    // Add time context for food analysis
+    if (this.state.classification.category === 'food') {
+      enhancedUserPrompt += `
 
+${timeContext}
+
+IMPORTANT: 
+1. Analyze the ACTUAL food items visible in the image. Be specific about what you see.
+2. Determine meal type based on the current time:
+   - 5-10 AM: breakfast
+   - 10 AM-2 PM: lunch  
+   - 2-5 PM: snack
+   - 5-10 PM: dinner
+   - 10 PM-5 AM: late night snack
+3. Provide detailed descriptions of the visible food items, not generic responses.
+4. Base nutritional estimates on the actual portion sizes and food types you can see.
+5. If you can see specific dishes, name them accurately.`;
+    }
+
+    const analysisPrompt = `${enhancedUserPrompt}
+
+IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The response must be parseable JSON with complete analysis.`;
+    
     const messages = [
       { role: 'system', content: `${prompt.system_prompt}\n\nALWAYS respond with valid JSON only, no markdown formatting.` },
       { role: 'user', content: analysisPrompt }
@@ -306,17 +272,13 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
     // Simplified validator that just ensures we have valid data
     const analysis = this.state.analysis || this.state.enrichment;
     
-    if (!analysis || !analysis.meal_summary) {
-      console.log('Analysis is missing or incomplete, using fallback');
-      this.state.validation = {
-        cleanedData: this.createFallbackAnalysis(this.state.description)
-      };
-    } else {
-      // Analysis looks good, use it as-is
-      this.state.validation = {
-        cleanedData: analysis
-      };
+    if (!analysis) {
+      throw new Error('No analysis data available for validation');
     }
+
+    this.state.validation = {
+      cleanedData: analysis
+    };
   }
 
   private async callOpenAI(messages: any[], model: string, maxTokens: number): Promise<any> {
@@ -402,12 +364,12 @@ serve(async (req) => {
           total_tokens: result.metadata.totalTokens,
           cost_usd: result.metadata.totalCost,
           model_used: 'gpt-4o',
-          category: 'food'
+          category: result.result.classification?.category || 'unknown'
         });
     }
 
     console.log(`Workflow completed in ${processingTime}ms`);
-    console.log(`LangGraph workflow completed. Tokens: ${result.metadata?.totalTokens || 0}, Cost: $${(result.metadata?.totalCost || 0).toFixed(6)}`);
+    console.log(`LangGraph workflow completed. Category: ${result.result.classification?.category}, Tokens: ${result.metadata?.totalTokens || 0}, Cost: $${(result.metadata?.totalCost || 0).toFixed(6)}`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

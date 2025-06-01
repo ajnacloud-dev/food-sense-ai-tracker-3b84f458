@@ -118,23 +118,44 @@ serve(async (req) => {
     // Log start of processing
     await logProcessingStatus(supabaseClient, user.id, imageUrl, 'pending', imageUrl ? 'url' : 'text_only');
 
-    // Step 1: Classification prompt
+    // Get current time info for analysis
+    const now = new Date();
+    const hour = now.getHours();
+    const currentTime = now.toLocaleString('en-US', {
+      timeZone: 'UTC',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    // Step 1: Enhanced Classification prompt
     const classificationPrompt = `You are an AI classifier that determines the category of content based on images and descriptions.
 
 Analyze the provided content and classify it into one of these categories:
-- food: Any food items, meals, beverages, nutrition-related content
-- receipt: Shopping receipts, bills, invoices, purchase documents
-- workout: Exercise activities, fitness routines, sports, physical activities
+- food: Any food items, meals, beverages, nutrition-related content, cooking, restaurants, recipes
+- receipt: Shopping receipts, bills, invoices, purchase documents, store receipts, payment confirmations  
+- workout: Exercise activities, fitness routines, sports, physical activities, gym equipment, athletic activities
+
+Current time: ${currentTime}
 
 Input:
 ${description ? `Description: ${description}` : 'No description provided'}
 ${imageUrl ? 'An image is provided for analysis.' : 'No image provided'}
 
-IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, no code blocks):
+IMPORTANT: Carefully analyze the content. Look for visual cues like:
+- Food: plates, utensils, beverages, ingredients, restaurant settings, cooking equipment, people eating
+- Receipt: printed text, store logos, itemized lists, prices, payment methods, barcodes, cash registers
+- Workout: exercise equipment, gyms, sports fields, athletic wear, people exercising, fitness activities
+
+Return ONLY a valid JSON object with this exact format (no markdown, no code blocks):
 {
   "category": "food",
   "confidence": 0.95,
-  "reasoning": "Brief explanation of classification"
+  "reasoning": "Brief explanation of classification based on visual and textual analysis"
 }`;
 
     // Prepare classification messages
@@ -183,7 +204,7 @@ IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, 
         model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
         messages: classificationMessages,
         temperature: 0.1,
-        max_tokens: 200,
+        max_tokens: 300,
       }),
     });
 
@@ -214,8 +235,32 @@ IMPORTANT: Return ONLY a valid JSON object with this exact format (no markdown, 
       throw new Error(`No active prompt found for category: ${category}`);
     }
 
-    // Step 3: Detailed analysis using category-specific prompt
-    const userPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
+    // Step 3: Enhanced detailed analysis using category-specific prompt
+    let userPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
+    
+    // Add time context and enhanced instructions for food analysis
+    if (category === 'food') {
+      const timeContext = `
+Current time: ${currentTime}
+Hour (24h format): ${hour}
+Upload time: ${new Date().toISOString()}`;
+
+      userPrompt += `
+
+${timeContext}
+
+IMPORTANT: 
+1. Analyze the ACTUAL food items visible in the image. Be specific about what you see.
+2. Determine meal type based on the current time:
+   - 5-10 AM: breakfast
+   - 10 AM-2 PM: lunch  
+   - 2-5 PM: snack
+   - 5-10 PM: dinner
+   - 10 PM-5 AM: late night snack
+3. Provide detailed descriptions of the visible food items, not generic responses.
+4. Base nutritional estimates on the actual portion sizes and food types you can see.
+5. If you can see specific dishes, name them accurately (e.g., "grilled chicken breast with steamed broccoli" instead of "healthy meal").`;
+    }
     
     const analysisPrompt = `${userPrompt}
 
@@ -254,7 +299,7 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
         model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
         messages: analysisMessages,
         temperature: 0.3,
-        max_tokens: 1000,
+        max_tokens: 1500,
       }),
     });
 
