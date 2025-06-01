@@ -353,6 +353,54 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_analyses: {
+        Row: {
+          analysis_result: Json | null
+          category: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          error_message: string | null
+          estimated_completion: string | null
+          id: string
+          image_url: string | null
+          retry_count: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_result?: Json | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          estimated_completion?: string | null
+          id?: string
+          image_url?: string | null
+          retry_count?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_result?: Json | null
+          category?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          estimated_completion?: string | null
+          id?: string
+          image_url?: string | null
+          retry_count?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       permission_requests: {
         Row: {
           caretaker_id: string

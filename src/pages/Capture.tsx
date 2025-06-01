@@ -10,10 +10,10 @@ import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FileUpload } from "@/components/capture/FileUpload";
 import { ProcessingIndicator } from "@/components/capture/ProcessingIndicator";
-import { insertAnalysisResult, uploadImage } from "@/utils/analysisService";
-import { navigateToCategory } from "@/utils/navigationUtils";
+import { uploadImage } from "@/utils/analysisService";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
 import { useAuth } from "@/contexts/AuthContext";
+import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
 
 const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -64,131 +64,38 @@ const Capture = () => {
         imageUrl = await uploadImage(file, user.id);
       }
 
-      setUploadProgress('AI is analyzing your content...');
+      setUploadProgress('Starting analysis...');
 
-      // Use intelligent auto-selection of processing method
-      const useAdvancedProcessing = userData?.is_subscribed || false;
-      let category, analysis, entryId;
+      // Create pending analysis record
+      const pendingAnalysisId = await createPendingAnalysis(
+        user.id,
+        description || 'AI-analyzed content',
+        imageUrl
+      );
 
-      if (useAdvancedProcessing) {
-        console.log('Attempting advanced workflow for subscribed user...');
-        
-        try {
-          const { data: workflowResult, error: workflowError } = await supabase.functions
-            .invoke('langgraph-workflow', {
-              body: {
-                description,
-                imageUrl,
-                workflowConfig: null
-              }
-            });
-
-          if (workflowError) {
-            console.error('Advanced workflow error:', workflowError);
-            throw new Error(workflowError.message || 'Advanced workflow failed');
-          }
-
-          if (!workflowResult?.success) {
-            // Handle quota/rate limit errors gracefully
-            if (workflowResult?.errorType === 'quota_exceeded' || workflowResult?.errorType === 'rate_limited') {
-              setError(workflowResult.error || 'AI analysis is temporarily unavailable');
-              toast.error(workflowResult.error || 'AI analysis is temporarily unavailable');
-              return;
-            }
-            throw new Error(workflowResult?.error || 'Advanced workflow failed');
-          }
-
-          const { classification, analysis: workflowAnalysis, enrichment, validation } = workflowResult.result;
-          const finalAnalysis = validation?.cleanedData || workflowAnalysis;
-          category = classification?.category;
-          analysis = finalAnalysis;
-
-          entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
-          
-          toast.success(`Advanced analysis complete! Categorized as ${category}`);
-
-        } catch (advancedError) {
-          console.error('Advanced workflow failed, falling back to standard analysis:', advancedError);
-          
-          // Fallback to standard analysis
-          setUploadProgress('Advanced analysis unavailable, using standard analysis...');
-          
-          const { data: analysisResult, error: analysisError } = await supabase.functions
-            .invoke('auto-classify-and-analyze', {
-              body: {
-                description,
-                imageUrl
-              }
-            });
-
-          if (analysisError) {
-            console.error('Standard analysis error:', analysisError);
-            
-            // Handle quota/rate limit errors gracefully
-            if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
-              setError(analysisResult.error || 'AI analysis is temporarily unavailable');
-              toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
-              return;
-            }
-            
-            throw new Error(analysisError.message || 'Analysis failed');
-          }
-
-          // Handle quota/rate limit errors in response data
-          if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
-            setError(analysisResult.error || 'AI analysis is temporarily unavailable');
-            toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
-            return;
-          }
-
-          category = analysisResult.category;
-          analysis = analysisResult.analysis;
-
-          entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
-          
-          toast.success(`Analysis complete! Categorized as ${category}`);
+      // Start async analysis
+      const useAdvanced = userData?.is_subscribed || false;
+      
+      const { error: asyncError } = await supabase.functions.invoke('async-analyze', {
+        body: {
+          pendingAnalysisId,
+          description,
+          imageUrl,
+          useAdvanced
         }
+      });
 
-      } else {
-        console.log('Using standard analysis...');
-
-        const { data: analysisResult, error: analysisError } = await supabase.functions
-          .invoke('auto-classify-and-analyze', {
-            body: {
-              description,
-              imageUrl
-            }
-          });
-
-        if (analysisError) {
-          console.error('Analysis error:', analysisError);
-          
-          // Handle quota/rate limit errors gracefully
-          if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
-            setError(analysisResult.error || 'AI analysis is temporarily unavailable');
-            toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
-            return;
-          }
-          
-          throw new Error(analysisError.message || 'Analysis failed');
-        }
-
-        // Handle quota/rate limit errors in response data
-        if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
-          setError(analysisResult.error || 'AI analysis is temporarily unavailable');
-          toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
-          return;
-        }
-
-        category = analysisResult.category;
-        analysis = analysisResult.analysis;
-
-        entryId = await insertAnalysisResult(user.id, category, analysis, imageUrl, description);
-
-        toast.success(`AI classified as ${category}! Analysis complete.`);
+      if (asyncError) {
+        console.error('Failed to start async analysis:', asyncError);
+        throw new Error(asyncError.message || 'Failed to start analysis');
       }
 
-      navigateToCategory(navigate, category, entryId);
+      toast.success("Analysis started! You'll be notified when complete.", {
+        description: "Check your dashboard for updates"
+      });
+
+      // Navigate back to dashboard
+      navigate("/dashboard");
 
       // Update usage log for non-subscribed users
       if (!userData?.is_subscribed) {
@@ -201,8 +108,8 @@ const Capture = () => {
 
     } catch (error: any) {
       console.error('Processing error:', error);
-      setError(error.message || "Failed to process content");
-      toast.error(error.message || "Failed to process content");
+      setError(error.message || "Failed to start analysis");
+      toast.error(error.message || "Failed to start analysis");
     } finally {
       setLoading(false);
       setUploadProgress('');
@@ -233,7 +140,7 @@ const Capture = () => {
               Capture & Analyze
             </CardTitle>
             <CardDescription className="text-sm">
-              Upload an image or describe what you want to track
+              Upload an image or describe what you want to track. Analysis will run in the background.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -263,9 +170,6 @@ const Capture = () => {
                   <div className="text-sm text-red-700">
                     <p className="font-medium">Analysis Error</p>
                     <p>{error}</p>
-                    {error.includes('usage limits') && (
-                      <p className="mt-1 text-xs">Try again later or contact support if this persists.</p>
-                    )}
                   </div>
                 </div>
               )}
@@ -284,12 +188,12 @@ const Capture = () => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Analyzing...
+                    Starting Analysis...
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Analyze with AI
+                    Start AI Analysis
                   </>
                 )}
               </Button>
@@ -299,7 +203,7 @@ const Capture = () => {
 
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            AI will automatically categorize and extract insights from your content
+            Analysis runs in the background - you'll be notified when complete
           </p>
         </div>
       </div>

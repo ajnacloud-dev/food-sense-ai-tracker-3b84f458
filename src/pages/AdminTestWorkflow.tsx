@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface FunctionConfig {
   name: string;
@@ -122,6 +123,7 @@ const functionConfigs: FunctionConfig[] = [
 ];
 
 const AdminTestWorkflow = () => {
+  const navigate = useNavigate();
   const [selectedFunction, setSelectedFunction] = useState<string>('langgraph-workflow');
   const [parameters, setParameters] = useState<Record<string, any>>({});
   const [category, setCategory] = useState("food");
@@ -269,11 +271,22 @@ const AdminTestWorkflow = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Function Testing</h1>
-        <p className="text-muted-foreground mt-2">
-          Test different edge functions with various inputs and configurations
-        </p>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Function Testing</h1>
+          <p className="text-muted-foreground mt-2">
+            Test different edge functions with various inputs and configurations
+          </p>
+        </div>
       </div>
 
       <Card>

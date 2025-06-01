@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
+import { PendingAnalysesCard } from "@/components/capture/PendingAnalysesCard";
+import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Dashboard = () => {
@@ -23,12 +24,21 @@ const Dashboard = () => {
     userRole: 'user'
   });
 
+  const [user, setUser] = useState<any>(null);
+
   useEffect(() => {
+    fetchUser();
     fetchDashboardStats();
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  };
+
+  const { pendingAnalyses, loading: pendingLoading } = usePendingAnalyses(user?.id);
+
+  const fetchDashboardStats = async () => {
     if (!user) return;
 
     // Fetch food entries count
@@ -122,6 +132,11 @@ const Dashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Welcome back! Here's your health overview.</p>
         </div>
+
+        {/* Pending Analyses */}
+        {!pendingLoading && pendingAnalyses.length > 0 && (
+          <PendingAnalysesCard analyses={pendingAnalyses} />
+        )}
 
         {/* Usage Status - Only show for non-subscribed users */}
         {!stats.isSubscribed && (
