@@ -8,6 +8,41 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Enhanced error handling for OpenAI API calls
+function handleOpenAIError(error: any): { isQuotaError: boolean, userMessage: string, shouldFallback: boolean } {
+  console.error('OpenAI API Error:', error);
+  
+  if (error.message?.includes('insufficient_quota') || error.message?.includes('quota')) {
+    return {
+      isQuotaError: true,
+      userMessage: 'AI analysis is temporarily unavailable due to usage limits. Please try again later or contact support.',
+      shouldFallback: true
+    };
+  }
+  
+  if (error.message?.includes('rate_limit')) {
+    return {
+      isQuotaError: false,
+      userMessage: 'AI service is busy. Please try again in a moment.',
+      shouldFallback: true
+    };
+  }
+  
+  if (error.message?.includes('API error: 429')) {
+    return {
+      isQuotaError: true,
+      userMessage: 'AI analysis is temporarily unavailable due to usage limits. Please try again later.',
+      shouldFallback: true
+    };
+  }
+  
+  return {
+    isQuotaError: false,
+    userMessage: 'AI analysis failed. Please try again.',
+    shouldFallback: false
+  };
+}
+
 // Utility function to convert image URL to base64
 async function imageUrlToBase64(imageUrl: string): Promise<string> {
   try {
@@ -86,6 +121,47 @@ function safeJsonParse(text: string, context: string): any {
     }
     
     throw new Error(`Invalid JSON response in ${context}: ${text.substring(0, 200)}...`);
+  }
+}
+
+// Enhanced OpenAI API call with better error handling
+async function callOpenAIWithRetry(url: string, body: any, headers: any, context: string): Promise<any> {
+  try {
+    console.log(`Making OpenAI API call for ${context}...`);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`${context} API error:`, errorText);
+      
+      // Parse error response to get specific error type
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.code === 'insufficient_quota') {
+          throw new Error('insufficient_quota: OpenAI API quota exceeded');
+        }
+        if (errorData.error?.code === 'rate_limit_exceeded') {
+          throw new Error('rate_limit: OpenAI API rate limit exceeded');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse error response:', parseError);
+      }
+      
+      throw new Error(`${context} API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log(`${context} API call successful`);
+    return data;
+    
+  } catch (error) {
+    console.error(`${context} API call failed:`, error);
+    throw error;
   }
 }
 
@@ -193,28 +269,40 @@ Return ONLY a valid JSON object with this exact format (no markdown, no code blo
 
     console.log(`Step 1: Calling OpenAI for classification using method: ${imageProcessingMethod}...`);
 
-    // Get classification
-    const classificationResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
-        messages: classificationMessages,
-        temperature: 0.1,
-        max_tokens: 300,
-      }),
-    });
-
-    if (!classificationResponse.ok) {
-      const errorText = await classificationResponse.text();
-      console.error('Classification API error:', errorText);
-      throw new Error(`Classification API error: ${classificationResponse.status} - ${errorText}`);
+    // Get classification with enhanced error handling
+    let classificationData;
+    try {
+      classificationData = await callOpenAIWithRetry(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
+          messages: classificationMessages,
+          temperature: 0.1,
+          max_tokens: 300,
+        },
+        {
+          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        'Classification'
+      );
+    } catch (error) {
+      const errorInfo = handleOpenAIError(error);
+      if (errorInfo.shouldFallback) {
+        await logProcessingStatus(supabaseClient, user.id, imageUrl, 'failed', imageProcessingMethod, errorInfo.userMessage);
+        return new Response(JSON.stringify({ 
+          error: errorInfo.userMessage,
+          errorType: errorInfo.isQuotaError ? 'quota_exceeded' : 'rate_limited',
+          fallbackSuggestion: 'Please try again later or contact support if this issue persists.',
+          timestamp: new Date().toISOString()
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 422,
+        });
+      }
+      throw error;
     }
 
-    const classificationData = await classificationResponse.json();
     const classificationContent = classificationData.choices[0].message.content;
     console.log('Raw classification response:', classificationContent);
     
@@ -289,27 +377,40 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
 
     console.log('Step 2: Calling OpenAI for detailed analysis...');
 
-    const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
-        messages: analysisMessages,
-        temperature: 0.3,
-        max_tokens: 1500,
-      }),
-    });
-
-    if (!analysisResponse.ok) {
-      const errorText = await analysisResponse.text();
-      console.error('Analysis API error:', errorText);
-      throw new Error(`Analysis API error: ${analysisResponse.status} - ${errorText}`);
+    // Get analysis with enhanced error handling
+    let analysisData;
+    try {
+      analysisData = await callOpenAIWithRetry(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: imageUrl && imageProcessingMethod !== 'failed' ? 'gpt-4o' : 'gpt-4o-mini',
+          messages: analysisMessages,
+          temperature: 0.3,
+          max_tokens: 1500,
+        },
+        {
+          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        'Analysis'
+      );
+    } catch (error) {
+      const errorInfo = handleOpenAIError(error);
+      if (errorInfo.shouldFallback) {
+        await logProcessingStatus(supabaseClient, user.id, imageUrl, 'failed', imageProcessingMethod, errorInfo.userMessage);
+        return new Response(JSON.stringify({ 
+          error: errorInfo.userMessage,
+          errorType: errorInfo.isQuotaError ? 'quota_exceeded' : 'rate_limited',
+          fallbackSuggestion: 'Please try again later or contact support if this issue persists.',
+          timestamp: new Date().toISOString()
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 422,
+        });
+      }
+      throw error;
     }
 
-    const analysisData = await analysisResponse.json();
     const analysisContent = analysisData.choices[0].message.content;
     console.log('Raw analysis response:', analysisContent);
     
@@ -373,6 +474,37 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
 
   } catch (error) {
     console.error("Error in auto-classify-and-analyze function:", error);
+    
+    // Handle OpenAI specific errors gracefully
+    const errorInfo = handleOpenAIError(error);
+    if (errorInfo.shouldFallback) {
+      try {
+        const supabaseClient = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+        const authHeader = req.headers.get("Authorization");
+        if (authHeader) {
+          const token = authHeader.replace("Bearer ", "");
+          const { data: { user } } = await supabaseClient.auth.getUser(token);
+          if (user) {
+            await logProcessingStatus(supabaseClient, user.id, null, 'failed', 'unknown', errorInfo.userMessage);
+          }
+        }
+      } catch (logError) {
+        console.error("Failed to log error:", logError);
+      }
+
+      return new Response(JSON.stringify({ 
+        error: errorInfo.userMessage,
+        errorType: errorInfo.isQuotaError ? 'quota_exceeded' : 'rate_limited',
+        fallbackSuggestion: 'Please try again later or contact support if this issue persists.',
+        timestamp: new Date().toISOString()
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 422,
+      });
+    }
     
     // Log error if we have user context
     try {

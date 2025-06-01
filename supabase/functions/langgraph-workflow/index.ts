@@ -48,6 +48,33 @@ function safeJsonParse(text: string, context: string): any {
   }
 }
 
+// Enhanced error handling for OpenAI API calls
+function handleOpenAIError(error: any): { isQuotaError: boolean, userMessage: string, shouldFallback: boolean } {
+  console.error('OpenAI API Error:', error);
+  
+  if (error.message?.includes('insufficient_quota') || error.message?.includes('quota')) {
+    return {
+      isQuotaError: true,
+      userMessage: 'AI analysis is temporarily unavailable due to usage limits. Please try again later or contact support.',
+      shouldFallback: true
+    };
+  }
+  
+  if (error.message?.includes('rate_limit')) {
+    return {
+      isQuotaError: false,
+      userMessage: 'AI service is busy. Please try again in a moment.',
+      shouldFallback: true
+    };
+  }
+  
+  return {
+    isQuotaError: false,
+    userMessage: 'AI analysis failed. Please try again.',
+    shouldFallback: false
+  };
+}
+
 // Utility function to convert image URL to base64
 async function imageUrlToBase64(imageUrl: string): Promise<string> {
   try {
@@ -93,7 +120,7 @@ class LangGraphWorkflow {
     };
 
     try {
-      // Execute nodes in sequence
+      // Execute nodes in sequence with error handling
       await this.executeNode('classify', this.executeClassifier.bind(this));
       await this.executeNode('analyze', this.executeAnalyzer.bind(this));
       await this.executeNode('enrich', this.executeEnricher.bind(this));
@@ -114,6 +141,18 @@ class LangGraphWorkflow {
       };
     } catch (error) {
       console.error('Workflow execution failed:', error);
+      
+      // Check if this is an OpenAI quota/rate limit error
+      const errorInfo = handleOpenAIError(error);
+      if (errorInfo.shouldFallback) {
+        return {
+          success: false,
+          error: errorInfo.userMessage,
+          errorType: errorInfo.isQuotaError ? 'quota_exceeded' : 'rate_limited',
+          fallbackSuggestion: 'Please try uploading your content again later, or contact support if this issue persists.'
+        };
+      }
+      
       throw error;
     }
   }
@@ -282,38 +321,60 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
   }
 
   private async callOpenAI(messages: any[], model: string, maxTokens: number): Promise<any> {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.3,
-        max_tokens: maxTokens,
-      }),
-    });
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.3,
+          max_tokens: maxTokens,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenAI API error response:', errorText);
+        
+        // Parse error response to get specific error type
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.code === 'insufficient_quota') {
+            throw new Error('insufficient_quota: OpenAI API quota exceeded');
+          }
+          if (errorData.error?.code === 'rate_limit_exceeded') {
+            throw new Error('rate_limit: OpenAI API rate limit exceeded');
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use the status code
+          console.error('Failed to parse error response:', parseError);
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      // Track usage
+      if (data.usage) {
+        this.totalTokens += data.usage.total_tokens;
+        const pricing = model === 'gpt-4o' ? { input: 0.0025, output: 0.01 } : { input: 0.00015, output: 0.0006 };
+        this.totalCost += (data.usage.prompt_tokens / 1000 * pricing.input) + (data.usage.completion_tokens / 1000 * pricing.output);
+      }
+
+      return {
+        content: data.choices[0].message.content,
+        usage: data.usage
+      };
+    } catch (error) {
+      // Re-throw with enhanced error information
+      console.error('OpenAI API call failed:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    
-    // Track usage
-    if (data.usage) {
-      this.totalTokens += data.usage.total_tokens;
-      const pricing = model === 'gpt-4o' ? { input: 0.0025, output: 0.01 } : { input: 0.00015, output: 0.0006 };
-      this.totalCost += (data.usage.prompt_tokens / 1000 * pricing.input) + (data.usage.completion_tokens / 1000 * pricing.output);
-    }
-
-    return {
-      content: data.choices[0].message.content,
-      usage: data.usage
-    };
   }
 }
 
@@ -350,6 +411,15 @@ serve(async (req) => {
     const workflow = new LangGraphWorkflow(supabaseClient, openaiApiKey);
     const result = await workflow.executeWorkflow(description, imageUrl, workflowConfig);
 
+    // Handle failed workflows with graceful error responses
+    if (!result.success) {
+      console.log(`Workflow failed with error type: ${result.errorType}`);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 422, // Unprocessable Entity - indicates a business logic error rather than server error
+      });
+    }
+
     const processingTime = Date.now() - startTime;
 
     // Log API usage and cost
@@ -378,6 +448,21 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in LangGraph workflow function:", error);
+    
+    // Handle OpenAI specific errors gracefully
+    const errorInfo = handleOpenAIError(error);
+    if (errorInfo.shouldFallback) {
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: errorInfo.userMessage,
+        errorType: errorInfo.isQuotaError ? 'quota_exceeded' : 'rate_limited',
+        fallbackSuggestion: 'Please try again later or contact support if this issue persists.',
+        timestamp: new Date().toISOString()
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 422,
+      });
+    }
     
     return new Response(JSON.stringify({ 
       success: false,

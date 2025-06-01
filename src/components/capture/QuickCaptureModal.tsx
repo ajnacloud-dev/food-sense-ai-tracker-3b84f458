@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, Loader2, X } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -24,6 +24,7 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
+  const [error, setError] = useState<string>('');
   const navigate = useNavigate();
   const { checkUsageLimits, updateUsageLog } = useUsageCheck();
   const { user } = useAuth();
@@ -43,6 +44,7 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
 
     setLoading(true);
     setUploadProgress('Preparing...');
+    setError('');
     
     try {
       setUploadProgress('Checking usage limits...');
@@ -84,6 +86,12 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
           }
 
           if (!workflowResult?.success) {
+            // Handle quota/rate limit errors gracefully
+            if (workflowResult?.errorType === 'quota_exceeded' || workflowResult?.errorType === 'rate_limited') {
+              setError(workflowResult.error || 'AI analysis is temporarily unavailable');
+              toast.error(workflowResult.error || 'AI analysis is temporarily unavailable');
+              return;
+            }
             throw new Error(workflowResult?.error || 'Advanced workflow failed');
           }
 
@@ -112,7 +120,22 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
 
           if (analysisError) {
             console.error('Standard analysis error:', analysisError);
+            
+            // Handle quota/rate limit errors gracefully
+            if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
+              setError(analysisResult.error || 'AI analysis is temporarily unavailable');
+              toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
+              return;
+            }
+            
             throw new Error(analysisError.message || 'Analysis failed');
+          }
+
+          // Handle quota/rate limit errors in response data
+          if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
+            setError(analysisResult.error || 'AI analysis is temporarily unavailable');
+            toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
+            return;
           }
 
           category = analysisResult.category;
@@ -136,7 +159,22 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
 
         if (analysisError) {
           console.error('Analysis error:', analysisError);
+          
+          // Handle quota/rate limit errors gracefully
+          if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
+            setError(analysisResult.error || 'AI analysis is temporarily unavailable');
+            toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
+            return;
+          }
+          
           throw new Error(analysisError.message || 'Analysis failed');
+        }
+
+        // Handle quota/rate limit errors in response data
+        if (analysisResult?.errorType === 'quota_exceeded' || analysisResult?.errorType === 'rate_limited') {
+          setError(analysisResult.error || 'AI analysis is temporarily unavailable');
+          toast.error(analysisResult.error || 'AI analysis is temporarily unavailable');
+          return;
         }
 
         category = analysisResult.category;
@@ -161,6 +199,7 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
 
     } catch (error: any) {
       console.error('Processing error:', error);
+      setError(error.message || "Failed to process content");
       toast.error(error.message || "Failed to process content");
     } finally {
       setLoading(false);
@@ -173,6 +212,7 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
       setFile(null);
       setDescription("");
       setUploadProgress('');
+      setError('');
       onClose();
     }
   };
@@ -206,6 +246,19 @@ export const QuickCaptureModal = ({ isOpen, onClose }: QuickCaptureModalProps) =
               className="text-sm"
             />
           </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-red-700">
+                <p className="font-medium">Analysis Error</p>
+                <p>{error}</p>
+                {error.includes('usage limits') && (
+                  <p className="mt-1 text-xs">Try again later or contact support if this persists.</p>
+                )}
+              </div>
+            </div>
+          )}
 
           <ProcessingIndicator 
             loading={loading} 
