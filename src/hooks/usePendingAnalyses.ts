@@ -2,12 +2,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPendingAnalyses, PendingAnalysis, cleanupInconsistentAnalyses } from "@/utils/pendingAnalysisService";
+import { cleanupStuckAnalyses } from "@/utils/analysisCleanup";
+import { useAutoRefresh } from "./useAutoRefresh";
+import { useConnectionMonitor } from "./useConnectionMonitor";
 import { toast } from "sonner";
 
 export const usePendingAnalyses = (userId: string | undefined) => {
   const [pendingAnalyses, setPendingAnalyses] = useState<PendingAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Connection monitoring
+  const { isOnline, supabaseConnected, reconnect } = useConnectionMonitor();
 
   const fetchPendingAnalyses = useCallback(async () => {
     if (!userId) {
@@ -33,6 +39,16 @@ export const usePendingAnalyses = (userId: string | undefined) => {
         const cleanedAnalyses = await getPendingAnalyses(userId);
         setPendingAnalyses(cleanedAnalyses);
       }
+
+      // Cleanup stuck analyses (older than 1 hour)
+      const stuckCleanup = await cleanupStuckAnalyses(userId);
+      if (stuckCleanup.cleaned > 0) {
+        console.log(`Cleaned up ${stuckCleanup.cleaned} stuck analyses`);
+        // Refetch after cleanup
+        const finalAnalyses = await getPendingAnalyses(userId);
+        setPendingAnalyses(finalAnalyses);
+      }
+
     } catch (error) {
       console.error('Failed to fetch pending analyses:', error);
       setError('Failed to load pending analyses');
@@ -41,6 +57,25 @@ export const usePendingAnalyses = (userId: string | undefined) => {
     }
   }, [userId]);
 
+  // Determine if auto-refresh should be enabled
+  const hasPendingOrProcessing = pendingAnalyses.some(a => 
+    (a.status === 'pending' && !a.completed_at) || a.status === 'processing'
+  );
+
+  // Auto-refresh setup
+  const {
+    isRefreshing,
+    isVisible,
+    connectionStatus,
+    lastRefresh,
+    performRefresh,
+    setConnectionStatus
+  } = useAutoRefresh({
+    enabled: hasPendingOrProcessing && isOnline && supabaseConnected,
+    interval: hasPendingOrProcessing ? 15000 : 60000, // 15s when pending, 1min when idle
+    onRefresh: fetchPendingAnalyses
+  });
+
   useEffect(() => {
     fetchPendingAnalyses();
   }, [fetchPendingAnalyses]);
@@ -48,7 +83,7 @@ export const usePendingAnalyses = (userId: string | undefined) => {
   useEffect(() => {
     if (!userId) return;
 
-    // Set up real-time subscription
+    // Set up real-time subscription with enhanced error handling
     console.log('Setting up real-time subscription for user:', userId);
     const channel = supabase
       .channel('pending-analyses-changes')
@@ -62,6 +97,7 @@ export const usePendingAnalyses = (userId: string | undefined) => {
         },
         async (payload) => {
           console.log('Pending analysis change:', payload);
+          setConnectionStatus('connected');
           
           if (payload.eventType === 'INSERT') {
             const newAnalysis = payload.new as PendingAnalysis;
@@ -104,13 +140,20 @@ export const usePendingAnalyses = (userId: string | undefined) => {
       )
       .subscribe((status) => {
         console.log('Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+        } else if (status === 'CLOSED') {
+          setConnectionStatus('disconnected');
+          // Attempt to reconnect
+          setTimeout(reconnect, 2000);
+        }
       });
 
     return () => {
       console.log('Cleaning up pending analyses subscription');
       supabase.removeChannel(channel);
     };
-  }, [userId, fetchPendingAnalyses]);
+  }, [userId, fetchPendingAnalyses, setConnectionStatus, reconnect]);
 
   const refetch = useCallback(async () => {
     await fetchPendingAnalyses();
@@ -127,6 +170,13 @@ export const usePendingAnalyses = (userId: string | undefined) => {
     error,
     setPendingAnalyses,
     refetch,
-    forceRefresh
+    forceRefresh,
+    // Auto-refresh states
+    isRefreshing,
+    isVisible,
+    connectionStatus,
+    lastRefresh,
+    performRefresh: performRefresh,
+    autoRefreshEnabled: hasPendingOrProcessing && isOnline && supabaseConnected
   };
 };

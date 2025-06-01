@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +11,7 @@ import { PendingAnalysesCard } from "@/components/capture/PendingAnalysesCard";
 import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { AutoRefreshIndicator } from "@/components/dashboard/AutoRefreshIndicator";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -62,7 +62,18 @@ const Dashboard = () => {
     }
   };
 
-  const { pendingAnalyses, loading: pendingLoading, refetch: refetchPending, forceRefresh } = usePendingAnalyses(user?.id);
+  const { 
+    pendingAnalyses, 
+    loading: pendingLoading, 
+    refetch: refetchPending, 
+    forceRefresh,
+    isRefreshing: autoRefreshing,
+    isVisible,
+    connectionStatus,
+    lastRefresh,
+    performRefresh,
+    autoRefreshEnabled
+  } = usePendingAnalyses(user?.id);
 
   const fetchDashboardStats = async () => {
     if (!user) return;
@@ -232,16 +243,15 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">Welcome back! Here's your health overview.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleManualRefresh}
-              disabled={refreshing}
-              className="h-8"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
+          <div className="flex items-center gap-3">
+            <AutoRefreshIndicator
+              isRefreshing={autoRefreshing || refreshing}
+              isVisible={isVisible}
+              connectionStatus={connectionStatus}
+              lastRefresh={lastRefresh}
+              onManualRefresh={handleManualRefresh}
+              autoRefreshEnabled={autoRefreshEnabled}
+            />
             <NotificationBell />
           </div>
         </div>
