@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
-import { PendingAnalysesCard } from "@/components/capture/PendingAnalysesCard";
+import { AnalysisStatusIndicator } from "@/components/dashboard/AnalysisStatusIndicator";
 import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -244,6 +244,10 @@ const Dashboard = () => {
             <p className="text-gray-600">Welcome back! Here's your health overview.</p>
           </div>
           <div className="flex items-center gap-3">
+            <AnalysisStatusIndicator 
+              analyses={pendingAnalyses} 
+              onRetry={refetchPending}
+            />
             <AutoRefreshIndicator
               isRefreshing={autoRefreshing || refreshing}
               isVisible={isVisible}
@@ -255,14 +259,6 @@ const Dashboard = () => {
             <NotificationBell />
           </div>
         </div>
-
-        {/* Pending Analyses */}
-        {!pendingLoading && pendingAnalyses.length > 0 && (
-          <PendingAnalysesCard 
-            analyses={pendingAnalyses} 
-            onRetry={refetchPending}
-          />
-        )}
 
         {/* Usage Status - Only show for non-subscribed users */}
         {!stats.isSubscribed && (
