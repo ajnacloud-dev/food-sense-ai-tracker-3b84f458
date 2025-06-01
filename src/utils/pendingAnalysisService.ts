@@ -83,16 +83,29 @@ export const getPendingAnalyses = async (userId: string): Promise<PendingAnalysi
     throw error;
   }
 
-  return data || [];
+  return (data || []) as PendingAnalysis[];
 };
 
 export const retryFailedAnalysis = async (id: string) => {
+  // First get the current retry count
+  const { data: currentData, error: fetchError } = await supabase
+    .from('pending_analyses')
+    .select('retry_count')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Failed to fetch current retry count:', fetchError);
+    throw fetchError;
+  }
+
+  // Update with incremented retry count
   const { error } = await supabase
     .from('pending_analyses')
     .update({
       status: 'pending',
       error_message: null,
-      retry_count: supabase.rpc('increment', { row_id: id, x: 1 }),
+      retry_count: (currentData.retry_count || 0) + 1,
       updated_at: new Date().toISOString()
     })
     .eq('id', id);
