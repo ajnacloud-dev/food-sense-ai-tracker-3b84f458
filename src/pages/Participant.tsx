@@ -63,18 +63,33 @@ const Participant = () => {
       // Fetch caretaker relationships
       const { data: relationships, error: relError } = await supabase
         .from('care_relationships')
-        .select(`
-          *,
-          caretaker:users!care_relationships_caretaker_id_fkey(email)
-        `)
+        .select('*')
         .eq('user_id', user.id);
 
       if (relError) throw relError;
 
+      // Get caretaker emails separately
+      const caretakerIds = (relationships || []).map(rel => rel.caretaker_id);
+      let caretakerEmails: { [key: string]: string } = {};
+      
+      if (caretakerIds.length > 0) {
+        const { data: caretakerUsers, error: userError } = await supabase
+          .from('users')
+          .select('id, email')
+          .in('id', caretakerIds);
+
+        if (userError) throw userError;
+
+        caretakerEmails = (caretakerUsers || []).reduce((acc, user) => {
+          acc[user.id] = user.email;
+          return acc;
+        }, {} as { [key: string]: string });
+      }
+
       // Transform the data to include caretaker email
       const caretakersData = (relationships || []).map(rel => ({
         ...rel,
-        caretaker_email: rel.caretaker?.email
+        caretaker_email: caretakerEmails[rel.caretaker_id] || 'Unknown'
       }));
 
       setCaretakers(caretakersData);
@@ -82,17 +97,32 @@ const Participant = () => {
       // Fetch permissions
       const { data: perms, error: permError } = await supabase
         .from('participant_permissions')
-        .select(`
-          *,
-          caretaker:users!participant_permissions_caretaker_id_fkey(email)
-        `)
+        .select('*')
         .eq('participant_id', user.id);
 
       if (permError) throw permError;
 
+      // Get caretaker emails for permissions
+      const permissionCaretakerIds = (perms || []).map(perm => perm.caretaker_id);
+      let permissionCaretakerEmails: { [key: string]: string } = {};
+      
+      if (permissionCaretakerIds.length > 0) {
+        const { data: permCaretakerUsers, error: permUserError } = await supabase
+          .from('users')
+          .select('id, email')
+          .in('id', permissionCaretakerIds);
+
+        if (permUserError) throw permUserError;
+
+        permissionCaretakerEmails = (permCaretakerUsers || []).reduce((acc, user) => {
+          acc[user.id] = user.email;
+          return acc;
+        }, {} as { [key: string]: string });
+      }
+
       const permissionsData = (perms || []).map(perm => ({
         ...perm,
-        caretaker_email: perm.caretaker?.email
+        caretaker_email: permissionCaretakerEmails[perm.caretaker_id] || 'Unknown'
       }));
 
       setPermissions(permissionsData);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,12 +69,17 @@ const ParticipantInvitations = () => {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + formData.expiresInDays);
 
+      // Generate a random code using the existing function
+      const { data: codeData, error: codeError } = await supabase.rpc('generate_invitation_code');
+      if (codeError) throw codeError;
+
       const { data, error } = await supabase
         .from('invitation_codes')
         .insert({
+          code: codeData,
           created_by: user.id,
-          caretaker_type: formData.caretakerType,
-          permission_level: formData.permissionLevel,
+          caretaker_type: formData.caretakerType as any,
+          permission_level: formData.permissionLevel as any,
           max_uses: formData.maxUses,
           expires_at: expiresAt.toISOString()
         })
@@ -166,9 +172,9 @@ const ParticipantInvitations = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="family_member">Family Member</SelectItem>
-                    <SelectItem value="friend">Friend</SelectItem>
                     <SelectItem value="healthcare_provider">Healthcare Provider</SelectItem>
-                    <SelectItem value="caregiver">Caregiver</SelectItem>
+                    <SelectItem value="dietitian">Dietitian</SelectItem>
+                    <SelectItem value="personal_trainer">Personal Trainer</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -184,7 +190,7 @@ const ParticipantInvitations = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="view_only">View Only</SelectItem>
-                    <SelectItem value="comment_and_view">Comment & View</SelectItem>
+                    <SelectItem value="interactive">Interactive</SelectItem>
                     <SelectItem value="full_access">Full Access</SelectItem>
                   </SelectContent>
                 </Select>
