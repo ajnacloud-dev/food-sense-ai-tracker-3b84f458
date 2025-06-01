@@ -18,6 +18,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Extract the authorization token from the incoming request
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { pendingAnalysisId, description, imageUrl, useAdvanced = false } = await req.json();
 
     console.log('Starting async analysis:', {
@@ -79,14 +89,15 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Start background analysis
+    // Start background analysis with auth token
     console.log('Starting background processing for:', pendingAnalysisId);
     EdgeRuntime.waitUntil(processAnalysisInBackground(
       supabase,
       pendingAnalysisId,
       description,
       imageUrl,
-      useAdvanced
+      useAdvanced,
+      authHeader // Pass the auth header
     ));
 
     return new Response(
@@ -112,7 +123,8 @@ async function processAnalysisInBackground(
   pendingAnalysisId: string,
   description: string,
   imageUrl: string | null,
-  useAdvanced: boolean
+  useAdvanced: boolean,
+  authHeader: string // Add auth header parameter
 ) {
   const startTime = Date.now();
   console.log(`Background processing started for ${pendingAnalysisId}`);
@@ -134,12 +146,22 @@ async function processAnalysisInBackground(
     
     if (useAdvanced) {
       console.log(`Calling advanced workflow for ${pendingAnalysisId}`);
-      const { data: workflowResult, error: workflowError } = await supabase.functions
+      
+      // Create a new supabase client for function invocation with user auth
+      const userSupabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      );
+
+      const { data: workflowResult, error: workflowError } = await userSupabase.functions
         .invoke('langgraph-workflow', {
           body: {
             description,
             imageUrl,
             workflowConfig: null
+          },
+          headers: {
+            Authorization: authHeader
           }
         });
 
@@ -152,9 +174,19 @@ async function processAnalysisInBackground(
       result = workflowResult;
     } else {
       console.log(`Calling standard analysis for ${pendingAnalysisId}`);
-      const { data: analysisResult, error: analysisError } = await supabase.functions
+      
+      // Create a new supabase client for function invocation with user auth
+      const userSupabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      );
+
+      const { data: analysisResult, error: analysisError } = await userSupabase.functions
         .invoke('auto-classify-and-analyze', {
-          body: { description, imageUrl }
+          body: { description, imageUrl },
+          headers: {
+            Authorization: authHeader
+          }
         });
 
       if (analysisError) {
