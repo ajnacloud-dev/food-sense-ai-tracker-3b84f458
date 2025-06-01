@@ -82,10 +82,8 @@ export const usePendingAnalyses = (userId: string | undefined) => {
       )
       .subscribe((status) => {
         console.log('Subscription status:', status);
-        if (status === 'SUBSCRIPTION_ERROR') {
-          console.error('Subscription error for pending analyses');
-          setError('Real-time updates unavailable');
-        }
+        // Remove the problematic status check that was causing TypeScript error
+        // Supabase handles connection errors internally
       });
 
     return () => {

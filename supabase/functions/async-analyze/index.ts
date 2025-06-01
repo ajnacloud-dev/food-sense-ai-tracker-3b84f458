@@ -35,6 +35,34 @@ serve(async (req) => {
       );
     }
 
+    // First, verify the pending analysis exists and is in the correct state
+    const { data: existingAnalysis, error: fetchError } = await supabase
+      .from('pending_analyses')
+      .select('*')
+      .eq('id', pendingAnalysisId)
+      .single();
+
+    if (fetchError || !existingAnalysis) {
+      console.error('Pending analysis not found:', fetchError);
+      return new Response(
+        JSON.stringify({ error: 'Pending analysis not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Only proceed if the analysis is in pending status
+    if (existingAnalysis.status !== 'pending') {
+      console.log('Analysis already processed or in progress:', existingAnalysis.status);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Analysis already processed or in progress',
+          status: existingAnalysis.status
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Update status to processing
     console.log('Updating status to processing for:', pendingAnalysisId);
     const { error: updateError } = await supabase
@@ -43,14 +71,15 @@ serve(async (req) => {
         status: 'processing',
         updated_at: new Date().toISOString()
       })
-      .eq('id', pendingAnalysisId);
+      .eq('id', pendingAnalysisId)
+      .eq('status', 'pending'); // Only update if still pending
 
     if (updateError) {
       console.error('Failed to update status to processing:', updateError);
       throw updateError;
     }
 
-    // Start background analysis with timeout
+    // Start background analysis
     console.log('Starting background processing for:', pendingAnalysisId);
     EdgeRuntime.waitUntil(processAnalysisInBackground(
       supabase,
@@ -89,11 +118,22 @@ async function processAnalysisInBackground(
   console.log(`Background processing started for ${pendingAnalysisId}`);
 
   try {
+    // Double-check the analysis is still in processing state
+    const { data: currentAnalysis, error: checkError } = await supabase
+      .from('pending_analyses')
+      .select('status')
+      .eq('id', pendingAnalysisId)
+      .single();
+
+    if (checkError || !currentAnalysis || currentAnalysis.status !== 'processing') {
+      console.log(`Analysis ${pendingAnalysisId} is no longer in processing state, aborting`);
+      return;
+    }
+
     let result;
     
     if (useAdvanced) {
       console.log(`Calling advanced workflow for ${pendingAnalysisId}`);
-      // Call the advanced workflow
       const { data: workflowResult, error: workflowError } = await supabase.functions
         .invoke('langgraph-workflow', {
           body: {
@@ -112,7 +152,6 @@ async function processAnalysisInBackground(
       result = workflowResult;
     } else {
       console.log(`Calling standard analysis for ${pendingAnalysisId}`);
-      // Call standard analysis
       const { data: analysisResult, error: analysisError } = await supabase.functions
         .invoke('auto-classify-and-analyze', {
           body: { description, imageUrl }
@@ -138,7 +177,7 @@ async function processAnalysisInBackground(
 
     console.log(`Updating analysis ${pendingAnalysisId} as completed with category: ${category}`);
 
-    // Update with successful result
+    // Update with successful result, but only if still in processing state
     const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({
@@ -148,7 +187,8 @@ async function processAnalysisInBackground(
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('id', pendingAnalysisId);
+      .eq('id', pendingAnalysisId)
+      .eq('status', 'processing'); // Only update if still processing
 
     if (updateError) {
       console.error(`Failed to update completed analysis ${pendingAnalysisId}:`, updateError);
@@ -162,7 +202,7 @@ async function processAnalysisInBackground(
     const duration = Date.now() - startTime;
     console.error(`Analysis ${pendingAnalysisId} failed after ${duration}ms:`, error);
     
-    // Update with error
+    // Update with error, but only if still in processing state
     const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({
@@ -171,7 +211,8 @@ async function processAnalysisInBackground(
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('id', pendingAnalysisId);
+      .eq('id', pendingAnalysisId)
+      .eq('status', 'processing'); // Only update if still processing
 
     if (updateError) {
       console.error(`Failed to update failed analysis ${pendingAnalysisId}:`, updateError);

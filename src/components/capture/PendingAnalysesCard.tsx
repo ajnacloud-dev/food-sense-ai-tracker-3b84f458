@@ -2,11 +2,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { PendingAnalysis, retryFailedAnalysis } from "@/utils/pendingAnalysisService";
+import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, Trash2 } from "lucide-react";
+import { PendingAnalysis, retryFailedAnalysis, cleanupInconsistentAnalyses } from "@/utils/pendingAnalysisService";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PendingAnalysesCardProps {
   analyses: PendingAnalysis[];
@@ -14,7 +15,24 @@ interface PendingAnalysesCardProps {
 }
 
 export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardProps) => {
+  const { user } = useAuth();
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const [cleaningUp, setCleaningUp] = useState(false);
+
+  // Run cleanup on mount to fix any inconsistent data
+  useEffect(() => {
+    if (user && analyses.length > 0) {
+      // Check for inconsistent analyses (have completed_at but status is pending)
+      const inconsistent = analyses.filter(a => 
+        a.status === 'pending' && a.completed_at !== null
+      );
+      
+      if (inconsistent.length > 0) {
+        console.log(`Found ${inconsistent.length} inconsistent analyses, cleaning up...`);
+        handleCleanup();
+      }
+    }
+  }, [user, analyses]);
 
   if (analyses.length === 0) return null;
 
@@ -36,7 +54,28 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const handleCleanup = async () => {
+    if (!user) return;
+    
+    try {
+      setCleaningUp(true);
+      await cleanupInconsistentAnalyses(user.id);
+      toast.success("Data cleanup completed");
+      onRetry?.(); // Refresh the data
+    } catch (error: any) {
+      console.error('Cleanup failed:', error);
+      toast.error(`Cleanup failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setCleaningUp(false);
+    }
+  };
+
+  const getStatusIcon = (status: string, analysis: PendingAnalysis) => {
+    // Handle inconsistent state
+    if (status === 'pending' && analysis.completed_at) {
+      return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+    }
+    
     switch (status) {
       case 'pending':
         return <Clock className="h-4 w-4 text-blue-500" />;
@@ -66,7 +105,12 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, analysis: PendingAnalysis) => {
+    // Handle inconsistent state
+    if (status === 'pending' && analysis.completed_at) {
+      return 'text-yellow-600 bg-yellow-50';
+    }
+    
     switch (status) {
       case 'pending':
         return 'text-blue-600 bg-blue-50';
@@ -81,8 +125,27 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
     }
   };
 
-  const pendingCount = analyses.filter(a => a.status === 'pending' || a.status === 'processing').length;
+  const getStatusText = (analysis: PendingAnalysis) => {
+    // Handle inconsistent state
+    if (analysis.status === 'pending' && analysis.completed_at) {
+      return 'Inconsistent';
+    }
+    
+    switch (analysis.status) {
+      case 'processing':
+        return 'Processing...';
+      default:
+        return analysis.status;
+    }
+  };
+
+  const pendingCount = analyses.filter(a => 
+    (a.status === 'pending' && !a.completed_at) || a.status === 'processing'
+  ).length;
   const failedCount = analyses.filter(a => a.status === 'failed').length;
+  const inconsistentCount = analyses.filter(a => 
+    a.status === 'pending' && a.completed_at
+  ).length;
 
   return (
     <Card>
@@ -100,9 +163,32 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
               {failedCount} failed
             </Badge>
           )}
+          {inconsistentCount > 0 && (
+            <Badge variant="secondary" className="ml-2 bg-yellow-50 text-yellow-600">
+              {inconsistentCount} inconsistent
+            </Badge>
+          )}
         </CardTitle>
-        <CardDescription>
-          Track your AI analyses - recent activity and status updates
+        <CardDescription className="flex items-center justify-between">
+          <span>Track your AI analyses - recent activity and status updates</span>
+          {inconsistentCount > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCleanup}
+              disabled={cleaningUp}
+              className="h-7 px-2"
+            >
+              {cleaningUp ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <>
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Cleanup
+                </>
+              )}
+            </Button>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -112,7 +198,7 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
             className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-3 flex-1">
-              {getStatusIcon(analysis.status)}
+              {getStatusIcon(analysis.status, analysis)}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
                   {analysis.description || 'Untitled Analysis'}
@@ -132,6 +218,11 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
                     {analysis.error_message}
                   </p>
                 )}
+                {analysis.status === 'pending' && analysis.completed_at && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    ⚠️ Inconsistent state detected - use cleanup
+                  </p>
+                )}
                 {analysis.retry_count > 0 && (
                   <p className="text-xs text-gray-500 mt-1">
                     Retry attempt: {analysis.retry_count}
@@ -142,9 +233,9 @@ export const PendingAnalysesCard = ({ analyses, onRetry }: PendingAnalysesCardPr
             <div className="flex items-center gap-2">
               <Badge 
                 variant={getStatusVariant(analysis.status)} 
-                className={`text-xs ${getStatusColor(analysis.status)}`}
+                className={`text-xs ${getStatusColor(analysis.status, analysis)}`}
               >
-                {analysis.status === 'processing' ? 'Processing...' : analysis.status}
+                {getStatusText(analysis)}
               </Badge>
               {analysis.status === 'failed' && (
                 <Button

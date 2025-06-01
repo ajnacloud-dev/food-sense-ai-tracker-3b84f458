@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +50,7 @@ const Dashboard = () => {
     }
   };
 
-  const { pendingAnalyses, loading: pendingLoading } = usePendingAnalyses(user?.id);
+  const { pendingAnalyses, loading: pendingLoading, refetch: refetchPending } = usePendingAnalyses(user?.id);
 
   const fetchDashboardStats = async () => {
     if (!user) return;
@@ -133,6 +132,12 @@ const Dashboard = () => {
     }
   };
 
+  // Filter out inconsistent analyses from pending count
+  const actualPendingAnalyses = pendingAnalyses.filter(a => 
+    (a.status === 'pending' && !a.completed_at) || 
+    a.status === 'processing'
+  );
+
   const quickActions = [
     {
       icon: Plus,
@@ -203,7 +208,10 @@ const Dashboard = () => {
 
         {/* Pending Analyses */}
         {!pendingLoading && pendingAnalyses.length > 0 && (
-          <PendingAnalysesCard analyses={pendingAnalyses} />
+          <PendingAnalysesCard 
+            analyses={pendingAnalyses} 
+            onRetry={refetchPending}
+          />
         )}
 
         {/* Usage Status - Only show for non-subscribed users */}

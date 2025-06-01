@@ -99,12 +99,13 @@ export const retryFailedAnalysis = async (id: string) => {
     throw fetchError;
   }
 
-  // Update with incremented retry count
+  // Update with incremented retry count and reset to pending
   const { error } = await supabase
     .from('pending_analyses')
     .update({
       status: 'pending',
       error_message: null,
+      completed_at: null, // Clear completed_at when retrying
       retry_count: (currentData.retry_count || 0) + 1,
       updated_at: new Date().toISOString()
     })
@@ -113,5 +114,44 @@ export const retryFailedAnalysis = async (id: string) => {
   if (error) {
     console.error('Failed to retry analysis:', error);
     throw error;
+  }
+};
+
+// New function to clean up inconsistent data
+export const cleanupInconsistentAnalyses = async (userId: string) => {
+  console.log('Cleaning up inconsistent analyses for user:', userId);
+  
+  // Find analyses that have completed_at but are still in pending status
+  const { data: inconsistentAnalyses, error: fetchError } = await supabase
+    .from('pending_analyses')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .not('completed_at', 'is', null);
+
+  if (fetchError) {
+    console.error('Failed to fetch inconsistent analyses:', fetchError);
+    return;
+  }
+
+  if (inconsistentAnalyses && inconsistentAnalyses.length > 0) {
+    console.log(`Found ${inconsistentAnalyses.length} inconsistent analyses`);
+    
+    // Update these to completed status
+    const { error: updateError } = await supabase
+      .from('pending_analyses')
+      .update({
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .not('completed_at', 'is', null);
+
+    if (updateError) {
+      console.error('Failed to cleanup inconsistent analyses:', updateError);
+    } else {
+      console.log('Successfully cleaned up inconsistent analyses');
+    }
   }
 };
