@@ -20,7 +20,9 @@ import {
   Users,
   UserCheck,
   User,
-  Crown
+  Crown,
+  Shield,
+  Mail
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +41,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const [userRole, setUserRole] = useState<string>('user');
   const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
   const [caretakerMode, setCaretakerMode] = useState<boolean>(false);
+  const [participantMode, setParticipantMode] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -61,10 +64,15 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           setIsSubscribed(userData.is_subscribed);
         }
 
-        // Load mode preference from localStorage
-        const savedMode = localStorage.getItem('caretaker_mode');
-        if (savedMode === 'true') {
+        // Load mode preferences from localStorage
+        const savedCaretakerMode = localStorage.getItem('caretaker_mode');
+        const savedParticipantMode = localStorage.getItem('participant_mode');
+        
+        if (savedCaretakerMode === 'true') {
           setCaretakerMode(true);
+        }
+        if (savedParticipantMode === 'true') {
+          setParticipantMode(true);
         }
       } else {
         navigate("/auth");
@@ -79,8 +87,12 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     navigate("/");
   };
 
-  const handleModeToggle = (checked: boolean) => {
+  const handleCaretakerModeToggle = (checked: boolean) => {
     setCaretakerMode(checked);
+    if (checked) {
+      setParticipantMode(false);
+      localStorage.setItem('participant_mode', 'false');
+    }
     localStorage.setItem('caretaker_mode', checked.toString());
     
     // Navigate to appropriate dashboard based on mode
@@ -91,6 +103,24 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     }
     
     toast.success(`Switched to ${checked ? 'Caretaker' : 'User'} mode`);
+  };
+
+  const handleParticipantModeToggle = (checked: boolean) => {
+    setParticipantMode(checked);
+    if (checked) {
+      setCaretakerMode(false);
+      localStorage.setItem('caretaker_mode', 'false');
+    }
+    localStorage.setItem('participant_mode', checked.toString());
+    
+    // Navigate to appropriate dashboard based on mode
+    if (checked) {
+      navigate("/participant");
+    } else {
+      navigate("/dashboard");
+    }
+    
+    toast.success(`Switched to ${checked ? 'Participant' : 'User'} mode`);
   };
 
   // Check if user is admin
@@ -133,7 +163,26 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     return items;
   };
 
-  const menuItems = caretakerMode ? getCaretakerModeItems() : getUserModeItems();
+  const getParticipantModeItems = () => {
+    const items = [
+      { icon: Shield, label: "Participant Dashboard", path: "/participant" },
+      { icon: Settings, label: "Manage Permissions", path: "/participant/permissions" },
+      { icon: Mail, label: "Invite Caretakers", path: "/participant/invitations" },
+    ];
+    
+    // Admin users always see Admin menu regardless of mode
+    if (isAdmin) {
+      items.push({ icon: Settings, label: "Admin", path: "/admin" });
+    }
+    
+    return items;
+  };
+
+  const menuItems = caretakerMode 
+    ? getCaretakerModeItems() 
+    : participantMode 
+    ? getParticipantModeItems() 
+    : getUserModeItems();
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -164,31 +213,58 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       </nav>
 
       <div className="p-4 border-t">
-        {/* Mode Toggle - Only show for users with caretaker capabilities */}
-        {hasCaretakerCapabilities && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+        {/* Mode Toggles */}
+        <div className="space-y-3 mb-4">
+          {/* Caretaker Mode Toggle - Only show for users with caretaker capabilities */}
+          {hasCaretakerCapabilities && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {caretakerMode ? (
+                    <UserCheck className="h-4 w-4 text-blue-600" />
+                  ) : (
+                    <User className="h-4 w-4 text-gray-600" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {caretakerMode ? 'Caretaker Mode' : 'Caretaker Mode'}
+                  </span>
+                </div>
+                <Switch
+                  checked={caretakerMode}
+                  onCheckedChange={handleCaretakerModeToggle}
+                  aria-label="Toggle caretaker mode"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {caretakerMode ? 'Managing patients' : 'Switch to manage patients'}
+              </p>
+            </div>
+          )}
+
+          {/* Participant Mode Toggle - Available to all users */}
+          <div className="p-3 bg-gray-50 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                {caretakerMode ? (
-                  <UserCheck className="h-4 w-4 text-blue-600" />
+                {participantMode ? (
+                  <Shield className="h-4 w-4 text-green-600" />
                 ) : (
                   <User className="h-4 w-4 text-gray-600" />
                 )}
                 <span className="text-sm font-medium">
-                  {caretakerMode ? 'Caretaker Mode' : 'User Mode'}
+                  {participantMode ? 'Participant Mode' : 'Participant Mode'}
                 </span>
               </div>
               <Switch
-                checked={caretakerMode}
-                onCheckedChange={handleModeToggle}
-                aria-label="Toggle caretaker mode"
+                checked={participantMode}
+                onCheckedChange={handleParticipantModeToggle}
+                aria-label="Toggle participant mode"
               />
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {caretakerMode ? 'Managing patients' : 'Personal dashboard'}
+              {participantMode ? 'Managing caretakers' : 'Control your privacy'}
             </p>
           </div>
-        )}
+        </div>
 
         <div className="flex items-center space-x-3 mb-4">
           <Avatar>

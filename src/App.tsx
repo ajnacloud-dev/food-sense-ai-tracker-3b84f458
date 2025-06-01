@@ -19,6 +19,9 @@ import Insights from "./pages/Insights";
 import Billing from "./pages/Billing";
 import Admin from "./pages/Admin";
 import Caretaker from "./pages/Caretaker";
+import Participant from "./pages/Participant";
+import ParticipantPermissions from "./pages/ParticipantPermissions";
+import ParticipantInvitations from "./pages/ParticipantInvitations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +48,9 @@ const App = () => (
             <Route path="/billing" element={<Billing />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/caretaker" element={<Caretaker />} />
+            <Route path="/participant" element={<Participant />} />
+            <Route path="/participant/permissions" element={<ParticipantPermissions />} />
+            <Route path="/participant/invitations" element={<ParticipantInvitations />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
