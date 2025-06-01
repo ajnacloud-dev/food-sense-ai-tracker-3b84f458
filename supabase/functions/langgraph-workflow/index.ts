@@ -8,6 +8,93 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// LangSmith configuration
+interface LangSmithConfig {
+  apiKey: string;
+  endpoint: string;
+  project: string;
+  enabled: boolean;
+}
+
+// Initialize LangSmith configuration
+function initLangSmith(): LangSmithConfig {
+  const enabled = Deno.env.get('LANGSMITH_TRACING') === 'true';
+  return {
+    apiKey: Deno.env.get('LANGSMITH_API_KEY') || '',
+    endpoint: Deno.env.get('LANGSMITH_ENDPOINT') || 'https://api.smith.langchain.com',
+    project: Deno.env.get('LANGSMITH_PROJECT') || 'food-sense-ai',
+    enabled
+  };
+}
+
+// LangSmith trace utilities
+class LangSmithTracer {
+  private config: LangSmithConfig;
+  private sessionId: string;
+
+  constructor() {
+    this.config = initLangSmith();
+    this.sessionId = crypto.randomUUID();
+  }
+
+  async startTrace(name: string, inputs: any, metadata: any = {}) {
+    if (!this.config.enabled || !this.config.apiKey) return null;
+
+    const traceData = {
+      id: crypto.randomUUID(),
+      name,
+      start_time: new Date().toISOString(),
+      inputs,
+      session_id: this.sessionId,
+      extra: {
+        metadata,
+        version: "1.0.0"
+      }
+    };
+
+    try {
+      await fetch(`${this.config.endpoint}/runs`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+          'x-api-key': this.config.apiKey
+        },
+        body: JSON.stringify(traceData)
+      });
+
+      return traceData.id;
+    } catch (error) {
+      console.error('LangSmith trace start failed:', error);
+      return null;
+    }
+  }
+
+  async endTrace(traceId: string | null, outputs: any, error: any = null) {
+    if (!this.config.enabled || !this.config.apiKey || !traceId) return;
+
+    const updateData = {
+      end_time: new Date().toISOString(),
+      outputs,
+      error: error ? { message: error.message, type: error.constructor.name } : null
+    };
+
+    try {
+      await fetch(`${this.config.endpoint}/runs/${traceId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Content-Type': 'application/json',
+          'x-api-key': this.config.apiKey
+        },
+        body: JSON.stringify(updateData)
+      });
+    } catch (error) {
+      console.error('LangSmith trace end failed:', error);
+    }
+  }
+}
+
 // Safe JSON parser with better error handling
 function safeJsonParse(text: string, context: string): any {
   try {
@@ -97,26 +184,59 @@ async function imageUrlToBase64(imageUrl: string): Promise<string> {
   }
 }
 
+// Test data for edge function testing
+const TEST_DATA = {
+  food: {
+    description: "Grilled chicken salad with vegetables",
+    imageUrl: null
+  },
+  receipt: {
+    description: "Grocery store receipt",
+    imageUrl: null
+  },
+  workout: {
+    description: "30 minute morning run",
+    imageUrl: null
+  }
+};
+
 class LangGraphWorkflow {
   private supabaseClient: any;
   private openaiApiKey: string;
   private state: any = {};
   private totalTokens: number = 0;
   private totalCost: number = 0;
+  private tracer: LangSmithTracer;
+  private debugMode: boolean = false;
 
-  constructor(supabaseClient: any, openaiApiKey: string) {
+  constructor(supabaseClient: any, openaiApiKey: string, debugMode: boolean = false) {
     this.supabaseClient = supabaseClient;
     this.openaiApiKey = openaiApiKey;
+    this.tracer = new LangSmithTracer();
+    this.debugMode = debugMode;
   }
 
   async executeWorkflow(description: string, imageUrl: string | null, workflowConfig: any): Promise<any> {
+    const workflowStartTime = Date.now();
     console.log('Starting LangGraph workflow with node: classify');
+    
+    // Start main workflow trace
+    const mainTraceId = await this.tracer.startTrace('langgraph_workflow', {
+      description,
+      hasImage: !!imageUrl,
+      workflowConfig
+    }, {
+      user_input: description,
+      image_provided: !!imageUrl,
+      timestamp: new Date().toISOString()
+    });
     
     this.state = {
       description,
       imageUrl,
       workflowConfig: workflowConfig || {},
-      uploadTime: new Date().toISOString()
+      uploadTime: new Date().toISOString(),
+      debugMode: this.debugMode
     };
 
     try {
@@ -126,7 +246,7 @@ class LangGraphWorkflow {
       await this.executeNode('enrich', this.executeEnricher.bind(this));
       await this.executeNode('validate', this.executeValidator.bind(this));
 
-      return {
+      const result = {
         success: true,
         result: {
           classification: this.state.classification,
@@ -136,11 +256,25 @@ class LangGraphWorkflow {
         },
         metadata: {
           totalTokens: this.totalTokens,
-          totalCost: this.totalCost
+          totalCost: this.totalCost,
+          processingTime: Date.now() - workflowStartTime,
+          langsmithTraceId: mainTraceId
         }
       };
+
+      if (this.debugMode) {
+        result.debug = {
+          state: this.state,
+          processingSteps: ['classify', 'analyze', 'enrich', 'validate']
+        };
+      }
+
+      await this.tracer.endTrace(mainTraceId, result);
+      return result;
+
     } catch (error) {
       console.error('Workflow execution failed:', error);
+      await this.tracer.endTrace(mainTraceId, null, error);
       
       // Check if this is an OpenAI quota/rate limit error
       const errorInfo = handleOpenAIError(error);
@@ -158,11 +292,27 @@ class LangGraphWorkflow {
   }
 
   async executeNode(nodeName: string, nodeFunction: Function): Promise<void> {
+    const nodeStartTime = Date.now();
     console.log(`Executing node: ${nodeName} (${nodeFunction.name.replace('execute', '').toLowerCase()})`);
+    
+    const nodeTraceId = await this.tracer.startTrace(`node_${nodeName}`, {
+      nodeName,
+      state: this.debugMode ? this.state : { category: this.state.classification?.category }
+    });
+
     try {
       await nodeFunction();
+      const processingTime = Date.now() - nodeStartTime;
+      console.log(`Node ${nodeName} completed in ${processingTime}ms`);
+      
+      await this.tracer.endTrace(nodeTraceId, {
+        success: true,
+        processingTime,
+        output: this.state[nodeName === 'classify' ? 'classification' : nodeName === 'analyze' ? 'analysis' : nodeName]
+      });
     } catch (error) {
       console.error(`Error in node ${nodeName}:`, error);
+      await this.tracer.endTrace(nodeTraceId, null, error);
       throw error;
     }
   }
@@ -222,7 +372,7 @@ Return ONLY a valid JSON object with this exact format (no markdown, no code blo
       }
     }
 
-    const response = await this.callOpenAI(messages, 'gpt-4o', 300);
+    const response = await this.callOpenAI(messages, 'gpt-4o', 300, 'classification');
     this.state.classification = safeJsonParse(response.content, 'classification');
   }
 
@@ -275,6 +425,22 @@ IMPORTANT:
 5. If you can see specific dishes, name them accurately.`;
     }
 
+    // Enhanced receipt analysis instructions
+    if (this.state.classification.category === 'receipt') {
+      enhancedUserPrompt += `
+
+CRITICAL RECEIPT ANALYSIS INSTRUCTIONS:
+1. CAREFULLY read ALL numbers on the receipt - look for subtotals, taxes, discounts, and final total
+2. The "total" field should be the FINAL amount paid (usually the largest number at the bottom)
+3. Double-check your math: subtotal + tax - discounts = total
+4. If you see multiple totals, use the FINAL total amount (often labeled as "TOTAL", "AMOUNT DUE", or "BALANCE")
+5. Be extremely careful with decimal placement - 12.98 is NOT the same as 6.48
+6. Look for terms like: TOTAL, AMOUNT DUE, BALANCE DUE, GRAND TOTAL, FINAL TOTAL
+7. VERIFY your total against the visible receipt image before finalizing
+
+VALIDATION STEP: Before returning your response, verify that the total amount makes sense given the items and their prices.`;
+    }
+
     const analysisPrompt = `${enhancedUserPrompt}
 
 IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The response must be parseable JSON with complete analysis.`;
@@ -297,8 +463,20 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
       }
     }
 
-    const response = await this.callOpenAI(messages, 'gpt-4o', 1500);
+    const response = await this.callOpenAI(messages, 'gpt-4o', 1500, 'analysis');
     this.state.analysis = safeJsonParse(response.content, 'analysis');
+
+    // Validation for receipt totals
+    if (this.state.classification.category === 'receipt' && this.state.analysis.total) {
+      console.log(`Receipt analysis - Total detected: ${this.state.analysis.total}`);
+      
+      // Log validation information
+      if (this.state.analysis.subtotal && this.state.analysis.tax_details) {
+        const calculatedTotal = parseFloat(this.state.analysis.subtotal) + 
+          (this.state.analysis.tax_details.reduce((sum: number, tax: any) => sum + parseFloat(tax.tax_amount || 0), 0));
+        console.log(`Receipt validation - Calculated total: ${calculatedTotal.toFixed(2)}, Detected total: ${this.state.analysis.total}`);
+      }
+    }
   }
 
   async executeEnricher(): Promise<void> {
@@ -308,20 +486,51 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
   }
 
   async executeValidator(): Promise<void> {
-    // Simplified validator that just ensures we have valid data
+    // Enhanced validator with better validation logic
     const analysis = this.state.analysis || this.state.enrichment;
     
     if (!analysis) {
       throw new Error('No analysis data available for validation');
     }
 
+    // Validation specific to category
+    let validationResults = { isValid: true, warnings: [], errors: [] };
+
+    if (this.state.classification.category === 'receipt') {
+      // Receipt-specific validation
+      if (!analysis.total || analysis.total <= 0) {
+        validationResults.errors.push('Missing or invalid total amount');
+        validationResults.isValid = false;
+      }
+
+      if (analysis.items && Array.isArray(analysis.items)) {
+        const itemsTotal = analysis.items.reduce((sum: number, item: any) => 
+          sum + (parseFloat(item.price || 0) * parseInt(item.quantity || 1)), 0);
+        
+        if (Math.abs(itemsTotal - parseFloat(analysis.subtotal || 0)) > 0.02) {
+          validationResults.warnings.push(`Items total (${itemsTotal.toFixed(2)}) doesn't match subtotal (${analysis.subtotal})`);
+        }
+      }
+    }
+
     this.state.validation = {
-      cleanedData: analysis
+      cleanedData: analysis,
+      validation: validationResults
     };
   }
 
-  private async callOpenAI(messages: any[], model: string, maxTokens: number): Promise<any> {
+  private async callOpenAI(messages: any[], model: string, maxTokens: number, operationType: string = 'unknown'): Promise<any> {
+    const callStartTime = Date.now();
+    const traceId = await this.tracer.startTrace(`openai_${operationType}`, {
+      model,
+      maxTokens,
+      messageCount: messages.length,
+      hasImage: messages.some(m => Array.isArray(m.content))
+    });
+
     try {
+      console.log(`OpenAI API call for ${operationType} - Model: ${model}, Max tokens: ${maxTokens}`);
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -350,7 +559,6 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
             throw new Error('rate_limit: OpenAI API rate limit exceeded');
           }
         } catch (parseError) {
-          // If we can't parse the error, use the status code
           console.error('Failed to parse error response:', parseError);
         }
         
@@ -358,29 +566,163 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks). The re
       }
 
       const data = await response.json();
+      const processingTime = Date.now() - callStartTime;
       
       // Track usage
       if (data.usage) {
         this.totalTokens += data.usage.total_tokens;
         const pricing = model === 'gpt-4o' ? { input: 0.0025, output: 0.01 } : { input: 0.00015, output: 0.0006 };
         this.totalCost += (data.usage.prompt_tokens / 1000 * pricing.input) + (data.usage.completion_tokens / 1000 * pricing.output);
+        
+        console.log(`OpenAI usage for ${operationType}: ${data.usage.total_tokens} tokens, $${((data.usage.prompt_tokens / 1000 * pricing.input) + (data.usage.completion_tokens / 1000 * pricing.output)).toFixed(6)}`);
       }
 
-      return {
+      const result = {
         content: data.choices[0].message.content,
-        usage: data.usage
+        usage: data.usage,
+        processingTime
       };
+
+      await this.tracer.endTrace(traceId, {
+        response: this.debugMode ? result : { usage: data.usage, processingTime },
+        success: true
+      });
+
+      return result;
     } catch (error) {
-      // Re-throw with enhanced error information
       console.error('OpenAI API call failed:', error);
+      await this.tracer.endTrace(traceId, null, error);
       throw error;
     }
   }
 }
 
+// Test endpoint for manual testing
+function handleTestRequest(url: URL): Response {
+  const category = url.searchParams.get('category') || 'food';
+  const debug = url.searchParams.get('debug') === 'true';
+  
+  if (!TEST_DATA[category as keyof typeof TEST_DATA]) {
+    return new Response(JSON.stringify({ 
+      error: 'Invalid category. Use: food, receipt, or workout' 
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
+  }
+
+  const testData = TEST_DATA[category as keyof typeof TEST_DATA];
+  
+  const htmlResponse = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>LangGraph Workflow Test</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+            .test-form { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .result { background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 20px 0; }
+            .error { background: #ffebee; color: #c62828; }
+            button { background: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+            textarea, input { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; }
+            pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow: auto; }
+        </style>
+    </head>
+    <body>
+        <h1>LangGraph Workflow Test Interface</h1>
+        <p>Test the workflow with different categories and inputs.</p>
+        
+        <div class="test-form">
+            <h3>Test Workflow</h3>
+            <form id="testForm">
+                <label>Category:</label>
+                <select id="category" name="category">
+                    <option value="food" ${category === 'food' ? 'selected' : ''}>Food</option>
+                    <option value="receipt" ${category === 'receipt' ? 'selected' : ''}>Receipt</option>
+                    <option value="workout" ${category === 'workout' ? 'selected' : ''}>Workout</option>
+                </select>
+                
+                <label>Description:</label>
+                <textarea id="description" name="description" rows="3" placeholder="Enter description...">${testData.description}</textarea>
+                
+                <label>Image URL (optional):</label>
+                <input type="url" id="imageUrl" name="imageUrl" placeholder="https://example.com/image.jpg" />
+                
+                <label>
+                    <input type="checkbox" id="debug" name="debug" ${debug ? 'checked' : ''}> Debug Mode
+                </label>
+                
+                <br><br>
+                <button type="submit">Test Workflow</button>
+            </form>
+        </div>
+        
+        <div id="result"></div>
+        
+        <script>
+            document.getElementById('testForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = new FormData(e.target);
+                const data = {
+                    description: formData.get('description'),
+                    imageUrl: formData.get('imageUrl') || null,
+                    workflowConfig: { 
+                        debug: formData.get('debug') === 'on',
+                        testMode: true 
+                    }
+                };
+                
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '<p>Testing workflow...</p>';
+                
+                try {
+                    const response = await fetch('/functions/v1/langgraph-workflow', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + '${Deno.env.get("SUPABASE_ANON_KEY")}'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    resultDiv.innerHTML = \`
+                        <div class="result \${result.success ? '' : 'error'}">
+                            <h3>Result</h3>
+                            <pre>\${JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                    \`;
+                } catch (error) {
+                    resultDiv.innerHTML = \`
+                        <div class="result error">
+                            <h3>Error</h3>
+                            <p>\${error.message}</p>
+                        </div>
+                    \`;
+                }
+            });
+        </script>
+    </body>
+    </html>
+  `;
+
+  return new Response(htmlResponse, {
+    headers: { ...corsHeaders, "Content-Type": "text/html" }
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const url = new URL(req.url);
+  
+  // Handle test endpoint
+  if (req.method === "GET" && url.pathname.includes('/test')) {
+    return handleTestRequest(url);
   }
 
   const startTime = Date.now();
@@ -408,7 +750,8 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
-    const workflow = new LangGraphWorkflow(supabaseClient, openaiApiKey);
+    const debugMode = workflowConfig?.debug === true;
+    const workflow = new LangGraphWorkflow(supabaseClient, openaiApiKey, debugMode);
     const result = await workflow.executeWorkflow(description, imageUrl, workflowConfig);
 
     // Handle failed workflows with graceful error responses
@@ -416,7 +759,7 @@ serve(async (req) => {
       console.log(`Workflow failed with error type: ${result.errorType}`);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 422, // Unprocessable Entity - indicates a business logic error rather than server error
+        status: 422,
       });
     }
 

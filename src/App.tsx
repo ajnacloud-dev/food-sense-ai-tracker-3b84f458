@@ -18,6 +18,7 @@ import WorkoutDetails from "./pages/WorkoutDetails";
 import Insights from "./pages/Insights";
 import Billing from "./pages/Billing";
 import Admin from "./pages/Admin";
+import AdminTestWorkflow from "./pages/AdminTestWorkflow";
 import Caretaker from "./pages/Caretaker";
 import InviteCaretakers from "./pages/InviteCaretakers";
 import Privacy from "./pages/Privacy";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/insights" element={<Insights />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
             <Route path="/caretaker" element={<Caretaker />} />
             <Route path="/invite-caretakers" element={<InviteCaretakers />} />
             <Route path="/privacy" element={<Privacy />} />
