@@ -236,6 +236,87 @@ export type Database = {
           },
         ]
       }
+      invitation_codes: {
+        Row: {
+          caretaker_type: Database["public"]["Enums"]["caretaker_type"]
+          code: string
+          created_at: string
+          created_by: string
+          current_uses: number | null
+          expires_at: string
+          id: string
+          max_uses: number | null
+          permission_level: Database["public"]["Enums"]["permission_level"]
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          caretaker_type?: Database["public"]["Enums"]["caretaker_type"]
+          code: string
+          created_at?: string
+          created_by: string
+          current_uses?: number | null
+          expires_at: string
+          id?: string
+          max_uses?: number | null
+          permission_level?: Database["public"]["Enums"]["permission_level"]
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          caretaker_type?: Database["public"]["Enums"]["caretaker_type"]
+          code?: string
+          created_at?: string
+          created_by?: string
+          current_uses?: number | null
+          expires_at?: string
+          id?: string
+          max_uses?: number | null
+          permission_level?: Database["public"]["Enums"]["permission_level"]
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
+      participant_comments: {
+        Row: {
+          author_type: string
+          caretaker_id: string
+          comment_text: string
+          content_id: string | null
+          content_type: string
+          created_at: string
+          id: string
+          is_visible_to_participant: boolean
+          participant_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_type: string
+          caretaker_id: string
+          comment_text: string
+          content_id?: string | null
+          content_type: string
+          created_at?: string
+          id?: string
+          is_visible_to_participant?: boolean
+          participant_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_type?: string
+          caretaker_id?: string
+          comment_text?: string
+          content_id?: string | null
+          content_type?: string
+          created_at?: string
+          id?: string
+          is_visible_to_participant?: boolean
+          participant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       participant_permissions: {
         Row: {
           caretaker_id: string
@@ -527,6 +608,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invitation_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       has_category_permission: {
         Args: {
           _participant_id: string

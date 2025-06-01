@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ParticipantOverview from "./ParticipantOverview";
 import CareRelationshipManager from "./CareRelationshipManager";
+import InvitationCodeManager from "./InvitationCodeManager";
 
 interface Participant {
   id: string;
@@ -122,10 +123,6 @@ const CaretakerDashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900">Caretaker Dashboard</h1>
           <p className="text-gray-600">Monitor and support your participants' health journey</p>
         </div>
-        <Button onClick={() => {/* Open invite modal */}}>
-          <Plus className="h-4 w-4 mr-2" />
-          Invite Participant
-        </Button>
       </div>
 
       {/* Stats Overview */}
@@ -176,6 +173,7 @@ const CaretakerDashboard = () => {
         <TabsList>
           <TabsTrigger value="participants">My Participants</TabsTrigger>
           <TabsTrigger value="relationships">Manage Relationships</TabsTrigger>
+          <TabsTrigger value="invitations">Invitation Codes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="participants">
@@ -249,6 +247,10 @@ const CaretakerDashboard = () => {
 
         <TabsContent value="relationships">
           <CareRelationshipManager onRelationshipUpdated={fetchCaretakerData} />
+        </TabsContent>
+
+        <TabsContent value="invitations">
+          <InvitationCodeManager />
         </TabsContent>
       </Tabs>
     </div>
