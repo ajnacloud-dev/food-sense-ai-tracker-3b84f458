@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 // Type definitions for better type safety
@@ -69,10 +68,8 @@ const createMeaningfulDescription = (analysis: any, originalDescription?: string
   if (analysis?.meal_summary?.dish_names && Array.isArray(analysis.meal_summary.dish_names)) {
     const dishes = analysis.meal_summary.dish_names.filter((dish: string) => dish !== 'unspecified' && dish.trim().length > 0);
     if (dishes.length > 0) {
-      const mealType = analysis.meal_summary.meal_type && analysis.meal_summary.meal_type !== 'unspecified' 
-        ? analysis.meal_summary.meal_type 
-        : '';
-      return mealType ? `${mealType}: ${dishes.join(', ')}` : dishes.join(', ');
+      // Return just the dish names without meal type prefix
+      return dishes.join(', ');
     }
   }
 
@@ -86,11 +83,7 @@ const createMeaningfulDescription = (analysis: any, originalDescription?: string
     }
   }
 
-  // Fallback to meal type or generic description
-  if (analysis?.meal_summary?.meal_type && analysis.meal_summary.meal_type !== 'unspecified') {
-    return `${analysis.meal_summary.meal_type} meal`;
-  }
-
+  // Fallback to generic description (no meal type prefix)
   return originalDescription || 'AI-analyzed content';
 };
 
