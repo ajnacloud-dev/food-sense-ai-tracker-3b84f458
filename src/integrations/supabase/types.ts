@@ -195,34 +195,61 @@ export type Database = {
       food_entries: {
         Row: {
           calories: number | null
+          confidence_score: number | null
           created_at: string | null
           description: string | null
           extracted_nutrients: Json | null
           id: string
           image_url: string | null
           ingredients: Json | null
+          meal_date: string | null
+          meal_time: string | null
+          meal_type: string | null
+          total_carbohydrates: number | null
+          total_fats: number | null
+          total_fiber: number | null
+          total_protein: number | null
+          total_sodium: number | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           calories?: number | null
+          confidence_score?: number | null
           created_at?: string | null
           description?: string | null
           extracted_nutrients?: Json | null
           id?: string
           image_url?: string | null
           ingredients?: Json | null
+          meal_date?: string | null
+          meal_time?: string | null
+          meal_type?: string | null
+          total_carbohydrates?: number | null
+          total_fats?: number | null
+          total_fiber?: number | null
+          total_protein?: number | null
+          total_sodium?: number | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           calories?: number | null
+          confidence_score?: number | null
           created_at?: string | null
           description?: string | null
           extracted_nutrients?: Json | null
           id?: string
           image_url?: string | null
           ingredients?: Json | null
+          meal_date?: string | null
+          meal_time?: string | null
+          meal_type?: string | null
+          total_carbohydrates?: number | null
+          total_fats?: number | null
+          total_fiber?: number | null
+          total_protein?: number | null
+          total_sodium?: number | null
           updated_at?: string | null
           user_id?: string
         }
@@ -232,6 +259,112 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_items: {
+        Row: {
+          calories: number | null
+          carbohydrates: number | null
+          contains_allergens: boolean | null
+          created_at: string | null
+          fats: number | null
+          fiber: number | null
+          food_entry_id: string | null
+          id: string
+          is_vegan: boolean | null
+          is_vegetarian: boolean | null
+          name: string
+          proteins: number | null
+          serving_size: string | null
+          sodium: number | null
+        }
+        Insert: {
+          calories?: number | null
+          carbohydrates?: number | null
+          contains_allergens?: boolean | null
+          created_at?: string | null
+          fats?: number | null
+          fiber?: number | null
+          food_entry_id?: string | null
+          id?: string
+          is_vegan?: boolean | null
+          is_vegetarian?: boolean | null
+          name: string
+          proteins?: number | null
+          serving_size?: string | null
+          sodium?: number | null
+        }
+        Update: {
+          calories?: number | null
+          carbohydrates?: number | null
+          contains_allergens?: boolean | null
+          created_at?: string | null
+          fats?: number | null
+          fiber?: number | null
+          food_entry_id?: string | null
+          id?: string
+          is_vegan?: boolean | null
+          is_vegetarian?: boolean | null
+          name?: string
+          proteins?: number | null
+          serving_size?: string | null
+          sodium?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_items_food_entry_id_fkey"
+            columns: ["food_entry_id"]
+            isOneToOne: false
+            referencedRelation: "food_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_assessments: {
+        Row: {
+          created_at: string | null
+          diabetes_rating: string | null
+          diabetes_suggestion: string | null
+          food_entry_id: string | null
+          general_suggestion: string | null
+          hypertension_rating: string | null
+          hypertension_suggestion: string | null
+          id: string
+          nutrients_high: string[] | null
+          nutrients_low: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          diabetes_rating?: string | null
+          diabetes_suggestion?: string | null
+          food_entry_id?: string | null
+          general_suggestion?: string | null
+          hypertension_rating?: string | null
+          hypertension_suggestion?: string | null
+          id?: string
+          nutrients_high?: string[] | null
+          nutrients_low?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          diabetes_rating?: string | null
+          diabetes_suggestion?: string | null
+          food_entry_id?: string | null
+          general_suggestion?: string | null
+          hypertension_rating?: string | null
+          hypertension_suggestion?: string | null
+          id?: string
+          nutrients_high?: string[] | null
+          nutrients_low?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_assessments_food_entry_id_fkey"
+            columns: ["food_entry_id"]
+            isOneToOne: false
+            referencedRelation: "food_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -277,6 +410,41 @@ export type Database = {
           used_by?: string | null
         }
         Relationships: []
+      }
+      meal_summaries: {
+        Row: {
+          classification_confidence: number | null
+          created_at: string | null
+          dish_names: string[] | null
+          food_entry_id: string | null
+          id: string
+          meal_suggestion: string | null
+        }
+        Insert: {
+          classification_confidence?: number | null
+          created_at?: string | null
+          dish_names?: string[] | null
+          food_entry_id?: string | null
+          id?: string
+          meal_suggestion?: string | null
+        }
+        Update: {
+          classification_confidence?: number | null
+          created_at?: string | null
+          dish_names?: string[] | null
+          food_entry_id?: string | null
+          id?: string
+          meal_suggestion?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_summaries_food_entry_id_fkey"
+            columns: ["food_entry_id"]
+            isOneToOne: false
+            referencedRelation: "food_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       participant_comments: {
         Row: {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,23 +7,60 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock, TrendingUp, Heart, Apple, Activity } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock, Heart, Apple, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
-import { NutritionDisplay } from "@/components/food/NutritionDisplay";
 import { useAuth } from "@/contexts/AuthContext";
-import { FoodDetailsSidebar } from "@/components/food/FoodDetailsSidebar";
 import { EnhancedNutritionDisplay } from "@/components/food/EnhancedNutritionDisplay";
 
 interface FoodEntry {
   id: string;
   description: string;
   calories: number;
-  ingredients: any;
-  extracted_nutrients: any;
+  total_protein: number;
+  total_carbohydrates: number;
+  total_fats: number;
+  total_fiber: number;
+  total_sodium: number;
+  meal_type: string;
+  meal_time: string;
+  meal_date: string;
+  confidence_score: number;
   image_url: string;
   created_at: string;
+  extracted_nutrients: any;
+}
+
+interface FoodItem {
+  id: string;
+  name: string;
+  serving_size: string;
+  calories: number;
+  proteins: number;
+  carbohydrates: number;
+  fats: number;
+  fiber: number;
+  sodium: number;
+  is_vegetarian: boolean;
+  is_vegan: boolean;
+  contains_allergens: boolean;
+}
+
+interface HealthAssessment {
+  diabetes_rating: string;
+  diabetes_suggestion: string;
+  hypertension_rating: string;
+  hypertension_suggestion: string;
+  general_suggestion: string;
+  nutrients_high: string[];
+  nutrients_low: string[];
+}
+
+interface MealSummary {
+  dish_names: string[];
+  meal_suggestion: string;
+  classification_confidence: number;
 }
 
 const FoodDetails = () => {
@@ -30,6 +68,9 @@ const FoodDetails = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [foodEntry, setFoodEntry] = useState<FoodEntry | null>(null);
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [healthAssessment, setHealthAssessment] = useState<HealthAssessment | null>(null);
+  const [mealSummary, setMealSummary] = useState<MealSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<FoodEntry>>({});
@@ -40,28 +81,62 @@ const FoodDetails = () => {
       return;
     }
     if (id) {
-      fetchFoodEntry();
+      fetchFoodDetails();
     }
   }, [id, user, navigate]);
 
-  const fetchFoodEntry = async () => {
+  const fetchFoodDetails = async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch main food entry
+      const { data: entry, error: entryError } = await supabase
         .from('food_entries')
         .select('*')
         .eq('id', id)
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
+      if (entryError) throw entryError;
 
-      setFoodEntry(data);
-      setEditedData(data);
+      // Fetch related food items
+      const { data: items, error: itemsError } = await supabase
+        .from('food_items')
+        .select('*')
+        .eq('food_entry_id', id);
+
+      if (itemsError) console.error('Error fetching food items:', itemsError);
+
+      // Fetch health assessment
+      const { data: health, error: healthError } = await supabase
+        .from('health_assessments')
+        .select('*')
+        .eq('food_entry_id', id)
+        .single();
+
+      if (healthError && healthError.code !== 'PGRST116') {
+        console.error('Error fetching health assessment:', healthError);
+      }
+
+      // Fetch meal summary
+      const { data: summary, error: summaryError } = await supabase
+        .from('meal_summaries')
+        .select('*')
+        .eq('food_entry_id', id)
+        .single();
+
+      if (summaryError && summaryError.code !== 'PGRST116') {
+        console.error('Error fetching meal summary:', summaryError);
+      }
+
+      setFoodEntry(entry);
+      setFoodItems(items || []);
+      setHealthAssessment(health);
+      setMealSummary(summary);
+      setEditedData(entry);
     } catch (error: any) {
-      console.error('Error fetching food entry:', error);
-      toast.error("Failed to load food entry");
+      console.error('Error fetching food details:', error);
+      toast.error("Failed to load food details");
       navigate("/food");
     } finally {
       setLoading(false);
@@ -105,7 +180,7 @@ const FoodDetails = () => {
     return (
       <SidebarLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading food entry...</div>
+          <div className="text-lg">Loading food details...</div>
         </div>
       </SidebarLayout>
     );
@@ -120,11 +195,6 @@ const FoodDetails = () => {
       </SidebarLayout>
     );
   }
-
-  const nutritionData = foodEntry.extracted_nutrients;
-  const mealSummary = nutritionData?.meal_summary;
-  const totalNutrition = mealSummary?.total_nutrition;
-  const healthAssessment = nutritionData?.health_assessment;
 
   return (
     <SidebarLayout>
@@ -144,7 +214,7 @@ const FoodDetails = () => {
                   </div>
                   <div>
                     <h1 className="text-xl font-bold text-gray-900">
-                      {mealSummary?.meal_type || 'Food Entry'}
+                      {foodEntry.meal_type || 'Food Entry'}
                     </h1>
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
                       <span className="flex items-center">
@@ -157,11 +227,11 @@ const FoodDetails = () => {
                       </span>
                       <span className="flex items-center font-semibold text-orange-600">
                         <Flame className="h-3 w-3 mr-1" />
-                        {foodEntry.calories || totalNutrition?.calories || 0} cal
+                        {foodEntry.calories || 0} cal
                       </span>
-                      {mealSummary?.classification_confidence && (
+                      {foodEntry.confidence_score && (
                         <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                          {Math.round(mealSummary.classification_confidence * 100)}% confident
+                          {Math.round(foodEntry.confidence_score * 100)}% confident
                         </Badge>
                       )}
                     </div>
@@ -192,7 +262,7 @@ const FoodDetails = () => {
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Left Sidebar - Compact */}
+            {/* Left Sidebar */}
             <div className="lg:col-span-1">
               <div className="space-y-4">
                 {/* Food Image */}
@@ -208,16 +278,34 @@ const FoodDetails = () => {
                   </Card>
                 )}
 
-                {/* Enhanced Sidebar */}
-                <FoodDetailsSidebar 
-                  totalNutrition={totalNutrition}
-                  mealSummary={mealSummary}
-                  healthAssessment={healthAssessment}
-                />
+                {/* Quick Stats */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Nutrition Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Calories:</span>
+                      <span className="font-medium">{foodEntry.calories || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Protein:</span>
+                      <span className="font-medium">{foodEntry.total_protein || 0}g</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Carbs:</span>
+                      <span className="font-medium">{foodEntry.total_carbohydrates || 0}g</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Fats:</span>
+                      <span className="font-medium">{foodEntry.total_fats || 0}g</span>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
 
-            {/* Right Content - Main */}
+            {/* Right Content */}
             <div className="lg:col-span-3">
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
@@ -268,59 +356,25 @@ const FoodDetails = () => {
                       </CardContent>
                     </Card>
                   )}
-
-                  {/* Meal Context & Suggestion */}
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {mealSummary?.time && mealSummary?.date && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Meal Context</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Date:</span>
-                              <span className="font-medium">{mealSummary.date}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Time:</span>
-                              <span className="font-medium">{mealSummary.time}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Type:</span>
-                              <span className="font-medium">{mealSummary.meal_type}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {mealSummary?.meal_suggestion && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Suggestion</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="bg-green-50 p-4 rounded-lg">
-                            <p className="text-green-700">{mealSummary.meal_suggestion}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
                 </TabsContent>
 
                 <TabsContent value="nutrition">
-                  {nutritionData ? (
-                    <EnhancedNutritionDisplay nutritionData={nutritionData} />
-                  ) : (
-                    <Card>
-                      <CardContent className="text-center py-8 text-gray-500">
-                        <Activity className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                        <p>No nutrition data available</p>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Use the enhanced display with normalized data */}
+                  <EnhancedNutritionDisplay 
+                    nutritionData={{
+                      meal_summary: {
+                        total_nutrition: {
+                          calories: foodEntry.calories,
+                          proteins: foodEntry.total_protein,
+                          carbohydrates: foodEntry.total_carbohydrates,
+                          fats: foodEntry.total_fats,
+                          fiber: foodEntry.total_fiber,
+                          sodium: foodEntry.total_sodium
+                        }
+                      },
+                      food_items: foodItems
+                    }} 
+                  />
                 </TabsContent>
 
                 <TabsContent value="health">
@@ -328,7 +382,7 @@ const FoodDetails = () => {
                     {/* Health Assessment */}
                     {healthAssessment && (
                       <div className="grid md:grid-cols-2 gap-6">
-                        {healthAssessment.diabetes && (
+                        {healthAssessment.diabetes_rating && (
                           <Card>
                             <CardHeader>
                               <CardTitle className="flex items-center gap-2">
@@ -341,16 +395,16 @@ const FoodDetails = () => {
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-medium">Rating:</span>
                                   <Badge variant="outline" className="bg-orange-100 text-orange-700">
-                                    {healthAssessment.diabetes.rating}
+                                    {healthAssessment.diabetes_rating}
                                   </Badge>
                                 </div>
-                                <p className="text-orange-700">{healthAssessment.diabetes.suggestion}</p>
+                                <p className="text-orange-700">{healthAssessment.diabetes_suggestion}</p>
                               </div>
                             </CardContent>
                           </Card>
                         )}
 
-                        {healthAssessment.hypertension && (
+                        {healthAssessment.hypertension_rating && (
                           <Card>
                             <CardHeader>
                               <CardTitle className="flex items-center gap-2">
@@ -363,54 +417,15 @@ const FoodDetails = () => {
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-medium">Rating:</span>
                                   <Badge variant="outline" className="bg-red-100 text-red-700">
-                                    {healthAssessment.hypertension.rating}
+                                    {healthAssessment.hypertension_rating}
                                   </Badge>
                                 </div>
-                                <p className="text-red-700">{healthAssessment.hypertension.suggestion}</p>
+                                <p className="text-red-700">{healthAssessment.hypertension_suggestion}</p>
                               </div>
                             </CardContent>
                           </Card>
                         )}
                       </div>
-                    )}
-
-                    {/* Nutrition Focus */}
-                    {nutritionData?.nutrition_focus && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Nutrition Focus</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {nutritionData.nutrition_focus.nutrients_high && nutritionData.nutrition_focus.nutrients_high.length > 0 && (
-                            <div>
-                              <h4 className="font-medium text-red-600 mb-2">High Nutrients:</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {nutritionData.nutrition_focus.nutrients_high.map((nutrient: string, index: number) => (
-                                  <Badge key={index} variant="destructive">{nutrient}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {nutritionData.nutrition_focus.nutrients_low && nutritionData.nutrition_focus.nutrients_low.length > 0 && (
-                            <div>
-                              <h4 className="font-medium text-yellow-600 mb-2">Low Nutrients:</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {nutritionData.nutrition_focus.nutrients_low.map((nutrient: string, index: number) => (
-                                  <Badge key={index} variant="outline" className="border-yellow-500 text-yellow-600">{nutrient}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {nutritionData.nutrition_focus.suggestion && (
-                            <div className="bg-blue-50 p-4 rounded-lg">
-                              <h4 className="font-medium text-blue-700 mb-2">Nutrition Suggestion</h4>
-                              <p className="text-blue-600">{nutritionData.nutrition_focus.suggestion}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
                     )}
 
                     {/* Calorie Details */}
