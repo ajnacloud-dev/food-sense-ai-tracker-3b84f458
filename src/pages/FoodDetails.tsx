@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock, Apple } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock, Apple, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { ImageModal } from "@/components/ui/image-modal";
-import { NutritionProgress } from "@/components/food/NutritionProgress";
 import { HealthImpact } from "@/components/food/HealthImpact";
 
 interface FoodEntry {
@@ -42,6 +40,7 @@ const FoodDetails = () => {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<FoodEntry>>({});
+  const [showAllItems, setShowAllItems] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -162,6 +161,7 @@ const FoodDetails = () => {
   const nutrition = getNutritionFromData(foodEntry);
   const dishNames = getDishNames(foodEntry);
   const foodItems = getFoodItems(foodEntry);
+  const visibleItems = showAllItems ? foodItems : foodItems.slice(0, 4);
 
   return (
     <SidebarLayout>
@@ -245,7 +245,7 @@ const FoodDetails = () => {
                   </Card>
                 )}
 
-                {/* Quick Stats */}
+                {/* Nutrition Overview */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Nutrition Overview</CardTitle>
@@ -283,27 +283,6 @@ const FoodDetails = () => {
                 </TabsList>
 
                 <TabsContent value="meal-analysis" className="space-y-6">
-                  {/* Description */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Description</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {editing ? (
-                        <Textarea
-                          value={editedData.description || ''}
-                          onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
-                          className="min-h-[80px]"
-                          placeholder="Describe your food..."
-                        />
-                      ) : (
-                        <div className="bg-gray-50 rounded-lg p-4 min-h-[80px]">
-                          <p className="text-gray-900">{foodEntry.description || 'No description provided'}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
                   {/* Dishes */}
                   {dishNames.length > 0 && (
                     <Card>
@@ -325,15 +304,22 @@ const FoodDetails = () => {
                     </Card>
                   )}
 
-                  {/* Detailed Nutrition */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Nutrition Breakdown</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <NutritionProgress nutrition={nutrition} />
-                    </CardContent>
-                  </Card>
+                  {/* Description - Only for editing */}
+                  {editing && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Description</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Textarea
+                          value={editedData.description || ''}
+                          onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
+                          className="min-h-[80px]"
+                          placeholder="Describe your food..."
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Food Items */}
                   {foodItems.length > 0 && (
@@ -343,7 +329,7 @@ const FoodDetails = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          {foodItems.map((item: any, index: number) => (
+                          {visibleItems.map((item: any, index: number) => (
                             <div key={index} className="border rounded-lg p-3 bg-white">
                               <div className="flex justify-between items-start mb-2">
                                 <div>
@@ -374,6 +360,27 @@ const FoodDetails = () => {
                               )}
                             </div>
                           ))}
+                          
+                          {foodItems.length > 4 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowAllItems(!showAllItems)}
+                              className="w-full"
+                            >
+                              {showAllItems ? (
+                                <>
+                                  <ChevronUp className="h-4 w-4 mr-2" />
+                                  Show Less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-4 w-4 mr-2" />
+                                  Show {foodItems.length - 4} More Items
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

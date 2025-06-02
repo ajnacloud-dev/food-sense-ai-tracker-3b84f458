@@ -8,8 +8,8 @@ interface HealthImpactProps {
 }
 
 export const HealthImpact = ({ extractedNutrients }: HealthImpactProps) => {
-  const healthData = extractedNutrients?.health_assessment || {};
-  const nutritionAnalysis = extractedNutrients?.nutrition_analysis || {};
+  const healthAssessment = extractedNutrients?.health_assessment || {};
+  const nutritionFocus = extractedNutrients?.nutrition_focus || {};
 
   const getRatingColor = (rating: string) => {
     switch (rating?.toLowerCase()) {
@@ -20,49 +20,68 @@ export const HealthImpact = ({ extractedNutrients }: HealthImpactProps) => {
     }
   };
 
+  const hasHealthData = healthAssessment.diabetes || healthAssessment.hypertension;
+  const hasNutritionData = nutritionFocus.nutrients_high?.length > 0 || nutritionFocus.nutrients_low?.length > 0;
+
+  if (!hasHealthData && !hasNutritionData && !nutritionFocus.suggestion) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="text-gray-500">
+            <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-2">No Health Analysis Available</p>
+            <p className="text-sm">Health impact data will appear here when available from the AI analysis.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Health Assessments */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {healthData.diabetes_rating && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Heart className="h-5 w-5 text-orange-600" />
-                Diabetes Impact
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Badge className={`${getRatingColor(healthData.diabetes_rating)} border`}>
-                {healthData.diabetes_rating}
-              </Badge>
-              <p className="text-sm text-gray-700">{healthData.diabetes_suggestion}</p>
-            </CardContent>
-          </Card>
-        )}
+      {hasHealthData && (
+        <div className="grid md:grid-cols-2 gap-6">
+          {healthAssessment.diabetes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Heart className="h-5 w-5 text-orange-600" />
+                  Diabetes Impact
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Badge className={`${getRatingColor(healthAssessment.diabetes.rating)} border`}>
+                  {healthAssessment.diabetes.rating}
+                </Badge>
+                <p className="text-sm text-gray-700">{healthAssessment.diabetes.suggestion}</p>
+              </CardContent>
+            </Card>
+          )}
 
-        {healthData.hypertension_rating && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Heart className="h-5 w-5 text-red-600" />
-                Hypertension Impact
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Badge className={`${getRatingColor(healthData.hypertension_rating)} border`}>
-                {healthData.hypertension_rating}
-              </Badge>
-              <p className="text-sm text-gray-700">{healthData.hypertension_suggestion}</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          {healthAssessment.hypertension && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Heart className="h-5 w-5 text-red-600" />
+                  Hypertension Impact
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Badge className={`${getRatingColor(healthAssessment.hypertension.rating)} border`}>
+                  {healthAssessment.hypertension.rating}
+                </Badge>
+                <p className="text-sm text-gray-700">{healthAssessment.hypertension.suggestion}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Nutrient Analysis */}
-      {(nutritionAnalysis.nutrients_high?.length > 0 || nutritionAnalysis.nutrients_low?.length > 0) && (
+      {hasNutritionData && (
         <div className="grid md:grid-cols-2 gap-6">
-          {nutritionAnalysis.nutrients_high?.length > 0 && (
+          {nutritionFocus.nutrients_high?.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -72,7 +91,7 @@ export const HealthImpact = ({ extractedNutrients }: HealthImpactProps) => {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {nutritionAnalysis.nutrients_high.map((nutrient: string, index: number) => (
+                  {nutritionFocus.nutrients_high.map((nutrient: string, index: number) => (
                     <Badge key={index} variant="destructive" className="text-xs">
                       <AlertTriangle className="h-3 w-3 mr-1" />
                       {nutrient}
@@ -83,7 +102,7 @@ export const HealthImpact = ({ extractedNutrients }: HealthImpactProps) => {
             </Card>
           )}
 
-          {nutritionAnalysis.nutrients_low?.length > 0 && (
+          {nutritionFocus.nutrients_low?.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -93,7 +112,7 @@ export const HealthImpact = ({ extractedNutrients }: HealthImpactProps) => {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {nutritionAnalysis.nutrients_low.map((nutrient: string, index: number) => (
+                  {nutritionFocus.nutrients_low.map((nutrient: string, index: number) => (
                     <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
                       {nutrient}
                     </Badge>
@@ -106,13 +125,13 @@ export const HealthImpact = ({ extractedNutrients }: HealthImpactProps) => {
       )}
 
       {/* General Suggestions */}
-      {healthData.general_suggestion && (
+      {nutritionFocus.suggestion && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">General Health Recommendations</CardTitle>
+            <CardTitle className="text-base">Nutrition Recommendations</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-700">{healthData.general_suggestion}</p>
+            <p className="text-sm text-gray-700">{nutritionFocus.suggestion}</p>
           </CardContent>
         </Card>
       )}
