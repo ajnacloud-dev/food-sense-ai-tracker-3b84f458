@@ -71,15 +71,18 @@ interface ReceiptAnalysisDebugProps {
   analysisResult: SimpleAnalysisResult;
 }
 
-interface PendingAnalysisRecord {
+// Simplified pending analysis type to avoid deep instantiation
+type PendingAnalysisData = {
   id: string;
-  analysis_result: any;
+  analysis_result: Record<string, unknown>;
   created_at: string;
-  [key: string]: any;
-}
+  user_id?: string;
+  status?: string;
+  [key: string]: unknown;
+};
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
-  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysisRecord | null>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysisData | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [editedItems, setEditedItems] = useState<SimpleReceiptItem[]>([]);
 
@@ -98,7 +101,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
 
       if (error) throw error;
       if (data && data.length > 0) {
-        setPendingAnalysis(data[0]);
+        setPendingAnalysis(data[0] as PendingAnalysisData);
         console.log('Raw analysis result:', data[0].analysis_result);
       }
     } catch (error) {
