@@ -18,7 +18,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Extract the authorization token from the incoming request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error('Missing authorization header');
@@ -30,21 +29,20 @@ serve(async (req) => {
 
     const { pendingAnalysisId, description, imageUrl } = await req.json();
 
-    console.log('Starting async analysis with LangGraph workflow:', {
+    console.log('Starting optimized async analysis:', {
       pendingAnalysisId,
       description: description?.substring(0, 100),
       hasFile: !!imageUrl
     });
 
     if (!pendingAnalysisId) {
-      console.error('Missing pendingAnalysisId');
       return new Response(
         JSON.stringify({ error: 'Missing pendingAnalysisId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // First, verify the pending analysis exists and is in the correct state
+    // Verify pending analysis exists
     const { data: existingAnalysis, error: fetchError } = await supabase
       .from('pending_analyses')
       .select('*')
@@ -59,9 +57,8 @@ serve(async (req) => {
       );
     }
 
-    // Only proceed if the analysis is in pending status
     if (existingAnalysis.status !== 'pending') {
-      console.log('Analysis already processed or in progress:', existingAnalysis.status);
+      console.log('Analysis already processed:', existingAnalysis.status);
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -72,8 +69,7 @@ serve(async (req) => {
       );
     }
 
-    // Update status to processing
-    console.log('Updating status to processing for:', pendingAnalysisId);
+    // Update to processing
     const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({ 
@@ -81,16 +77,15 @@ serve(async (req) => {
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingAnalysisId)
-      .eq('status', 'pending'); // Only update if still pending
+      .eq('status', 'pending');
 
     if (updateError) {
-      console.error('Failed to update status to processing:', updateError);
+      console.error('Failed to update status:', updateError);
       throw updateError;
     }
 
-    // Start background analysis with LangGraph workflow
-    console.log('Starting LangGraph workflow processing for:', pendingAnalysisId);
-    EdgeRuntime.waitUntil(processAnalysisWithLangGraph(
+    // Start optimized background processing
+    EdgeRuntime.waitUntil(processOptimizedAnalysis(
       supabase,
       pendingAnalysisId,
       description,
@@ -101,7 +96,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Analysis started with LangGraph workflow',
+        message: 'Optimized analysis started',
         pendingAnalysisId 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -116,7 +111,7 @@ serve(async (req) => {
   }
 });
 
-async function processAnalysisWithLangGraph(
+async function processOptimizedAnalysis(
   supabase: any,
   pendingAnalysisId: string,
   description: string,
@@ -124,38 +119,42 @@ async function processAnalysisWithLangGraph(
   authHeader: string
 ) {
   const startTime = Date.now();
-  console.log(`LangGraph processing started for ${pendingAnalysisId}`);
+  console.log(`Optimized processing started for ${pendingAnalysisId}`);
 
   try {
-    // Double-check the analysis is still in processing state
-    const { data: currentAnalysis, error: checkError } = await supabase
+    // Verify analysis is still processing
+    const { data: currentAnalysis } = await supabase
       .from('pending_analyses')
       .select('*')
       .eq('id', pendingAnalysisId)
       .single();
 
-    if (checkError || !currentAnalysis || currentAnalysis.status !== 'processing') {
-      console.log(`Analysis ${pendingAnalysisId} is no longer in processing state, aborting`);
+    if (!currentAnalysis || currentAnalysis.status !== 'processing') {
+      console.log(`Analysis ${pendingAnalysisId} no longer in processing state`);
       return;
     }
 
-    console.log(`Calling LangGraph workflow for ${pendingAnalysisId}`);
+    console.log(`Calling optimized LangGraph workflow for ${pendingAnalysisId}`);
     
-    // Create a new supabase client for function invocation with user auth
     const userSupabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
+
+    // Enhanced workflow configuration for optimization
+    const workflowConfig = {
+      debug: false,
+      simplifiedFlow: true,
+      optimizeForCost: true,
+      useSmartModelSelection: true
+    };
 
     const { data: workflowResult, error: workflowError } = await userSupabase.functions
       .invoke('langgraph-workflow', {
         body: {
           description,
           imageUrl,
-          workflowConfig: {
-            debug: false,
-            simplifiedFlow: true
-          }
+          workflowConfig
         },
         headers: {
           Authorization: authHeader
@@ -163,18 +162,15 @@ async function processAnalysisWithLangGraph(
       });
 
     if (workflowError) {
-      console.error(`LangGraph workflow error for ${pendingAnalysisId}:`, workflowError);
-      throw new Error(`LangGraph workflow failed: ${workflowError.message || 'Unknown error'}`);
+      console.error(`Optimized workflow error for ${pendingAnalysisId}:`, workflowError);
+      throw new Error(`Workflow failed: ${workflowError.message || 'Unknown error'}`);
     }
 
-    console.log(`LangGraph workflow completed for ${pendingAnalysisId}`);
+    console.log(`Optimized workflow completed for ${pendingAnalysisId}`);
 
-    // Extract category from result
-    let category = workflowResult.result?.classification?.category || 'unknown';
+    const category = workflowResult.result?.classification?.category || 'unknown';
     
-    console.log(`Updating analysis ${pendingAnalysisId} as completed with category: ${category}`);
-
-    // Update with successful result, but only if still in processing state
+    // Update with results
     const { error: updateError } = await supabase
       .from('pending_analyses')
       .update({
@@ -185,28 +181,30 @@ async function processAnalysisWithLangGraph(
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingAnalysisId)
-      .eq('status', 'processing'); // Only update if still processing
+      .eq('status', 'processing');
 
     if (updateError) {
       console.error(`Failed to update completed analysis ${pendingAnalysisId}:`, updateError);
       throw updateError;
     }
 
-    // If this is a food analysis, transfer data to food_entries table
+    // Enhanced data transfer with better schema mapping
     if (category === 'food') {
-      console.log(`Transferring food analysis ${pendingAnalysisId} to food_entries table`);
-      await transferToFoodEntries(supabase, currentAnalysis, workflowResult);
+      await transferOptimizedFoodData(supabase, currentAnalysis, workflowResult);
+    } else if (category === 'receipt') {
+      await transferOptimizedReceiptData(supabase, currentAnalysis, workflowResult);
+    } else if (category === 'workout') {
+      await transferOptimizedWorkoutData(supabase, currentAnalysis, workflowResult);
     }
 
     const duration = Date.now() - startTime;
-    console.log(`Analysis ${pendingAnalysisId} completed successfully in ${duration}ms`);
+    console.log(`Optimized analysis ${pendingAnalysisId} completed in ${duration}ms`);
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`Analysis ${pendingAnalysisId} failed after ${duration}ms:`, error);
+    console.error(`Optimized analysis ${pendingAnalysisId} failed after ${duration}ms:`, error);
     
-    // Update with error, but only if still in processing state
-    const { error: updateError } = await supabase
+    await supabase
       .from('pending_analyses')
       .update({
         status: 'failed',
@@ -215,63 +213,66 @@ async function processAnalysisWithLangGraph(
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingAnalysisId)
-      .eq('status', 'processing'); // Only update if still processing
-
-    if (updateError) {
-      console.error(`Failed to update failed analysis ${pendingAnalysisId}:`, updateError);
-    }
+      .eq('status', 'processing');
   }
 }
 
-async function transferToFoodEntries(supabase: any, analysis: any, result: any) {
+async function transferOptimizedFoodData(supabase: any, analysis: any, result: any) {
   try {
-    // Extract nutrition data from the LangGraph result
-    let extractedNutrients = null;
+    const analysisData = result.result?.analysis || {};
+    
+    // Enhanced nutrition extraction with better defaults
     let calories = 0;
     let ingredients = null;
+    
+    if (analysisData.meal_summary?.total_nutrition?.calories) {
+      calories = analysisData.meal_summary.total_nutrition.calories;
+    } else if (analysisData.calories) {
+      calories = analysisData.calories;
+    }
+    
+    if (analysisData.food_items && Array.isArray(analysisData.food_items)) {
+      ingredients = analysisData.food_items.map((item: any) => ({
+        name: item.name || 'Unknown item',
+        serving_size: item.serving_size || '1 serving',
+        nutrition: item.nutrition_values || {}
+      }));
+    }
 
-    // Handle LangGraph workflow format
-    if (result.result?.analysis) {
-      const analysisData = result.result.analysis;
-      extractedNutrients = analysisData;
-      
-      // Extract calories from meal summary
-      if (analysisData.meal_summary?.total_nutrition?.calories) {
-        calories = analysisData.meal_summary.total_nutrition.calories;
-      }
-      
-      // Extract ingredients from food items
-      if (analysisData.food_items && Array.isArray(analysisData.food_items)) {
-        ingredients = analysisData.food_items.map((item: any) => ({
-          name: item.name,
-          serving_size: item.serving_size,
-          nutrition: item.nutrition_values
-        }));
+    // Create meaningful description
+    let description = analysis.description || 'Food Analysis';
+    if (analysisData.meal_summary?.dish_names?.length > 0) {
+      const dishes = analysisData.meal_summary.dish_names.filter((dish: string) => 
+        dish && dish !== 'unspecified' && dish.trim().length > 0
+      );
+      if (dishes.length > 0) {
+        const mealType = analysisData.meal_summary?.meal_type;
+        description = mealType && mealType !== 'unspecified' 
+          ? `${mealType}: ${dishes.join(', ')}` 
+          : dishes.join(', ');
       }
     }
 
-    // Create food entry
     const { data: foodEntry, error: insertError } = await supabase
       .from('food_entries')
       .insert({
         user_id: analysis.user_id,
-        description: analysis.description || 'Food Analysis',
+        description: description,
         image_url: analysis.image_url,
         calories: calories,
         ingredients: ingredients,
-        extracted_nutrients: extractedNutrients
+        extracted_nutrients: analysisData
       })
       .select()
       .single();
 
     if (insertError) {
-      console.error('Failed to create food entry:', insertError);
+      console.error('Failed to create optimized food entry:', insertError);
       throw insertError;
     }
 
-    console.log(`Successfully created food entry ${foodEntry.id} from analysis ${analysis.id}`);
+    console.log(`Successfully created optimized food entry ${foodEntry.id}`);
     
-    // Update the pending analysis with a reference to the created food entry
     await supabase
       .from('pending_analyses')
       .update({
@@ -283,7 +284,68 @@ async function transferToFoodEntries(supabase: any, analysis: any, result: any) 
       .eq('id', analysis.id);
 
   } catch (error) {
-    console.error('Error transferring to food entries:', error);
-    // Don't throw here - we still want the analysis to be marked as completed
+    console.error('Error in optimized food data transfer:', error);
+  }
+}
+
+async function transferOptimizedReceiptData(supabase: any, analysis: any, result: any) {
+  try {
+    const analysisData = result.result?.analysis || {};
+    
+    const { data: receipt, error: insertError } = await supabase
+      .from('receipts')
+      .insert({
+        user_id: analysis.user_id,
+        image_url: analysis.image_url,
+        vendor: analysisData.merchant?.store_name || analysisData.vendor || 'Unknown Store',
+        receipt_date: analysisData.transaction?.date || analysisData.date || new Date().toISOString().split('T')[0],
+        total_amount: analysisData.total || 0,
+        items: analysisData
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Failed to create optimized receipt:', insertError);
+      throw insertError;
+    }
+
+    console.log(`Successfully created optimized receipt ${receipt.id}`);
+
+  } catch (error) {
+    console.error('Error in optimized receipt data transfer:', error);
+  }
+}
+
+async function transferOptimizedWorkoutData(supabase: any, analysis: any, result: any) {
+  try {
+    const analysisData = result.result?.analysis || {};
+    
+    const workoutType = analysisData.workout_summary?.workout_type || analysisData.type || 'other';
+    const allowedTypes = ['cardio', 'strength', 'flexibility', 'sports', 'other'];
+    
+    const { data: workout, error: insertError } = await supabase
+      .from('workouts')
+      .insert({
+        user_id: analysis.user_id,
+        image_url: analysis.image_url,
+        description: analysis.description || 'Workout Analysis',
+        workout_type: allowedTypes.includes(workoutType) ? workoutType : 'other',
+        duration: analysisData.workout_summary?.duration_minutes || analysisData.duration || 0,
+        calories_burned: analysisData.workout_summary?.estimated_calories_burned || analysisData.calories || 0,
+        notes: JSON.stringify(analysisData)
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Failed to create optimized workout:', insertError);
+      throw insertError;
+    }
+
+    console.log(`Successfully created optimized workout ${workout.id}`);
+
+  } catch (error) {
+    console.error('Error in optimized workout data transfer:', error);
   }
 }

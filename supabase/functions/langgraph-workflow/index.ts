@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -8,52 +7,64 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Safe JSON parser with better error handling
-function safeJsonParse(text: string, context: string): any {
+// Enhanced PDF text extraction with better error handling
+async function extractTextFromPDF(pdfUrl: string): Promise<string> {
   try {
-    return JSON.parse(text);
+    console.log(`Enhanced PDF extraction for: ${pdfUrl}`);
+    
+    const response = await fetch(pdfUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PDF: ${response.status}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Enhanced text extraction with better patterns
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    let text = decoder.decode(uint8Array);
+    
+    // Enhanced cleaning with receipt-specific patterns
+    text = text
+      .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ') // Remove control characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/[^\w\s$.,%-]/g, '') // Keep only alphanumeric and common symbols
+      .trim();
+    
+    // Look for receipt patterns (prices, dates, store names)
+    const receiptPatterns = text.match(/\$?\d+\.?\d*|\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Z][a-z]+\s+[A-Z][a-z]+/g);
+    
+    if (receiptPatterns && receiptPatterns.length >= 5) {
+      const extractedText = receiptPatterns.slice(0, 200).join(' ');
+      console.log(`Enhanced PDF extraction successful: ${receiptPatterns.length} patterns found`);
+      return extractedText;
+    }
+    
+    // Fallback to word extraction
+    const words = text.split(' ').filter(word => 
+      word.length > 1 && 
+      /^[a-zA-Z0-9$.,%-]+$/.test(word)
+    );
+    
+    if (words.length < 5) {
+      throw new Error('Insufficient meaningful content extracted from PDF');
+    }
+    
+    return words.slice(0, 300).join(' ');
   } catch (error) {
-    console.error(`Failed to parse JSON in ${context}:`, text);
-    
-    // Try to extract JSON from markdown code blocks
-    const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[1]);
-      } catch (e) {
-        console.error('Failed to parse extracted JSON:', e);
-      }
-    }
-    
-    // Try to find JSON-like content
-    const jsonStart = text.indexOf('{');
-    const jsonEnd = text.lastIndexOf('}');
-    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-      try {
-        const jsonStr = text.substring(jsonStart, jsonEnd + 1);
-        const fixedJson = jsonStr
-          .replace(/,\s*}/g, '}')
-          .replace(/,\s*]/g, ']')
-          .replace(/\n/g, ' ')
-          .replace(/\t/g, ' ');
-        return JSON.parse(fixedJson);
-      } catch (e) {
-        console.error('Failed to parse and fix substring JSON:', e);
-      }
-    }
-    
-    throw new Error(`Invalid JSON response in ${context}: ${text.substring(0, 200)}...`);
+    console.error('Enhanced PDF extraction failed:', error);
+    throw new Error('PDF processing failed. Please try with a clearer image or different file format.');
   }
 }
 
-// Enhanced error handling for OpenAI API calls
+// Enhanced error handling with better user messages
 function handleOpenAIError(error: any): { isQuotaError: boolean, userMessage: string, shouldFallback: boolean } {
   console.error('OpenAI API Error:', error);
   
   if (error.message?.includes('insufficient_quota') || error.message?.includes('quota')) {
     return {
       isQuotaError: true,
-      userMessage: 'AI analysis is temporarily unavailable due to usage limits. Please try again later.',
+      userMessage: 'AI analysis temporarily unavailable due to usage limits. Please try again later.',
       shouldFallback: true
     };
   }
@@ -66,119 +77,159 @@ function handleOpenAIError(error: any): { isQuotaError: boolean, userMessage: st
     };
   }
   
+  if (error.message?.includes('model_not_found')) {
+    return {
+      isQuotaError: false,
+      userMessage: 'AI model configuration error. Please contact support.',
+      shouldFallback: false
+    };
+  }
+  
   return {
     isQuotaError: false,
-    userMessage: 'AI analysis failed. Please try again.',
+    userMessage: 'AI analysis failed. Please try again with a different image or description.',
     shouldFallback: false
   };
 }
 
-// Utility function to extract text from PDF
-async function extractTextFromPDF(pdfUrl: string): Promise<string> {
-  try {
-    console.log(`Extracting text from PDF: ${pdfUrl}`);
-    
-    // Fetch the PDF file
-    const response = await fetch(pdfUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch PDF: ${response.status}`);
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Simple text extraction - look for readable text patterns
-    const decoder = new TextDecoder('utf-8', { fatal: false });
-    let text = decoder.decode(uint8Array);
-    
-    // Clean up the text - remove control characters and extract readable content
-    text = text.replace(/[\x00-\x1F\x7F]/g, ' ')
-             .replace(/\s+/g, ' ')
-             .trim();
-    
-    // Try to find meaningful text content (basic heuristic)
-    const words = text.split(' ').filter(word => 
-      word.length > 2 && 
-      /^[a-zA-Z0-9$.,%-]+$/.test(word)
-    );
-    
-    if (words.length < 10) {
-      throw new Error('Could not extract meaningful text from PDF');
-    }
-    
-    const extractedText = words.slice(0, 1000).join(' '); // Limit to first 1000 words
-    console.log(`Extracted ${words.length} words from PDF`);
-    
-    return extractedText;
-  } catch (error) {
-    console.error('PDF text extraction failed:', error);
-    throw new Error('Failed to extract text from PDF. Please try with an image instead.');
-  }
-}
-
-// Utility function to convert image URL to base64
+// Enhanced image conversion with better error handling
 async function imageUrlToBase64(imageUrl: string): Promise<string> {
   try {
     console.log(`Converting image to base64: ${imageUrl}`);
-    const response = await fetch(imageUrl);
+    const response = await fetch(imageUrl, { 
+      headers: { 'User-Agent': 'SupabaseEdgeFunction/1.0' } 
+    });
+    
     if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status}`);
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
     }
     
     const arrayBuffer = await response.arrayBuffer();
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error('Empty image file received');
+    }
+    
+    if (arrayBuffer.byteLength > 20 * 1024 * 1024) { // 20MB limit
+      throw new Error('Image file too large (max 20MB)');
+    }
+    
     const bytes = new Uint8Array(arrayBuffer);
     const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
     const base64 = btoa(binary);
     
     const contentType = response.headers.get('content-type') || 'image/jpeg';
+    console.log(`Image converted successfully: ${(arrayBuffer.byteLength / 1024).toFixed(1)}KB`);
+    
     return `data:${contentType};base64,${base64}`;
   } catch (error) {
-    console.error('Error converting image to base64:', error);
-    throw error;
+    console.error('Error converting image:', error);
+    throw new Error(`Image processing failed: ${error.message}`);
   }
 }
 
-class SimplifiedLangGraphWorkflow {
+// Content complexity detector for smart model selection
+function detectContentComplexity(description: string, fileUrl: string | null): 'simple' | 'moderate' | 'complex' {
+  const text = description?.toLowerCase() || '';
+  
+  // Simple patterns (can use cheaper models)
+  const simplePatterns = [
+    /receipt|bill|invoice|purchase/,
+    /\$\d+|\d+\.\d+|total|subtotal/,
+    /walmart|target|costco|amazon/i
+  ];
+  
+  // Complex patterns (need powerful models)
+  const complexPatterns = [
+    /nutrition|calories|protein|carbs|vitamins/,
+    /workout|exercise|fitness|training/,
+    /analyze|detailed|breakdown|comprehensive/
+  ];
+  
+  const isPDF = fileUrl?.toLowerCase().includes('.pdf');
+  const isLongText = text.length > 200;
+  
+  if (complexPatterns.some(pattern => pattern.test(text)) || isPDF) {
+    return 'complex';
+  }
+  
+  if (simplePatterns.some(pattern => pattern.test(text)) && !isLongText) {
+    return 'simple';
+  }
+  
+  return 'moderate';
+}
+
+class OptimizedLangGraphWorkflow {
   private supabaseClient: any;
   private openaiApiKey: string;
+  private primaryModel: string;
+  private fallbackModel: string;
   private totalTokens: number = 0;
   private totalCost: number = 0;
 
   constructor(supabaseClient: any, openaiApiKey: string) {
     this.supabaseClient = supabaseClient;
     this.openaiApiKey = openaiApiKey;
+    
+    // Use LLM_MODEL_TO_USE secret with intelligent fallbacks
+    const configuredModel = Deno.env.get('LLM_MODEL_TO_USE') || 'gpt-4o-mini';
+    this.primaryModel = this.validateModel(configuredModel);
+    this.fallbackModel = this.primaryModel === 'gpt-4o' ? 'gpt-4o-mini' : 'gpt-4o-mini';
+    
+    console.log(`Initialized with primary model: ${this.primaryModel}, fallback: ${this.fallbackModel}`);
+  }
+
+  private validateModel(model: string): string {
+    const validModels = ['gpt-4o', 'gpt-4o-mini'];
+    return validModels.includes(model) ? model : 'gpt-4o-mini';
   }
 
   async executeWorkflow(description: string, fileUrl: string | null, workflowConfig: any): Promise<any> {
     const workflowStartTime = Date.now();
-    console.log('Starting simplified LangGraph workflow');
+    console.log('Starting optimized LangGraph workflow');
     
     try {
-      // Step 1: Classification
-      const classification = await this.classifyContent(description, fileUrl);
-      console.log('Classification result:', classification);
+      // Detect content complexity for smart model selection
+      const complexity = detectContentComplexity(description, fileUrl);
+      const useSimplifiedFlow = complexity === 'simple' && workflowConfig?.simplifiedFlow !== false;
+      
+      console.log(`Content complexity: ${complexity}, simplified flow: ${useSimplifiedFlow}`);
 
-      // Step 2: Detailed Analysis
-      const analysis = await this.analyzeContent(description, fileUrl, classification.category);
-      console.log('Analysis completed for category:', classification.category);
-
-      const result = {
-        success: true,
-        result: {
-          classification,
-          analysis
-        },
-        metadata: {
-          totalTokens: this.totalTokens,
-          totalCost: this.totalCost,
-          processingTime: Date.now() - workflowStartTime
-        }
-      };
-
-      return result;
+      if (useSimplifiedFlow) {
+        // Single-step analysis for simple content
+        const result = await this.directAnalysis(description, fileUrl);
+        return {
+          success: true,
+          result: {
+            classification: { category: result.category, confidence: 0.95 },
+            analysis: result
+          },
+          metadata: {
+            totalTokens: this.totalTokens,
+            totalCost: this.totalCost,
+            processingTime: Date.now() - workflowStartTime,
+            workflow: 'simplified'
+          }
+        };
+      } else {
+        // Two-step workflow for complex content
+        const classification = await this.classifyContent(description, fileUrl);
+        const analysis = await this.analyzeContent(description, fileUrl, classification.category);
+        
+        return {
+          success: true,
+          result: { classification, analysis },
+          metadata: {
+            totalTokens: this.totalTokens,
+            totalCost: this.totalCost,
+            processingTime: Date.now() - workflowStartTime,
+            workflow: 'full'
+          }
+        };
+      }
 
     } catch (error) {
-      console.error('Workflow execution failed:', error);
+      console.error('Optimized workflow execution failed:', error);
       
       const errorInfo = handleOpenAIError(error);
       if (errorInfo.shouldFallback) {
@@ -191,6 +242,35 @@ class SimplifiedLangGraphWorkflow {
       
       throw error;
     }
+  }
+
+  async directAnalysis(description: string, fileUrl: string | null): Promise<any> {
+    console.log('Using direct analysis for simple content');
+    
+    // Smart category detection from content
+    const text = description?.toLowerCase() || '';
+    let category = 'food'; // default
+    
+    if (/receipt|bill|invoice|purchase|\$|total|store|shop/i.test(text)) {
+      category = 'receipt';
+    } else if (/workout|exercise|fitness|gym|training|run|bike|swim/i.test(text)) {
+      category = 'workout';
+    }
+
+    // Get optimized prompt for direct analysis
+    const { data: prompt } = await this.supabaseClient
+      .from('prompts')
+      .select('system_prompt, user_prompt_template')
+      .eq('category', category)
+      .eq('is_active', true)
+      .single();
+
+    if (!prompt) {
+      throw new Error(`No active prompt found for category: ${category}`);
+    }
+
+    const analysis = await this.performAnalysis(description, fileUrl, prompt, category);
+    return { ...analysis, category };
   }
 
   async classifyContent(description: string, fileUrl: string | null): Promise<any> {
@@ -208,10 +288,8 @@ class SimplifiedLangGraphWorkflow {
     let fileContent = '';
     let isPDF = false;
     
-    // Handle file content extraction
     if (fileUrl) {
-      isPDF = fileUrl.toLowerCase().includes('.pdf') || fileUrl.includes('application/pdf');
-      
+      isPDF = fileUrl.toLowerCase().includes('.pdf');
       if (isPDF) {
         try {
           fileContent = await extractTextFromPDF(fileUrl);
@@ -222,25 +300,22 @@ class SimplifiedLangGraphWorkflow {
       }
     }
 
-    const prompt = `You are an AI classifier that determines the category of content.
+    const prompt = `You are an AI classifier for health and lifestyle content.
 
-Analyze the provided content and classify it into one of these categories:
-- food: Any food items, meals, beverages, nutrition-related content, cooking, restaurants, recipes
-- receipt: Shopping receipts, bills, invoices, purchase documents, store receipts, payment confirmations  
-- workout: Exercise activities, fitness routines, sports, physical activities, gym equipment, athletic activities
+Analyze and classify into: food, receipt, or workout
 
 Current time: ${currentTime}
 
 Input:
 ${description ? `Description: ${description}` : 'No description provided'}
 ${fileUrl ? `File: ${isPDF ? 'PDF document' : 'Image'} provided` : 'No file provided'}
-${fileContent ? `File content: ${fileContent.substring(0, 500)}...` : ''}
+${fileContent ? `Content: ${fileContent.substring(0, 500)}...` : ''}
 
-Return ONLY a valid JSON object:
+Return valid JSON only:
 {
-  "category": "food",
+  "category": "food|receipt|workout",
   "confidence": 0.95,
-  "reasoning": "Brief explanation of classification"
+  "reasoning": "Brief explanation"
 }`;
 
     const messages = [
@@ -248,7 +323,6 @@ Return ONLY a valid JSON object:
       { role: 'user', content: prompt }
     ];
 
-    // Add image if provided and not PDF
     if (fileUrl && !isPDF) {
       try {
         const base64Image = await imageUrlToBase64(fileUrl);
@@ -257,16 +331,15 @@ Return ONLY a valid JSON object:
           { type: 'image_url', image_url: { url: base64Image } }
         ];
       } catch (error) {
-        console.error('Failed to process image, continuing without it:', error);
+        console.error('Failed to process image:', error);
       }
     }
 
-    const response = await this.callOpenAI(messages, 'gpt-4o-mini', 300);
-    return safeJsonParse(response.content, 'classification');
+    const response = await this.callOpenAI(messages, this.primaryModel, 300);
+    return this.safeJsonParse(response.content, 'classification');
   }
 
   async analyzeContent(description: string, fileUrl: string | null, category: string): Promise<any> {
-    // Get category-specific prompt
     const { data: prompt } = await this.supabaseClient
       .from('prompts')
       .select('system_prompt, user_prompt_template')
@@ -278,91 +351,80 @@ Return ONLY a valid JSON object:
       throw new Error(`No active prompt found for category: ${category}`);
     }
 
-    const now = new Date();
-    const hour = now.getHours();
-    const timeContext = `
-Current time: ${now.toLocaleString('en-US', {
-  weekday: 'long',
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: true
-})}
-Hour (24h format): ${hour}`;
+    return this.performAnalysis(description, fileUrl, prompt, category);
+  }
 
-    let enhancedUserPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
+  async performAnalysis(description: string, fileUrl: string | null, prompt: any, category: string): Promise<any> {
+    const now = new Date();
+    const timeContext = `Current time: ${now.toLocaleString()}`;
+
+    let enhancedPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
     
-    // Handle file content
     let fileContent = '';
     let isPDF = false;
     
     if (fileUrl) {
-      isPDF = fileUrl.toLowerCase().includes('.pdf') || fileUrl.includes('application/pdf');
-      
+      isPDF = fileUrl.toLowerCase().includes('.pdf');
       if (isPDF) {
         try {
           fileContent = await extractTextFromPDF(fileUrl);
-          enhancedUserPrompt += `\n\nPDF Content: ${fileContent}`;
+          enhancedPrompt += `\n\nPDF Content: ${fileContent}`;
         } catch (error) {
-          console.error('PDF extraction failed:', error);
-          enhancedUserPrompt += '\n\nNote: PDF file was provided but text extraction failed.';
+          enhancedPrompt += '\n\nNote: PDF file provided but text extraction failed.';
         }
       }
     }
 
-    // Add category-specific enhancements
+    // Enhanced category-specific prompts
     if (category === 'food') {
-      enhancedUserPrompt += `${timeContext}
+      enhancedPrompt += `${timeContext}
 
-IMPORTANT: 
-1. Analyze the content to identify food items and nutritional information.
-2. Determine meal type based on the current time:
-   - 5-10 AM: breakfast
-   - 10 AM-2 PM: lunch  
-   - 2-5 PM: snack
-   - 5-10 PM: dinner
-   - 10 PM-5 AM: late night snack
-3. Provide detailed nutritional estimates based on the identified foods.
-4. If specific dishes are mentioned or shown, name them accurately.`;
+CRITICAL INSTRUCTIONS:
+1. Analyze all visible food items and estimate nutrition accurately
+2. Determine meal type from current time: breakfast (5-10 AM), lunch (10 AM-2 PM), snack (2-5 PM), dinner (5-10 PM), late night (10 PM-5 AM)
+3. Provide detailed nutritional breakdown with realistic estimates
+4. Structure response to match database schema exactly`;
+    } else if (category === 'receipt') {
+      enhancedPrompt += `
+
+RECEIPT ANALYSIS REQUIREMENTS:
+1. Extract ALL line items with exact prices and quantities
+2. Identify correct final total (after taxes/discounts)
+3. Extract merchant information and purchase date
+4. Categorize items appropriately
+5. Structure data to match receipt database schema`;
+    } else if (category === 'workout') {
+      enhancedPrompt += `
+
+WORKOUT ANALYSIS REQUIREMENTS:
+1. Identify specific exercises, sets, reps, and weights
+2. Estimate calories burned based on activity intensity
+3. Determine workout type and duration
+4. Structure exercise data for database storage`;
     }
 
-    if (category === 'receipt') {
-      enhancedUserPrompt += `
-
-CRITICAL RECEIPT ANALYSIS:
-1. Carefully read ALL numbers - look for subtotals, taxes, discounts, and final total
-2. The "total" field should be the FINAL amount paid
-3. Extract all line items with their prices and quantities
-4. Look for merchant/store information
-5. Identify the date of purchase`;
-    }
-
-    const analysisPrompt = `${enhancedUserPrompt}
-
-IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks).`;
+    enhancedPrompt += '\n\nIMPORTANT: Return ONLY valid JSON (no markdown, no code blocks).';
     
     const messages = [
-      { role: 'system', content: `${prompt.system_prompt}\n\nALWAYS respond with valid JSON only.` },
-      { role: 'user', content: analysisPrompt }
+      { role: 'system', content: `${prompt.system_prompt}\n\nAlways respond with valid JSON only.` },
+      { role: 'user', content: enhancedPrompt }
     ];
 
-    // Add image if provided and not PDF
     if (fileUrl && !isPDF) {
       try {
         const base64Image = await imageUrlToBase64(fileUrl);
         messages[1].content = [
-          { type: 'text', text: analysisPrompt },
+          { type: 'text', text: enhancedPrompt },
           { type: 'image_url', image_url: { url: base64Image } }
         ];
       } catch (error) {
-        console.error('Failed to process image, continuing without it:', error);
+        console.error('Failed to process image:', error);
       }
     }
 
-    const response = await this.callOpenAI(messages, 'gpt-4o', 1500);
-    return safeJsonParse(response.content, 'analysis');
+    const model = category === 'receipt' ? this.primaryModel : this.primaryModel;
+    const response = await this.callOpenAI(messages, model, 1500);
+    return this.safeJsonParse(response.content, 'analysis');
   }
 
   private async callOpenAI(messages: any[], model: string, maxTokens: number): Promise<any> {
@@ -378,25 +440,26 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks).`;
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.3,
+          temperature: 0.2, // Reduced for more consistent results
           max_tokens: maxTokens,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('OpenAI API error response:', errorText);
+        console.error('OpenAI API error:', errorText);
         
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData.error?.code === 'insufficient_quota') {
-            throw new Error('insufficient_quota: OpenAI API quota exceeded');
-          }
-          if (errorData.error?.code === 'rate_limit_exceeded') {
-            throw new Error('rate_limit: OpenAI API rate limit exceeded');
-          }
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError);
+        // Try fallback model if primary fails
+        if (model !== this.fallbackModel && response.status === 404) {
+          console.log(`Falling back to ${this.fallbackModel}`);
+          return this.callOpenAI(messages, this.fallbackModel, maxTokens);
+        }
+        
+        if (errorText.includes('insufficient_quota')) {
+          throw new Error('insufficient_quota: OpenAI API quota exceeded');
+        }
+        if (errorText.includes('rate_limit')) {
+          throw new Error('rate_limit: OpenAI API rate limit exceeded');
         }
         
         throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
@@ -404,11 +467,14 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks).`;
 
       const data = await response.json();
       
-      // Track usage
+      // Enhanced usage tracking
       if (data.usage) {
         this.totalTokens += data.usage.total_tokens;
-        const pricing = model === 'gpt-4o' ? { input: 0.0025, output: 0.01 } : { input: 0.00015, output: 0.0006 };
-        this.totalCost += (data.usage.prompt_tokens / 1000 * pricing.input) + (data.usage.completion_tokens / 1000 * pricing.output);
+        const pricing = model === 'gpt-4o' ? 
+          { input: 0.0025, output: 0.01 } : 
+          { input: 0.00015, output: 0.0006 };
+        this.totalCost += (data.usage.prompt_tokens / 1000 * pricing.input) + 
+                         (data.usage.completion_tokens / 1000 * pricing.output);
       }
 
       return {
@@ -418,6 +484,33 @@ IMPORTANT: Return ONLY a valid JSON object (no markdown, no code blocks).`;
     } catch (error) {
       console.error('OpenAI API call failed:', error);
       throw error;
+    }
+  }
+
+  private safeJsonParse(text: string, context: string): any {
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      console.error(`JSON parse failed in ${context}:`, text);
+      
+      // Enhanced JSON extraction
+      const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) ||
+                       text.match(/(\{[\s\S]*\})/);
+      
+      if (jsonMatch) {
+        try {
+          const cleanJson = jsonMatch[1]
+            .replace(/,\s*}/g, '}')
+            .replace(/,\s*]/g, ']')
+            .replace(/\n/g, ' ')
+            .replace(/\t/g, ' ');
+          return JSON.parse(cleanJson);
+        } catch (e) {
+          console.error('Failed to parse cleaned JSON:', e);
+        }
+      }
+      
+      throw new Error(`Invalid JSON response in ${context}`);
     }
   }
 }
@@ -445,43 +538,42 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    console.log(`Starting simplified LangGraph workflow for user ${user.id}`);
+    console.log(`Starting optimized workflow for user ${user.id}`);
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    const workflow = new SimplifiedLangGraphWorkflow(supabaseClient, openaiApiKey);
-    const result = await workflow.executeWorkflow(description, imageUrl, workflowConfig);
+    const workflow = new OptimizedLangGraphWorkflow(supabaseClient, openaiApiKey);
+    const result = await workflow.executeWorkflow(description, imageUrl, workflowConfig || {});
 
-    // Handle failed workflows
     if (!result.success) {
-      console.log(`Workflow failed with error type: ${result.errorType}`);
+      console.log(`Workflow failed: ${result.errorType}`);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 422,
       });
     }
 
-    // Log API usage and cost
+    // Enhanced usage logging
     if (result.metadata?.totalTokens > 0) {
       await supabaseClient
         .from('api_costs')
         .insert({
           user_id: user.id,
-          function_name: 'langgraph-workflow',
+          function_name: 'langgraph-workflow-optimized',
           prompt_tokens: Math.floor(result.metadata.totalTokens * 0.7),
           completion_tokens: Math.floor(result.metadata.totalTokens * 0.3),
           total_tokens: result.metadata.totalTokens,
           cost_usd: result.metadata.totalCost,
-          model_used: 'gpt-4o',
+          model_used: Deno.env.get('LLM_MODEL_TO_USE') || 'gpt-4o-mini',
           category: result.result.classification?.category || 'unknown'
         });
     }
 
     const processingTime = Date.now() - startTime;
-    console.log(`Simplified LangGraph workflow completed in ${processingTime}ms`);
+    console.log(`Optimized workflow completed in ${processingTime}ms using ${result.metadata.workflow} flow`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -489,7 +581,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Error in simplified LangGraph workflow:", error);
+    console.error("Error in optimized workflow:", error);
     
     const errorInfo = handleOpenAIError(error);
     if (errorInfo.shouldFallback) {
