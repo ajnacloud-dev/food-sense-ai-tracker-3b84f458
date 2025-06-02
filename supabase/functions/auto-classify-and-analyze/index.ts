@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -39,13 +40,14 @@ serve(async (req) => {
     
     console.log(`Using model: ${model} for auto-classify-and-analyze`);
 
-    // Quick classification
+    // Quick classification with conservative prompting
     const classificationPrompt = `Classify this content into: food, receipt, or workout.
 ${description ? `Description: ${description}` : ''}
+CRITICAL: Only classify based on what is explicitly visible or described.
 Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
 
     let classificationMessages = [
-      { role: 'system', content: 'You are a content classifier. Return only JSON.' },
+      { role: 'system', content: 'You are a precise content classifier. Return only JSON. Never assume or add information not explicitly provided.' },
       { role: 'user', content: classificationPrompt }
     ];
 
@@ -65,7 +67,7 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
       }
     }
 
-    // Classification API call
+    // Classification API call with temperature 0
     const classificationResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -73,9 +75,9 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model, // Use configured model
+        model: model,
         messages: classificationMessages,
-        temperature: 0.2,
+        temperature: 0, // Changed from 0.2 to 0 for deterministic results
         max_tokens: 200,
       }),
     });
@@ -102,7 +104,7 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
       throw new Error(`No active prompt found for category: ${category}`);
     }
 
-    // Enhanced analysis prompt
+    // Enhanced analysis prompt with strict instructions
     let analysisPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
     
     const now = new Date();
@@ -111,7 +113,17 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
     if (category === 'food') {
       analysisPrompt += `\n${timeContext}\nDetermine meal type from time and provide detailed nutrition analysis.`;
     } else if (category === 'receipt') {
-      analysisPrompt += `\nExtract ALL items with exact prices. Final total must be accurate.`;
+      analysisPrompt += `
+      
+CRITICAL RECEIPT ANALYSIS INSTRUCTIONS:
+• Extract ONLY items that are clearly visible and readable
+• NEVER add items that are not explicitly shown
+• NEVER enrich item names with generic descriptions
+• If text is unclear or illegible, skip that item entirely
+• Double-check that each item name matches exactly what is written
+• Verify prices and quantities against what is visible
+• Be conservative - better to miss an item than add a wrong one
+• ONLY process what is available and clearly readable`;
     } else if (category === 'workout') {
       analysisPrompt += `\nIdentify exercises, sets, reps, and estimate calories burned.`;
     }
@@ -119,7 +131,7 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
     analysisPrompt += '\nReturn ONLY valid JSON (no markdown blocks).';
 
     let analysisMessages = [
-      { role: 'system', content: `${prompt.system_prompt}\nAlways respond with valid JSON only.` },
+      { role: 'system', content: `${prompt.system_prompt}\nAlways respond with valid JSON only. NEVER hallucinate or add information not explicitly visible.` },
       { role: 'user', content: analysisPrompt }
     ];
 
@@ -139,7 +151,7 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
       }
     }
 
-    // Analysis API call
+    // Analysis API call with temperature 0
     const analysisResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -147,9 +159,9 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model, // Use configured model
+        model: model,
         messages: analysisMessages,
-        temperature: 0.2,
+        temperature: 0, // Changed from 0.2 to 0 for deterministic results
         max_tokens: 1500,
       }),
     });
@@ -194,7 +206,8 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
       analysis: analysisResult,
       metadata: {
         model_used: model,
-        total_tokens: totalTokens
+        total_tokens: totalTokens,
+        temperature_used: 0
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -375,7 +375,7 @@ Return valid JSON only:
       }
     }
 
-    // Enhanced category-specific prompts
+    // Enhanced category-specific prompts with strict validation
     if (category === 'food') {
       enhancedPrompt += `${timeContext}
 
@@ -387,12 +387,17 @@ CRITICAL INSTRUCTIONS:
     } else if (category === 'receipt') {
       enhancedPrompt += `
 
-RECEIPT ANALYSIS REQUIREMENTS:
-1. Extract ALL line items with exact prices and quantities
-2. Identify correct final total (after taxes/discounts)
-3. Extract merchant information and purchase date
-4. Categorize items appropriately
-5. Structure data to match receipt database schema`;
+CRITICAL RECEIPT ANALYSIS REQUIREMENTS:
+1. Extract ONLY line items that are clearly visible and readable
+2. NEVER add items that are not explicitly shown on the receipt
+3. NEVER enrich item names with generic descriptions like "organic" or "fresh"
+4. If any text is unclear or illegible, skip that item completely
+5. Double-check that each item name matches exactly what is written
+6. Verify prices and quantities against what is visible
+7. Identify correct final total (after taxes/discounts)
+8. Extract merchant information and purchase date only if clearly visible
+9. Be conservative - it is better to miss an item than to add a wrong one
+10. ONLY process what is available and clearly readable on the receipt`;
     } else if (category === 'workout') {
       enhancedPrompt += `
 
@@ -403,10 +408,10 @@ WORKOUT ANALYSIS REQUIREMENTS:
 4. Structure exercise data for database storage`;
     }
 
-    enhancedPrompt += '\n\nIMPORTANT: Return ONLY valid JSON (no markdown, no code blocks).';
+    enhancedPrompt += '\n\nIMPORTANT: Return ONLY valid JSON (no markdown, no code blocks). Never hallucinate or add information not explicitly visible.';
     
     const messages = [
-      { role: 'system', content: `${prompt.system_prompt}\n\nAlways respond with valid JSON only.` },
+      { role: 'system', content: `${prompt.system_prompt}\n\nAlways respond with valid JSON only. NEVER hallucinate or add items/information not explicitly visible.` },
       { role: 'user', content: enhancedPrompt }
     ];
 
@@ -429,7 +434,7 @@ WORKOUT ANALYSIS REQUIREMENTS:
 
   private async callOpenAI(messages: any[], model: string, maxTokens: number): Promise<any> {
     try {
-      console.log(`OpenAI API call - Model: ${model}, Max tokens: ${maxTokens}`);
+      console.log(`OpenAI API call - Model: ${model}, Max tokens: ${maxTokens}, Temperature: 0`);
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -440,7 +445,7 @@ WORKOUT ANALYSIS REQUIREMENTS:
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.2, // Reduced for more consistent results
+          temperature: 0, // Changed from 0.2 to 0 for deterministic results
           max_tokens: maxTokens,
         }),
       });

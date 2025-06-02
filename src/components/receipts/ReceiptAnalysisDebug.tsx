@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle, XCircle, Eye, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Tables } from "@/integrations/supabase/types";
 
 interface ReceiptItem {
   name: string;
@@ -62,7 +61,7 @@ interface ReceiptAnalysisDebugProps {
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
-  const [pendingAnalysis, setPendingAnalysis] = useState<Tables<'pending_analyses'> | null>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<any>(null);
   const [editMode, setEditMode] = useState(false);
   const [editedItems, setEditedItems] = useState<ReceiptItem[]>([]);
 
@@ -90,8 +89,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
   };
 
   const analyzeItemConfidence = (item: ReceiptItem): number => {
-    // Simple confidence scoring based on item properties
-    let confidence = 0.8; // Base confidence
+    let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;
     if (!item.price || item.price === 0) confidence -= 0.2;
@@ -258,7 +256,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
                 <div>
                   <h4 className="font-medium mb-2">System Prompt</h4>
                   <div className="bg-blue-50 p-4 rounded-lg text-sm">
-                    You are an AI assistant specialized in receipt analysis. You extract detailed information from receipt images and text with high accuracy. Always return valid JSON matching the exact schema provided.
+                    You are an AI assistant specialized in receipt analysis. You extract ONLY the information that is clearly visible on receipt images with high accuracy. Never hallucinate or add items that are not explicitly shown. Always return valid JSON matching the exact schema provided.
                   </div>
                 </div>
                 
@@ -268,6 +266,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
                     Analyze the receipt image and extract ONLY the items that are clearly visible on the receipt. 
                     Do not hallucinate or add items that are not explicitly shown. 
                     Return JSON matching the provided schema with accurate item names, prices, and quantities.
+                    IMPORTANT: Process only what is available and clearly readable.
                   </div>
                 </div>
               </div>
