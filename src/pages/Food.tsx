@@ -1,10 +1,7 @@
 
 import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Utensils, Calendar, Flame, Plus, Eye, Trash2, RefreshCw, Leaf } from "lucide-react";
+import { Plus, RefreshCw, Utensils } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,7 +9,9 @@ import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 import { CompactFilterButton } from "@/components/food/CompactFilterButton";
-import { calculateVegetarianPercentage, getVegetarianBadgeColor } from "@/utils/vegetarianUtils";
+import { CompactStatsHeader } from "@/components/food/CompactStatsHeader";
+import { FoodCard } from "@/components/food/FoodCard";
+import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
   id: string;
@@ -46,13 +45,6 @@ const Food = () => {
            entry.extracted_nutrients?.meal_type || 
            entry.meal_type || 
            'unknown';
-  };
-
-  // Get day type (weekday/weekend)
-  const getDayType = (dateString: string) => {
-    const date = new Date(dateString);
-    const dayOfWeek = date.getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
   };
 
   // Filter entries based on all selected filters
@@ -214,85 +206,6 @@ const Food = () => {
     }
   };
 
-  const handleRowClick = (entryId: string, event: React.MouseEvent) => {
-    if ((event.target as HTMLElement).closest('button')) {
-      return;
-    }
-    navigate(`/food/${entryId}`);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const renderNutrients = (entry: FoodEntry) => {
-    const vegData = calculateVegetarianPercentage(entry);
-    
-    return (
-      <div className="flex gap-2 flex-wrap">
-        <Badge variant="outline" className="flex items-center gap-1">
-          <Flame className="h-3 w-3 text-orange-500" />
-          {entry.calories || 0} cal
-        </Badge>
-        {entry.total_protein > 0 && (
-          <Badge variant="secondary">P: {entry.total_protein}g</Badge>
-        )}
-        {entry.total_carbohydrates > 0 && (
-          <Badge variant="secondary">C: {entry.total_carbohydrates}g</Badge>
-        )}
-        {entry.total_fats > 0 && (
-          <Badge variant="secondary">F: {entry.total_fats}g</Badge>
-        )}
-      </div>
-    );
-  };
-
-  const renderMealType = (entry: FoodEntry) => {
-    const mealType = getMealTypeFromEntry(entry);
-    if (!mealType || mealType === 'unknown') return null;
-    
-    return (
-      <Badge variant="outline" className="capitalize">
-        {mealType}
-      </Badge>
-    );
-  };
-
-  const renderDietaryType = (entry: FoodEntry) => {
-    const vegData = calculateVegetarianPercentage(entry);
-    
-    if (vegData.isVegan) {
-      return <Badge className="bg-green-600 text-white">Vegan</Badge>;
-    } else if (vegData.isVegetarian) {
-      return <Badge className="bg-green-100 text-green-700 border-green-200">Vegetarian</Badge>;
-    } else if (vegData.percentage > 0) {
-      return <Badge className={getVegetarianBadgeColor(vegData.percentage)}>{vegData.percentage}% Veg</Badge>;
-    } else {
-      return <Badge variant="outline" className="text-red-600">Non-Veg</Badge>;
-    }
-  };
-
-  const renderDayType = (entry: FoodEntry) => {
-    const dayType = getDayType(entry.created_at);
-    return (
-      <Badge 
-        variant="outline" 
-        className={dayType === 'weekend' 
-          ? "bg-purple-50 text-purple-700 border-purple-200" 
-          : "bg-blue-50 text-blue-700 border-blue-200"
-        }
-      >
-        {dayType === 'weekend' ? 'Weekend' : 'Weekday'}
-      </Badge>
-    );
-  };
-
   if (loading) {
     return (
       <SidebarLayout>
@@ -306,10 +219,11 @@ const Food = () => {
   return (
     <SidebarLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        {/* Clean Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Food Analysis</h1>
-            <p className="text-gray-600">Track your nutrition and dietary intake</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Food Analysis</h1>
+            <p className="text-gray-600 text-sm sm:text-base">Track your nutrition and dietary intake</p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -317,195 +231,76 @@ const Food = () => {
               onClick={handleRefresh}
               disabled={refreshing}
               className="flex items-center gap-2"
+              size="sm"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button onClick={() => navigate("/capture")} className="flex items-center gap-2">
+            <Button onClick={() => navigate("/capture")} className="flex items-center gap-2" size="sm">
               <Plus className="h-4 w-4" />
-              Add Food Entry
+              <span className="hidden sm:inline">Add Food Entry</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </div>
         </div>
 
-        {/* Compact Filter Bar */}
-        <CompactFilterButton
-          selectedMealType={selectedMealType}
-          onMealTypeChange={setSelectedMealType}
-          mealTypeCounts={mealTypeCounts}
-          selectedDietType={selectedDietType}
-          onDietTypeChange={setSelectedDietType}
-          dietTypeCounts={dietTypeCounts}
-          startDate={startDate}
-          endDate={endDate}
-          onDateRangeChange={(start, end) => {
-            setStartDate(start);
-            setEndDate(end);
-          }}
+        {/* Compact Stats */}
+        <CompactStatsHeader
+          totalEntries={stats.totalEntries}
+          totalCalories={stats.totalCalories}
+          avgCalories={stats.avgCalories}
+          overallVegPercentage={stats.overallVegPercentage}
+          isFiltered={filteredEntries.length !== foodEntries.length}
+          originalCount={foodEntries.length}
         />
 
-        {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
-              <Utensils className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEntries}</div>
-              <p className="text-xs text-muted-foreground">
-                {filteredEntries.length !== foodEntries.length ? 
-                  `Filtered from ${foodEntries.length} total` : 
-                  'Food items analyzed'
-                }
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calories</CardTitle>
-              <Flame className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCalories.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Calories tracked</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Calories</CardTitle>
-              <Calendar className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.avgCalories}</div>
-              <p className="text-xs text-muted-foreground">Per food entry</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vegetarian %</CardTitle>
-              <Leaf className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.overallVegPercentage}%</div>
-              <p className="text-xs text-muted-foreground">Plant-based calories</p>
-            </CardContent>
-          </Card>
+        {/* Filter Button positioned above the content */}
+        <div className="flex justify-end">
+          <CompactFilterButton
+            selectedMealType={selectedMealType}
+            onMealTypeChange={setSelectedMealType}
+            mealTypeCounts={mealTypeCounts}
+            selectedDietType={selectedDietType}
+            onDietTypeChange={setSelectedDietType}
+            dietTypeCounts={dietTypeCounts}
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+          />
         </div>
 
-        {/* Food Entries Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Food Entries</CardTitle>
-            <CardDescription>
-              {filteredEntries.length !== foodEntries.length ? 
-                `Showing ${filteredEntries.length} of ${foodEntries.length} entries` :
-                'Your analyzed food items and nutritional information'
+        {/* Food Entries Grid */}
+        {filteredEntries.length === 0 ? (
+          <div className="text-center py-12">
+            <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No food entries found</h3>
+            <p className="text-gray-600 mb-4 max-w-md mx-auto">
+              {foodEntries.length === 0 ? 
+                'Start tracking your nutrition by adding your first food entry' :
+                'Try adjusting your filters or add more food entries'
               }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {filteredEntries.length === 0 ? (
-              <div className="text-center py-8">
-                <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No food entries found</h3>
-                <p className="text-gray-600 mb-4">
-                  {foodEntries.length === 0 ? 
-                    'Start tracking your nutrition by adding your first food entry' :
-                    'Try adjusting your filters or add more food entries'
-                  }
-                </p>
-                <Button onClick={() => navigate("/capture")}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Food Entry
-                </Button>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Meal Type</TableHead>
-                    <TableHead>Dietary Type</TableHead>
-                    <TableHead>Day Type</TableHead>
-                    <TableHead>Nutrition Info</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEntries.map((entry) => (
-                    <TableRow 
-                      key={entry.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={(e) => handleRowClick(entry.id, e)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {entry.image_url && (
-                            <img
-                              src={entry.image_url}
-                              alt="Food"
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                          )}
-                          <div className="font-medium">{entry.description}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {renderMealType(entry)}
-                      </TableCell>
-                      <TableCell>
-                        {renderDietaryType(entry)}
-                      </TableCell>
-                      <TableCell>
-                        {renderDayType(entry)}
-                      </TableCell>
-                      <TableCell>
-                        {renderNutrients(entry)}
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {formatDate(entry.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/food/${entry.id}`)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                          {entry.image_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(entry.image_url, '_blank')}
-                            >
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteFoodEntry(entry.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+            </p>
+            <Button onClick={() => navigate("/capture")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Food Entry
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredEntries.map((entry) => (
+              <FoodCard
+                key={entry.id}
+                entry={entry}
+                onView={(id) => navigate(`/food/${id}`)}
+                onDelete={deleteFoodEntry}
+                getMealTypeFromEntry={getMealTypeFromEntry}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <FloatingCaptureButton />
     </SidebarLayout>
