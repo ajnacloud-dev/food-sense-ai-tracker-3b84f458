@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 import { CompactFilterButton } from "@/components/food/CompactFilterButton";
 import { CompactStatsHeader } from "@/components/food/CompactStatsHeader";
-import { FoodCard } from "@/components/food/FoodCard";
+import { FoodTable } from "@/components/food/FoodTable";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
@@ -254,7 +254,7 @@ const Food = () => {
           originalCount={foodEntries.length}
         />
 
-        {/* Filter Button positioned above the content */}
+        {/* Filter Button positioned above the table */}
         <div className="flex justify-end">
           <CompactFilterButton
             selectedMealType={selectedMealType}
@@ -272,9 +272,9 @@ const Food = () => {
           />
         </div>
 
-        {/* Food Entries Grid */}
+        {/* Food Entries Table */}
         {filteredEntries.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-white rounded-lg border">
             <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No food entries found</h3>
             <p className="text-gray-600 mb-4 max-w-md mx-auto">
@@ -289,17 +289,12 @@ const Food = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredEntries.map((entry) => (
-              <FoodCard
-                key={entry.id}
-                entry={entry}
-                onView={(id) => navigate(`/food/${id}`)}
-                onDelete={deleteFoodEntry}
-                getMealTypeFromEntry={getMealTypeFromEntry}
-              />
-            ))}
-          </div>
+          <FoodTable
+            entries={filteredEntries}
+            onView={(id) => navigate(`/food/${id}`)}
+            onDelete={deleteFoodEntry}
+            getMealTypeFromEntry={getMealTypeFromEntry}
+          />
         )}
       </div>
       <FloatingCaptureButton />
