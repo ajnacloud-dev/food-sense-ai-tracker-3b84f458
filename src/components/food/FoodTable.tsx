@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Trash2, Flame, Calendar, ArrowUpDown } from "lucide-react";
-import { calculateVegetarianPercentage, getVegetarianBadgeColor } from "@/utils/vegetarianUtils";
+import { calculateDetailedDietaryBreakdown, getDietaryDisplayBadges } from "@/utils/vegetarianUtils";
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -52,18 +52,19 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
     return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
   };
 
-  const renderDietaryType = (entry: FoodEntry) => {
-    const vegData = calculateVegetarianPercentage(entry);
+  const renderDietaryBreakdown = (entry: FoodEntry) => {
+    const breakdown = calculateDetailedDietaryBreakdown(entry);
+    const badges = getDietaryDisplayBadges(breakdown);
     
-    if (vegData.isVegan) {
-      return <Badge className="bg-green-600 text-white text-xs">Vegan</Badge>;
-    } else if (vegData.isVegetarian) {
-      return <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Vegetarian</Badge>;
-    } else if (vegData.percentage > 0) {
-      return <Badge className={`${getVegetarianBadgeColor(vegData.percentage)} text-xs`}>{vegData.percentage}% Veg</Badge>;
-    } else {
-      return <Badge variant="outline" className="text-red-600 text-xs">Non-Veg</Badge>;
-    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {badges.map((badge, index) => (
+          <Badge key={index} className={`${badge.color} text-xs`}>
+            {badge.text}
+          </Badge>
+        ))}
+      </div>
+    );
   };
 
   const handleSort = (field: SortField) => {
@@ -120,8 +121,8 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
             <TableRow className="bg-gray-50/50">
               <SortableHeader field="description">Food Description</SortableHeader>
               <SortableHeader field="meal_type">Meal Type</SortableHeader>
-              <TableHead className="hidden md:table-cell">Dietary Type</TableHead>
-              <TableHead className="hidden lg:table-cell">Day Type</TableHead>
+              <TableHead className="hidden lg:table-cell">Dietary Breakdown</TableHead>
+              <TableHead className="hidden xl:table-cell">Day Type</TableHead>
               <SortableHeader field="calories">Nutrition</SortableHeader>
               <SortableHeader field="created_at">Date</SortableHeader>
               <TableHead className="text-center">Actions</TableHead>
@@ -135,7 +136,7 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
               return (
                 <TableRow 
                   key={entry.id} 
-                  className={`hover:bg-gray-50/50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
+                  className={`hover:bg-gray-50/50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
                   onClick={(e) => handleRowClick(entry.id, e)}
                 >
                   <TableCell className="font-medium">
@@ -153,9 +154,9 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
                         <p className="text-sm font-medium text-gray-900 line-clamp-2">
                           {entry.description}
                         </p>
-                        {/* Show dietary type on mobile in description cell */}
-                        <div className="md:hidden mt-1">
-                          {renderDietaryType(entry)}
+                        {/* Show dietary breakdown on mobile in description cell */}
+                        <div className="lg:hidden mt-1">
+                          {renderDietaryBreakdown(entry)}
                         </div>
                       </div>
                     </div>
@@ -171,11 +172,11 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
                     )}
                   </TableCell>
                   
-                  <TableCell className="hidden md:table-cell">
-                    {renderDietaryType(entry)}
+                  <TableCell className="hidden lg:table-cell">
+                    {renderDietaryBreakdown(entry)}
                   </TableCell>
                   
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell className="hidden xl:table-cell">
                     <Badge 
                       variant="outline" 
                       className={`text-xs ${dayType === 'weekend' 
@@ -221,7 +222,7 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
                           e.stopPropagation();
                           onView(entry.id);
                         }}
-                        className="h-8 w-8 p-0"
+                        className="h-8 w-8 p-0 hover:bg-blue-50 transition-colors"
                       >
                         <Eye className="h-3 w-3" />
                       </Button>
@@ -232,7 +233,7 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
                           e.stopPropagation();
                           onDelete(entry.id);
                         }}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

@@ -15,6 +15,7 @@ export const VegetarianFilter = ({ selectedDietType, onDietTypeChange, dietTypeC
     { value: 'vegetarian', label: 'Vegetarian', icon: Leaf, color: 'text-green-600' },
     { value: 'vegan', label: 'Vegan', icon: Sprout, color: 'text-green-700' },
     { value: 'non-vegetarian', label: 'Non-Vegetarian', icon: Apple, color: 'text-red-600' },
+    { value: 'mixed', label: 'Mixed', icon: Utensils, color: 'text-orange-600' },
   ];
 
   return (
@@ -23,17 +24,20 @@ export const VegetarianFilter = ({ selectedDietType, onDietTypeChange, dietTypeC
         const Icon = type.icon;
         const count = dietTypeCounts[type.value] || 0;
         
+        // Only show options that have entries or the 'all' option
+        if (count === 0 && type.value !== 'all') return null;
+        
         return (
           <Button
             key={type.value}
             variant={selectedDietType === type.value ? "default" : "outline"}
             size="sm"
             onClick={() => onDietTypeChange(type.value)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 transition-all duration-200 hover:scale-105"
           >
-            <Icon className={`h-4 w-4 ${type.color}`} />
-            {type.label}
-            <Badge variant="secondary" className="ml-1">
+            <Icon className={`h-3 w-3 sm:h-4 sm:w-4 ${type.color}`} />
+            <span className="text-xs sm:text-sm">{type.label}</span>
+            <Badge variant="secondary" className="ml-1 text-xs">
               {count}
             </Badge>
           </Button>

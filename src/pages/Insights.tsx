@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface InsightData {
   totalFoodEntries: number;
@@ -25,6 +25,7 @@ interface InsightData {
 
 const Insights = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [insights, setInsights] = useState<InsightData>({
     totalFoodEntries: 0,
     totalCalories: 0,
@@ -152,34 +153,35 @@ const Insights = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Insights</h1>
-          <p className="text-gray-600">Comprehensive analysis of your health and spending patterns</p>
+      <div className={`space-y-4 lg:space-y-6 ${isMobile ? 'pb-20' : 'pb-6'}`}>
+        {/* Responsive Header */}
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">Insights</h1>
+          <p className="text-sm text-gray-600 sm:text-base">Comprehensive analysis of your health and spending patterns</p>
         </div>
 
-        {/* Health Score */}
+        {/* Responsive Health Score */}
         <Card className="border-l-4 border-l-blue-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-blue-500" />
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Target className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
               Health Score
             </CardTitle>
-            <CardDescription>Based on your nutrition, fitness, and lifestyle tracking</CardDescription>
+            <CardDescription className="text-sm sm:text-base">Based on your nutrition, fitness, and lifestyle tracking</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <div className={`text-4xl font-bold ${getScoreColor(healthScore)}`}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className={`text-3xl sm:text-4xl font-bold ${getScoreColor(healthScore)}`}>
                 {healthScore}/100
               </div>
               <div className="flex-1">
-                <div className="w-full bg-gray-200 rounded-full h-3">
+                <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
                   <div 
-                    className={`h-3 rounded-full ${healthScore >= 80 ? 'bg-green-500' : healthScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                    className={`h-2 sm:h-3 rounded-full transition-all duration-500 ${healthScore >= 80 ? 'bg-green-500' : healthScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
                     style={{ width: `${healthScore}%` }}
                   ></div>
                 </div>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-xs sm:text-sm text-gray-600 mt-2">
                   {healthScore >= 80 ? 'Excellent! Keep up the great work!' :
                    healthScore >= 60 ? 'Good progress! Room for improvement.' :
                    'Getting started! Track more activities to improve your score.'}
@@ -189,99 +191,99 @@ const Insights = () => {
           </CardContent>
         </Card>
 
-        {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
+        {/* Responsive Overview Stats */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Nutrition Tracking</CardTitle>
               <Utensils className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{insights.totalFoodEntries}</div>
+              <div className="text-xl sm:text-2xl font-bold">{insights.totalFoodEntries}</div>
               <p className="text-xs text-muted-foreground">Food entries analyzed</p>
               <div className="mt-2">
-                <Badge variant="outline">{insights.totalCalories.toLocaleString()} calories tracked</Badge>
+                <Badge variant="outline" className="text-xs">{insights.totalCalories.toLocaleString()} calories tracked</Badge>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Expense Tracking</CardTitle>
               <Receipt className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{insights.totalReceipts}</div>
+              <div className="text-xl sm:text-2xl font-bold">{insights.totalReceipts}</div>
               <p className="text-xs text-muted-foreground">Receipts processed</p>
               <div className="mt-2">
-                <Badge variant="outline">{formatCurrency(insights.totalSpending)} tracked</Badge>
+                <Badge variant="outline" className="text-xs">{formatCurrency(insights.totalSpending)} tracked</Badge>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-all duration-200 sm:col-span-2 lg:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Fitness Tracking</CardTitle>
               <Dumbbell className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{insights.totalWorkouts}</div>
+              <div className="text-xl sm:text-2xl font-bold">{insights.totalWorkouts}</div>
               <p className="text-xs text-muted-foreground">Workouts completed</p>
               <div className="mt-2">
-                <Badge variant="outline">{insights.totalCaloriesBurned} calories burned</Badge>
+                <Badge variant="outline" className="text-xs">{insights.totalCaloriesBurned} calories burned</Badge>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Detailed Analytics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
+        {/* Responsive Detailed Analytics */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
                 Weekly Averages
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Daily Calories</span>
-                <Badge variant="outline">{Math.round(insights.avgCaloriesPerDay)} cal</Badge>
+                <Badge variant="outline" className="text-xs sm:text-sm">{Math.round(insights.avgCaloriesPerDay)} cal</Badge>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Weekly Spending</span>
-                <Badge variant="outline">{formatCurrency(insights.avgSpendingPerWeek)}</Badge>
+                <Badge variant="outline" className="text-xs sm:text-sm">{formatCurrency(insights.avgSpendingPerWeek)}</Badge>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Weekly Workouts</span>
-                <Badge variant="outline">{Math.round(insights.avgWorkoutsPerWeek)} sessions</Badge>
+                <Badge variant="outline" className="text-xs sm:text-sm">{Math.round(insights.avgWorkoutsPerWeek)} sessions</Badge>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
                 Workout Distribution
               </CardTitle>
             </CardHeader>
             <CardContent>
               {Object.keys(insights.workoutTypes).length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No workout data available</p>
+                <p className="text-gray-500 text-center py-4 text-sm">No workout data available</p>
               ) : (
                 <div className="space-y-3">
                   {Object.entries(insights.workoutTypes).map(([type, count]) => (
                     <div key={type} className="flex justify-between items-center">
                       <span className="text-sm capitalize">{type}</span>
                       <div className="flex items-center gap-2">
-                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div className="w-16 sm:w-20 bg-gray-200 rounded-full h-2">
                           <div 
-                            className="bg-blue-500 h-2 rounded-full"
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${(count / insights.totalWorkouts) * 100}%` }}
                           ></div>
                         </div>
-                        <span className="text-sm text-gray-600 w-8">{count}</span>
+                        <span className="text-sm text-gray-600 w-6 sm:w-8">{count}</span>
                       </div>
                     </div>
                   ))}
@@ -291,36 +293,36 @@ const Insights = () => {
           </Card>
         </div>
 
-        {/* Recommendations */}
-        <Card>
+        {/* Responsive Recommendations */}
+        <Card className="hover:shadow-md transition-all duration-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="h-4 w-4 sm:h-5 sm:w-5" />
               Personalized Recommendations
             </CardTitle>
-            <CardDescription>Based on your current tracking patterns</CardDescription>
+            <CardDescription className="text-sm sm:text-base">Based on your current tracking patterns</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-medium text-green-800">Nutrition</h4>
-                <p className="text-sm text-green-700 mt-1">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="p-3 sm:p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-800 text-sm sm:text-base">Nutrition</h4>
+                <p className="text-xs sm:text-sm text-green-700 mt-1">
                   {insights.totalFoodEntries < 10 
                     ? "Track more meals to get better insights into your nutrition patterns."
                     : "Great job tracking your nutrition! Consider adding more variety to your diet."}
                 </p>
               </div>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-800">Fitness</h4>
-                <p className="text-sm text-blue-700 mt-1">
+              <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-800 text-sm sm:text-base">Fitness</h4>
+                <p className="text-xs sm:text-sm text-blue-700 mt-1">
                   {insights.totalWorkouts < 5 
                     ? "Add more workouts to boost your health score and fitness level."
                     : "Excellent workout consistency! Try mixing different workout types."}
                 </p>
               </div>
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <h4 className="font-medium text-purple-800">Spending</h4>
-                <p className="text-sm text-purple-700 mt-1">
+              <div className="p-3 sm:p-4 bg-purple-50 rounded-lg sm:col-span-2 lg:col-span-1">
+                <h4 className="font-medium text-purple-800 text-sm sm:text-base">Spending</h4>
+                <p className="text-xs sm:text-sm text-purple-700 mt-1">
                   {insights.totalReceipts < 5 
                     ? "Track more expenses to understand your spending patterns better."
                     : "Good expense tracking! Look for opportunities to optimize your spending."}

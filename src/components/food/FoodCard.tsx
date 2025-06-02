@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Trash2, Flame, Calendar } from "lucide-react";
-import { calculateVegetarianPercentage, getVegetarianBadgeColor } from "@/utils/vegetarianUtils";
+import { calculateDetailedDietaryBreakdown, getDietaryDisplayBadges } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
   id: string;
@@ -43,25 +43,26 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
     return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
   };
 
-  const renderDietaryType = (entry: FoodEntry) => {
-    const vegData = calculateVegetarianPercentage(entry);
+  const renderDietaryBreakdown = (entry: FoodEntry) => {
+    const breakdown = calculateDetailedDietaryBreakdown(entry);
+    const badges = getDietaryDisplayBadges(breakdown);
     
-    if (vegData.isVegan) {
-      return <Badge className="bg-green-600 text-white text-xs">Vegan</Badge>;
-    } else if (vegData.isVegetarian) {
-      return <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Vegetarian</Badge>;
-    } else if (vegData.percentage > 0) {
-      return <Badge className={`${getVegetarianBadgeColor(vegData.percentage)} text-xs`}>{vegData.percentage}% Veg</Badge>;
-    } else {
-      return <Badge variant="outline" className="text-red-600 text-xs">Non-Veg</Badge>;
-    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {badges.map((badge, index) => (
+          <Badge key={index} className={`${badge.color} text-xs`}>
+            {badge.text}
+          </Badge>
+        ))}
+      </div>
+    );
   };
 
   const mealType = getMealTypeFromEntry(entry);
   const dayType = getDayType(entry.created_at);
 
   return (
-    <Card className="hover:shadow-md transition-shadow duration-200 overflow-hidden">
+    <Card className="hover:shadow-md transition-all duration-200 overflow-hidden border hover:border-gray-300">
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row">
           {/* Image Section */}
@@ -76,11 +77,11 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
           )}
           
           {/* Content Section */}
-          <div className="flex-1 p-4">
+          <div className="flex-1 p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               {/* Main Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-gray-900 line-clamp-2 mb-2">
+                <h3 className="font-medium text-gray-900 line-clamp-2 mb-2 text-sm sm:text-base">
                   {entry.description}
                 </h3>
                 
@@ -91,7 +92,7 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
                       {mealType}
                     </Badge>
                   )}
-                  {renderDietaryType(entry)}
+                  {renderDietaryBreakdown(entry)}
                   <Badge 
                     variant="outline" 
                     className={`text-xs ${dayType === 'weekend' 
@@ -140,7 +141,7 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
                   variant="outline"
                   size="sm"
                   onClick={() => onView(entry.id)}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 hover:bg-blue-50 transition-colors"
                 >
                   <Eye className="h-3 w-3" />
                 </Button>
@@ -148,7 +149,7 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
                   variant="outline"
                   size="sm"
                   onClick={() => onDelete(entry.id)}
-                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>

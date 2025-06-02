@@ -42,7 +42,6 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // Auto-refresh when navigating back from capture
   useEffect(() => {
     const state = location.state as { shouldRefresh?: boolean } | null;
     if (state?.shouldRefresh && user) {
@@ -82,7 +81,6 @@ const Dashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch food entries count
       const { count: foodCount, error: foodError } = await supabase
         .from('food_entries')
         .select('*', { count: 'exact', head: true })
@@ -90,7 +88,6 @@ const Dashboard = () => {
 
       if (foodError) throw foodError;
 
-      // Fetch receipts count
       const { count: receiptsCount, error: receiptsError } = await supabase
         .from('receipts')
         .select('*', { count: 'exact', head: true })
@@ -98,7 +95,6 @@ const Dashboard = () => {
 
       if (receiptsError) throw receiptsError;
 
-      // Fetch workouts count
       const { count: workoutsCount, error: workoutsError } = await supabase
         .from('workouts')
         .select('*', { count: 'exact', head: true })
@@ -106,7 +102,6 @@ const Dashboard = () => {
 
       if (workoutsError) throw workoutsError;
 
-      // Fetch total calories from food entries
       const { data: foodEntries, error: caloriesError } = await supabase
         .from('food_entries')
         .select('calories')
@@ -116,7 +111,6 @@ const Dashboard = () => {
 
       const totalCalories = foodEntries?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
 
-      // Fetch today's usage
       const today = new Date().toISOString().split('T')[0];
       const { data: usage, error: usageError } = await supabase
         .from('api_usage_log')
@@ -125,10 +119,8 @@ const Dashboard = () => {
         .eq('usage_date', today)
         .single();
 
-      // Usage error is expected if no entry exists for today
       const usageCount = usage?.usage_count || 0;
 
-      // Fetch user subscription status and role
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('is_subscribed, role')
@@ -172,7 +164,6 @@ const Dashboard = () => {
     }
   };
 
-  // Filter out inconsistent analyses from pending count
   const actualPendingAnalyses = pendingAnalyses.filter(a => 
     (a.status === 'pending' && !a.completed_at) || 
     a.status === 'processing'
@@ -184,28 +175,28 @@ const Dashboard = () => {
       title: "Quick Capture",
       description: "Upload food, receipt, or workout",
       action: () => navigate("/capture"),
-      color: "bg-blue-500"
+      color: "bg-blue-500 hover:bg-blue-600"
     },
     {
       icon: Utensils,
       title: "View Food Entries",
       description: "See your nutrition analysis",
       action: () => navigate("/food"),
-      color: "bg-green-500"
+      color: "bg-green-500 hover:bg-green-600"
     },
     {
       icon: Receipt,
       title: "View Receipts",
       description: "Track your spending",
       action: () => navigate("/receipts"),
-      color: "bg-purple-500"
+      color: "bg-purple-500 hover:bg-purple-600"
     },
     {
       icon: Dumbbell,
       title: "View Workouts",
       description: "Check your fitness progress",
       action: () => navigate("/workouts"),
-      color: "bg-orange-500"
+      color: "bg-orange-500 hover:bg-orange-600"
     }
   ];
 
@@ -237,13 +228,13 @@ const Dashboard = () => {
 
   return (
     <SidebarLayout>
-      <div className={`space-y-6 ${isMobile ? 'pb-20' : 'pb-6'}`}>
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's your health overview.</p>
+      <div className={`space-y-4 lg:space-y-6 ${isMobile ? 'pb-20' : 'pb-6'}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:items-center">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">Dashboard</h1>
+            <p className="text-sm text-gray-600 sm:text-base">Welcome back! Here's your health overview.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
             <AnalysisStatusIndicator 
               analyses={pendingAnalyses} 
               onRetry={refetchPending}
@@ -260,28 +251,28 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Usage Status - Only show for non-subscribed users */}
+        {/* Usage Status - Responsive */}
         {!stats.isSubscribed && (
           <Card className="border-l-4 border-l-blue-500">
-            <CardHeader>
-              <div className="flex items-center justify-between">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-blue-500" />
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
                     Today's Usage
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-sm">
                     {`${stats.usageToday}/2 free analyses used`}
                   </CardDescription>
                 </div>
-                <Badge variant={stats.usageToday >= 2 ? "destructive" : "secondary"}>
+                <Badge variant={stats.usageToday >= 2 ? "destructive" : "secondary"} className="self-start sm:self-center">
                   {stats.usageToday >= 2 ? "Limit Reached" : "Free Trial"}
                 </Badge>
               </div>
             </CardHeader>
             {stats.usageToday >= 2 && (
-              <CardContent>
-                <Button onClick={() => navigate("/billing")} className="w-full">
+              <CardContent className="pt-0">
+                <Button onClick={() => navigate("/billing")} className="w-full sm:w-auto">
                   Upgrade to Pro for Unlimited Access
                 </Button>
               </CardContent>
@@ -289,67 +280,67 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
+        {/* Responsive Stats Grid */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Food Entries</CardTitle>
-              <Utensils className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Food Entries</CardTitle>
+              <Utensils className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.foodEntries}</div>
+              <div className="text-lg sm:text-2xl font-bold">{stats.foodEntries}</div>
               <p className="text-xs text-muted-foreground">Total analyzed meals</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receipts</CardTitle>
-              <Receipt className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Receipts</CardTitle>
+              <Receipt className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.receipts}</div>
+              <div className="text-lg sm:text-2xl font-bold">{stats.receipts}</div>
               <p className="text-xs text-muted-foreground">Expenses tracked</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Workouts</CardTitle>
-              <Dumbbell className="h-4 w-4 text-purple-600" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Workouts</CardTitle>
+              <Dumbbell className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.workouts}</div>
+              <div className="text-lg sm:text-2xl font-bold">{stats.workouts}</div>
               <p className="text-xs text-muted-foreground">Sessions logged</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="hover:shadow-md transition-all duration-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calories</CardTitle>
-              <TrendingUp className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Calories</CardTitle>
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCalories.toLocaleString()}</div>
+              <div className="text-lg sm:text-2xl font-bold">{stats.totalCalories.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">From food entries</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Responsive Quick Actions */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
             {quickActions.map((action, index) => (
-              <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={action.action}>
-                <CardContent className="p-6">
+              <Card key={index} className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105" onClick={action.action}>
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${action.color} text-white`}>
-                      <action.icon className="h-6 w-6" />
+                    <div className={`p-2 rounded-lg ${action.color} text-white transition-colors`}>
+                      <action.icon className="h-4 w-4 sm:h-6 sm:w-6" />
                     </div>
-                    <div>
-                      <h3 className="font-medium">{action.title}</h3>
-                      <p className="text-sm text-gray-600">{action.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-medium text-sm sm:text-base">{action.title}</h3>
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-1 sm:line-clamp-none">{action.description}</p>
                     </div>
                   </div>
                 </CardContent>
