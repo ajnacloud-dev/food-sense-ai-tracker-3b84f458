@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { formatDistanceToNow } from "date-fns";
+import PermissionSelector, { PermissionCategory } from "@/components/invitations/PermissionSelector";
 
 interface InvitationCode {
   id: string;
@@ -24,6 +24,7 @@ interface InvitationCode {
   created_at: string;
   used_by?: string;
   used_at?: string;
+  default_permissions?: PermissionCategory[];
 }
 
 const ParticipantInvitations = () => {
@@ -36,6 +37,7 @@ const ParticipantInvitations = () => {
     maxUses: 1,
     expiresInDays: 7
   });
+  const [selectedPermissions, setSelectedPermissions] = useState<PermissionCategory[]>([]);
 
   useEffect(() => {
     fetchInvitations();
@@ -81,7 +83,8 @@ const ParticipantInvitations = () => {
           caretaker_type: formData.caretakerType as any,
           permission_level: formData.permissionLevel as any,
           max_uses: formData.maxUses,
-          expires_at: expiresAt.toISOString()
+          expires_at: expiresAt.toISOString(),
+          default_permissions: selectedPermissions
         })
         .select()
         .single();
@@ -98,6 +101,7 @@ const ParticipantInvitations = () => {
         maxUses: 1,
         expiresInDays: 7
       });
+      setSelectedPermissions([]);
     } catch (error) {
       console.error('Error generating invitation:', error);
       toast.error('Failed to generate invitation code');
@@ -159,7 +163,7 @@ const ParticipantInvitations = () => {
               Create an invitation code for a new caretaker
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="caretaker-type">Caretaker Type</Label>
@@ -218,6 +222,11 @@ const ParticipantInvitations = () => {
                 />
               </div>
             </div>
+
+            <PermissionSelector 
+              selectedPermissions={selectedPermissions}
+              onPermissionChange={setSelectedPermissions}
+            />
 
             <Button onClick={generateInvitation} disabled={loading} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
@@ -290,6 +299,19 @@ const ParticipantInvitations = () => {
                         </p>
                       </div>
                     </div>
+                    
+                    {invitation.default_permissions && invitation.default_permissions.length > 0 && (
+                      <div className="mt-3">
+                        <span className="text-sm text-gray-500">Auto-granted permissions:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {invitation.default_permissions.map((permission) => (
+                            <Badge key={permission} variant="outline" className="text-xs">
+                              {permission.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

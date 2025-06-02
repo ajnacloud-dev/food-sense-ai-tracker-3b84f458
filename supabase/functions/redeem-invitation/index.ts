@@ -119,6 +119,31 @@ serve(async (req) => {
       );
     }
 
+    // Auto-grant default permissions if specified
+    if (invitation.default_permissions && Array.isArray(invitation.default_permissions) && invitation.default_permissions.length > 0) {
+      console.log('Granting default permissions:', invitation.default_permissions);
+      
+      const permissionInserts = invitation.default_permissions.map((category: string) => ({
+        participant_id: invitation.created_by,
+        caretaker_id: userId,
+        category: category,
+        is_granted: true,
+        granted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+
+      const { error: permissionError } = await supabaseClient
+        .from('participant_permissions')
+        .insert(permissionInserts);
+
+      if (permissionError) {
+        console.error('Error granting default permissions:', permissionError);
+        // Don't fail the relationship creation, just log the error
+      } else {
+        console.log('Successfully granted default permissions');
+      }
+    }
+
     // Update invitation usage
     const { error: updateError } = await supabaseClient
       .from('invitation_codes')
@@ -155,7 +180,8 @@ serve(async (req) => {
         success: true, 
         message: 'Invitation code redeemed successfully',
         relationshipCreated: true,
-        selfCaretaking: userId === invitation.created_by
+        selfCaretaking: userId === invitation.created_by,
+        permissionsGranted: invitation.default_permissions || []
       }),
       { 
         status: 200, 

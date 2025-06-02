@@ -376,6 +376,7 @@ export type Database = {
           created_at: string
           created_by: string
           current_uses: number | null
+          default_permissions: Json | null
           expires_at: string
           id: string
           max_uses: number | null
@@ -389,6 +390,7 @@ export type Database = {
           created_at?: string
           created_by: string
           current_uses?: number | null
+          default_permissions?: Json | null
           expires_at: string
           id?: string
           max_uses?: number | null
@@ -402,6 +404,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           current_uses?: number | null
+          default_permissions?: Json | null
           expires_at?: string
           id?: string
           max_uses?: number | null

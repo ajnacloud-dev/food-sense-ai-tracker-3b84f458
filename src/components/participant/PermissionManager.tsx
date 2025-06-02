@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Utensils, Receipt, Dumbbell, Target, Heart, Check, X, Clock } from "lucide-react";
+import { Utensils, Receipt, Dumbbell, Target, Heart, Check, X, Clock, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import type { Database } from "@/integrations/supabase/types";
 
 type PermissionCategory = Database['public']['Enums']['permission_category'];
@@ -44,6 +45,7 @@ interface PermissionRequest {
 }
 
 const PermissionManager = () => {
+  const navigate = useNavigate();
   const [relationships, setRelationships] = useState<CaretakerRelationship[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PermissionRequest[]>([]);
@@ -67,17 +69,15 @@ const PermissionManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch caretaker relationships
+      console.log('Fetching data for user:', user.id);
+
+      // Fetch caretaker relationships with more detailed logging
       const { data: relationshipsData, error: relationshipsError } = await supabase
         .from('care_relationships')
-        .select(`
-          id,
-          caretaker_id,
-          caretaker_type,
-          status
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'active');
+        .select('id, caretaker_id, caretaker_type, status')
+        .eq('user_id', user.id);
+
+      console.log('Relationships query result:', { relationshipsData, relationshipsError });
 
       if (relationshipsError) {
         console.error('Error fetching relationships:', relationshipsError);
@@ -85,10 +85,10 @@ const PermissionManager = () => {
         return;
       }
 
-      // Fetch caretaker user details separately
+      // Process relationships and fetch caretaker details
       const processedRelationships: CaretakerRelationship[] = [];
       
-      if (relationshipsData) {
+      if (relationshipsData && relationshipsData.length > 0) {
         for (const rel of relationshipsData) {
           const { data: caretakerData, error: caretakerError } = await supabase
             .from('users')
@@ -116,15 +116,22 @@ const PermissionManager = () => {
         }
       }
 
+      console.log('Processed relationships:', processedRelationships);
       setRelationships(processedRelationships);
 
       // Fetch current permissions
-      const { data: permissionsData } = await supabase
+      const { data: permissionsData, error: permissionsError } = await supabase
         .from('participant_permissions')
         .select('*')
         .eq('participant_id', user.id);
 
-      setPermissions(permissionsData || []);
+      console.log('Permissions query result:', { permissionsData, permissionsError });
+
+      if (permissionsError) {
+        console.error('Error fetching permissions:', permissionsError);
+      } else {
+        setPermissions(permissionsData || []);
+      }
 
       // Fetch pending permission requests
       const { data: requestsData, error: requestsError } = await supabase
@@ -133,46 +140,46 @@ const PermissionManager = () => {
         .eq('participant_id', user.id)
         .eq('status', 'pending');
 
+      console.log('Permission requests query result:', { requestsData, requestsError });
+
       if (requestsError) {
         console.error('Error fetching permission requests:', requestsError);
-        toast.error('Failed to load permission requests');
-        return;
-      }
+      } else {
+        // Process requests with caretaker details
+        const processedRequests: PermissionRequest[] = [];
+        
+        if (requestsData && requestsData.length > 0) {
+          for (const request of requestsData) {
+            const { data: caretakerData, error: caretakerError } = await supabase
+              .from('users')
+              .select('full_name, email')
+              .eq('id', request.caretaker_id)
+              .single();
 
-      // Fetch caretaker details for pending requests
-      const processedRequests: PermissionRequest[] = [];
-      
-      if (requestsData) {
-        for (const request of requestsData) {
-          const { data: caretakerData, error: caretakerError } = await supabase
-            .from('users')
-            .select('full_name, email')
-            .eq('id', request.caretaker_id)
-            .single();
+            if (caretakerError) {
+              console.error('Error fetching caretaker data for request:', caretakerError);
+              continue;
+            }
 
-          if (caretakerError) {
-            console.error('Error fetching caretaker data for request:', caretakerError);
-            continue;
-          }
-
-          if (caretakerData) {
-            processedRequests.push({
-              id: request.id,
-              caretaker_id: request.caretaker_id,
-              category: request.category,
-              status: request.status,
-              message: request.message,
-              created_at: request.created_at,
-              caretaker: {
-                full_name: caretakerData.full_name,
-                email: caretakerData.email
-              }
-            });
+            if (caretakerData) {
+              processedRequests.push({
+                id: request.id,
+                caretaker_id: request.caretaker_id,
+                category: request.category,
+                status: request.status,
+                message: request.message,
+                created_at: request.created_at,
+                caretaker: {
+                  full_name: caretakerData.full_name,
+                  email: caretakerData.email
+                }
+              });
+            }
           }
         }
+        
+        setPendingRequests(processedRequests);
       }
-      
-      setPendingRequests(processedRequests);
 
     } catch (error) {
       console.error('Error fetching permission data:', error);
@@ -281,10 +288,26 @@ const PermissionManager = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Privacy & Permissions</h1>
-        <p className="text-gray-600">Manage what your caretakers can access</p>
-      </div>
+      {/* Quick Actions */}
+      {relationships.length === 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-blue-800">No Caretakers Yet</CardTitle>
+            <CardDescription className="text-blue-700">
+              You haven't invited any caretakers yet. Get started by creating invitation codes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => navigate('/participant/invitations')}
+              className="flex items-center gap-2"
+            >
+              Invite Caretakers
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending Requests */}
       {pendingRequests.length > 0 && (
@@ -394,8 +417,16 @@ const PermissionManager = () => {
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Heart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No active caretaker relationships yet.</p>
-              <p className="text-sm">When caretakers invite you, you'll be able to manage their permissions here.</p>
+              <p className="mb-2">No active caretaker relationships yet.</p>
+              <p className="text-sm mb-4">Invite caretakers to start managing their permissions.</p>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/participant/invitations')}
+                className="flex items-center gap-2"
+              >
+                Invite Caretakers
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </CardContent>
