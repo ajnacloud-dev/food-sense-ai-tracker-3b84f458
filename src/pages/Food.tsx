@@ -23,6 +23,25 @@ interface FoodEntry {
   source?: 'food_entries' | 'pending_analyses';
 }
 
+// Type for analysis result structure
+interface AnalysisResult {
+  meal_summary?: {
+    total_nutrition?: {
+      calories?: number;
+      proteins?: number;
+      carbohydrates?: number;
+      fats?: number;
+    };
+  };
+  food_items?: Array<{
+    name: string;
+    serving_size?: string;
+    nutrition_values?: any;
+  }>;
+  food_entry_id?: string;
+  [key: string]: any;
+}
+
 const Food = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -71,19 +90,23 @@ const Food = () => {
       // Transform analysis data to match food entry format
       const transformedAnalyses = (analysisData || [])
         .filter(analysis => {
+          // Type guard and safety check
+          const result = analysis.analysis_result as AnalysisResult | null;
+          if (!result) return false;
+          
           // Check if this analysis already has a corresponding food entry
           const hasCorrespondingEntry = foodData?.some(entry => 
-            analysis.analysis_result?.food_entry_id === entry.id
+            result.food_entry_id === entry.id
           );
           return !hasCorrespondingEntry;
         })
         .map(analysis => {
-          const result = analysis.analysis_result;
+          const result = analysis.analysis_result as AnalysisResult;
           let calories = 0;
           let extractedNutrients = null;
           let ingredients = null;
 
-          // Extract data from analysis result
+          // Extract data from analysis result with type safety
           if (result.meal_summary?.total_nutrition?.calories) {
             calories = result.meal_summary.total_nutrition.calories;
           }
