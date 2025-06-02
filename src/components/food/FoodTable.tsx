@@ -73,6 +73,15 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
     }
   };
 
+  const handleRowClick = (entryId: string, event: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons or other interactive elements
+    const target = event.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="button"]')) {
+      return;
+    }
+    onView(entryId);
+  };
+
   const sortedEntries = [...entries].sort((a, b) => {
     let aValue: any = a[sortField];
     let bValue: any = b[sortField];
@@ -121,7 +130,11 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
             const dayType = getDayType(entry.created_at);
             
             return (
-              <TableRow key={entry.id} className={`hover:bg-gray-50/50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+              <TableRow 
+                key={entry.id} 
+                className={`hover:bg-gray-50/50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
+                onClick={(e) => handleRowClick(entry.id, e)}
+              >
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-3">
                     {entry.image_url && (
@@ -196,7 +209,10 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onView(entry.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(entry.id);
+                      }}
                       className="h-8 w-8 p-0"
                     >
                       <Eye className="h-3 w-3" />
@@ -204,7 +220,10 @@ export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: F
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onDelete(entry.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(entry.id);
+                      }}
                       className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-3 w-3" />

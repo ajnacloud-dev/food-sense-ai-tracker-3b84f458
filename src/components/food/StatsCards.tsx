@@ -60,25 +60,25 @@ export const StatsCards = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
       {statsData.map((stat, index) => {
         const IconComponent = stat.icon;
         return (
-          <Card key={index} className={`${stat.borderColor} ${stat.bgColor} hover:shadow-md transition-shadow duration-200`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <IconComponent className={`h-5 w-5 ${stat.color}`} />
+          <Card key={index} className={`${stat.borderColor} ${stat.bgColor} hover:shadow-sm transition-shadow duration-200`}>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-1">
+                <IconComponent className={`h-4 w-4 ${stat.color}`} />
                 {index === 0 && isFiltered && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
                     Filtered
                   </Badge>
                 )}
               </div>
-              <div className="space-y-1">
-                <div className={`text-2xl font-bold ${stat.color}`}>
+              <div className="space-y-0.5">
+                <div className={`text-xl font-bold ${stat.color}`}>
                   {stat.value}
                 </div>
-                <div className="text-sm font-medium text-gray-700">
+                <div className="text-xs font-medium text-gray-700">
                   {stat.label}
                 </div>
                 <div className="text-xs text-gray-500">
