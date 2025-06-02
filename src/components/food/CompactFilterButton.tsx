@@ -8,6 +8,7 @@ import { Filter, X } from "lucide-react";
 import { MealTypeFilter } from "./MealTypeFilter";
 import { VegetarianFilter } from "./VegetarianFilter";
 import { DateRangeFilter } from "./DateRangeFilter";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CompactFilterButtonProps {
   // Meal type filter props
@@ -38,6 +39,7 @@ export const CompactFilterButton = ({
   onDateRangeChange
 }: CompactFilterButtonProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Count active filters
   const activeFilters = [
@@ -71,7 +73,11 @@ export const CompactFilterButton = ({
       <div className="flex items-center gap-2">
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              className={`flex items-center gap-2 ${isMobile ? 'w-full justify-center' : ''}`}
+              size={isMobile ? "default" : "sm"}
+            >
               <Filter className="h-4 w-4" />
               Filters
               {activeFilters > 0 && (
@@ -81,7 +87,10 @@ export const CompactFilterButton = ({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-96 p-4" align="start">
+          <PopoverContent 
+            className={`${isMobile ? 'w-screen mx-4' : 'w-96'} p-4`} 
+            align={isMobile ? "center" : "start"}
+          >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium">Filter Options</h4>

@@ -60,28 +60,28 @@ export const StatsCards = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4 mb-4">
       {statsData.map((stat, index) => {
         const IconComponent = stat.icon;
         return (
           <Card key={index} className={`${stat.borderColor} ${stat.bgColor} hover:shadow-sm transition-shadow duration-200`}>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1">
-                <IconComponent className={`h-4 w-4 ${stat.color}`} />
+            <CardContent className="p-2 sm:p-3 lg:p-4">
+              <div className="flex items-center justify-between mb-1 lg:mb-2">
+                <IconComponent className={`h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 ${stat.color}`} />
                 {index === 0 && isFiltered && (
-                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                  <Badge variant="secondary" className="text-xs px-1 py-0.5 lg:px-1.5">
                     Filtered
                   </Badge>
                 )}
               </div>
-              <div className="space-y-0.5">
-                <div className={`text-xl font-bold ${stat.color}`}>
+              <div className="space-y-0.5 lg:space-y-1">
+                <div className={`text-base font-bold sm:text-lg lg:text-2xl ${stat.color}`}>
                   {stat.value}
                 </div>
-                <div className="text-xs font-medium text-gray-700">
+                <div className="text-xs font-medium text-gray-700 lg:text-sm">
                   {stat.label}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 hidden sm:block">
                   {stat.subLabel}
                 </div>
               </div>

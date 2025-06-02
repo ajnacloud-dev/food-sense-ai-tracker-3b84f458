@@ -10,7 +10,10 @@ import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButto
 import { CompactFilterButton } from "@/components/food/CompactFilterButton";
 import { StatsCards } from "@/components/food/StatsCards";
 import { FoodTable } from "@/components/food/FoodTable";
+import { FoodCard } from "@/components/food/FoodCard";
+import { CompactStatsHeader } from "@/components/food/CompactStatsHeader";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FoodEntry {
   id: string;
@@ -30,6 +33,7 @@ interface FoodEntry {
 const Food = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -217,12 +221,12 @@ const Food = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
-        {/* Clean Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="space-y-4 lg:space-y-6">
+        {/* Responsive Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Food Analysis</h1>
-            <p className="text-gray-600 text-sm sm:text-base">Track your nutrition and dietary intake</p>
+            <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">Food Analysis</h1>
+            <p className="text-sm text-gray-600 sm:text-base">Track your nutrition and dietary intake</p>
           </div>
           <div className="flex gap-2">
             <Button 
@@ -230,48 +234,64 @@ const Food = () => {
               onClick={handleRefresh}
               disabled={refreshing}
               className="flex items-center gap-2"
-              size="sm"
+              size={isMobile ? "sm" : "default"}
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
+              {!isMobile && <span>Refresh</span>}
             </Button>
-            <Button onClick={() => navigate("/capture")} className="flex items-center gap-2" size="sm">
+            <Button 
+              onClick={() => navigate("/capture")} 
+              className="flex items-center gap-2"
+              size={isMobile ? "sm" : "default"}
+            >
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Food Entry</span>
-              <span className="sm:hidden">Add</span>
+              <span>{isMobile ? "Add" : "Add Food Entry"}</span>
             </Button>
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
-        <StatsCards
-          totalEntries={stats.totalEntries}
-          totalCalories={stats.totalCalories}
-          avgCalories={stats.avgCalories}
-          overallVegPercentage={stats.overallVegPercentage}
-          isFiltered={filteredEntries.length !== foodEntries.length}
-          originalCount={foodEntries.length}
-        />
-
-        {/* Filter Button positioned above the table */}
-        <div className="flex justify-end">
-          <CompactFilterButton
-            selectedMealType={selectedMealType}
-            onMealTypeChange={setSelectedMealType}
-            mealTypeCounts={mealTypeCounts}
-            selectedDietType={selectedDietType}
-            onDietTypeChange={setSelectedDietType}
-            dietTypeCounts={dietTypeCounts}
-            startDate={startDate}
-            endDate={endDate}
-            onDateRangeChange={(start, end) => {
-              setStartDate(start);
-              setEndDate(end);
-            }}
+        {/* Responsive Stats Display */}
+        {isMobile ? (
+          <CompactStatsHeader
+            totalEntries={stats.totalEntries}
+            totalCalories={stats.totalCalories}
+            avgCalories={stats.avgCalories}
+            overallVegPercentage={stats.overallVegPercentage}
+            isFiltered={filteredEntries.length !== foodEntries.length}
+            originalCount={foodEntries.length}
           />
+        ) : (
+          <StatsCards
+            totalEntries={stats.totalEntries}
+            totalCalories={stats.totalCalories}
+            avgCalories={stats.avgCalories}
+            overallVegPercentage={stats.overallVegPercentage}
+            isFiltered={filteredEntries.length !== foodEntries.length}
+            originalCount={foodEntries.length}
+          />
+        )}
+
+        {/* Filter Button */}
+        <div className={`${isMobile ? 'w-full' : 'flex justify-end'}`}>
+          <div className={isMobile ? 'w-full' : ''}>
+            <CompactFilterButton
+              selectedMealType={selectedMealType}
+              onMealTypeChange={setSelectedMealType}
+              mealTypeCounts={mealTypeCounts}
+              selectedDietType={selectedDietType}
+              onDietTypeChange={setSelectedDietType}
+              dietTypeCounts={dietTypeCounts}
+              startDate={startDate}
+              endDate={endDate}
+              onDateRangeChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
+            />
+          </div>
         </div>
 
-        {/* Food Entries Table */}
+        {/* Responsive Food Entries Display */}
         {filteredEntries.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg border">
             <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -286,6 +306,18 @@ const Food = () => {
               <Plus className="mr-2 h-4 w-4" />
               Add Food Entry
             </Button>
+          </div>
+        ) : isMobile ? (
+          <div className="space-y-3">
+            {filteredEntries.map((entry) => (
+              <FoodCard
+                key={entry.id}
+                entry={entry}
+                onView={(id) => navigate(`/food/${id}`)}
+                onDelete={deleteFoodEntry}
+                getMealTypeFromEntry={getMealTypeFromEntry}
+              />
+            ))}
           </div>
         ) : (
           <FoodTable
