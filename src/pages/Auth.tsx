@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Brain } from "lucide-react";
+import { Brain, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -15,9 +15,21 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [invitationCode, setInvitationCode] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Check for invitation code in URL parameters
+  useEffect(() => {
+    const inviteCode = searchParams.get('invite');
+    if (inviteCode) {
+      setInvitationCode(inviteCode);
+      setIsLogin(false); // Switch to signup mode for invitation
+      toast.info("Invitation code detected! Please complete your signup.");
+    }
+  }, [searchParams]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -41,7 +53,7 @@ const Auth = () => {
         navigate("/dashboard");
       } else {
         const redirectUrl = `${window.location.origin}/`;
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -51,8 +63,33 @@ const Auth = () => {
             emailRedirectTo: redirectUrl
           },
         });
+        
         if (error) throw error;
-        toast.success("Account created successfully!");
+        
+        // If there's an invitation code, redeem it after signup
+        if (invitationCode && data.user) {
+          try {
+            const { error: redeemError } = await supabase.functions.invoke('redeem-invitation', {
+              body: {
+                invitationCode,
+                userId: data.user.id
+              }
+            });
+            
+            if (redeemError) {
+              console.error('Invitation redemption error:', redeemError);
+              toast.error("Account created but invitation code redemption failed. Please contact support.");
+            } else {
+              toast.success("Account created and invitation code redeemed successfully!");
+            }
+          } catch (redeemError) {
+            console.error('Invitation redemption error:', redeemError);
+            toast.error("Account created but invitation code redemption failed. Please contact support.");
+          }
+        } else {
+          toast.success("Account created successfully!");
+        }
+        
         navigate("/dashboard");
       }
     } catch (error: any) {
@@ -70,9 +107,17 @@ const Auth = () => {
             <Brain className="h-8 w-8 text-blue-600" />
             <span className="text-2xl font-bold text-gray-900">NutriWealth</span>
           </div>
-          <CardTitle>{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
+          <CardTitle className="flex items-center justify-center gap-2">
+            {invitationCode && <UserPlus className="h-5 w-5 text-green-600" />}
+            {isLogin ? "Welcome Back" : invitationCode ? "Join as Caretaker" : "Create Account"}
+          </CardTitle>
           <CardDescription>
-            {isLogin ? "Sign in to your account" : "Start your health journey today"}
+            {isLogin 
+              ? "Sign in to your account" 
+              : invitationCode 
+                ? "Complete your signup to join as a caretaker"
+                : "Start your health journey today"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,6 +154,26 @@ const Auth = () => {
                 required
               />
             </div>
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="invitationCode">
+                  Invitation Code {invitationCode ? "(Auto-filled)" : "(Optional)"}
+                </Label>
+                <Input
+                  id="invitationCode"
+                  type="text"
+                  placeholder="Enter invitation code if you have one"
+                  value={invitationCode}
+                  onChange={(e) => setInvitationCode(e.target.value)}
+                  className={invitationCode ? "border-green-300 bg-green-50" : ""}
+                />
+                {invitationCode && (
+                  <p className="text-sm text-green-600">
+                    You're joining as a caretaker with invitation code: {invitationCode}
+                  </p>
+                )}
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
             </Button>
