@@ -18,16 +18,50 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
-  // Filter to show recent analyses (last 4 hours for completed, all active)
-  const recentCutoff = new Date();
-  recentCutoff.setHours(recentCutoff.getHours() - 4);
+  // Get only the latest analysis per status type
+  const getLatestAnalyses = () => {
+    if (!analyses.length) return [];
+    
+    // Sort by created_at descending to get most recent first
+    const sortedAnalyses = [...analyses].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    
+    // Get the most recent analysis of each status type
+    const latestByStatus = new Map<string, PendingAnalysis>();
+    
+    sortedAnalyses.forEach(analysis => {
+      const status = analysis.status;
+      if (!latestByStatus.has(status)) {
+        latestByStatus.set(status, analysis);
+      }
+    });
+    
+    // Return only truly relevant statuses (active or recently completed/failed)
+    const relevantStatuses = Array.from(latestByStatus.values()).filter(analysis => {
+      const isActive = (analysis.status === 'pending' && !analysis.completed_at) || analysis.status === 'processing';
+      const isRecentlyCompleted = analysis.status === 'completed' && 
+        new Date(analysis.completed_at || analysis.updated_at) > new Date(Date.now() - 2 * 60 * 60 * 1000); // Last 2 hours
+      const isRecentlyFailed = analysis.status === 'failed' && 
+        new Date(analysis.completed_at || analysis.updated_at) > new Date(Date.now() - 2 * 60 * 60 * 1000); // Last 2 hours
+      
+      return isActive || isRecentlyCompleted || isRecentlyFailed;
+    });
 
-  const relevantAnalyses = analyses.filter(a => {
-    const isActive = (a.status === 'pending' && !a.completed_at) || a.status === 'processing';
-    const isRecentlyCompleted = a.status === 'completed' && new Date(a.completed_at || a.updated_at) > recentCutoff;
-    const isRecentlyFailed = a.status === 'failed' && new Date(a.completed_at || a.updated_at) > recentCutoff;
-    return isActive || isRecentlyCompleted || isRecentlyFailed;
-  });
+    // If we have multiple, prioritize by importance: processing > failed > pending > completed
+    if (relevantStatuses.length > 1) {
+      const priorityOrder = { 'processing': 1, 'failed': 2, 'pending': 3, 'completed': 4 };
+      relevantStatuses.sort((a, b) => 
+        (priorityOrder[a.status as keyof typeof priorityOrder] || 5) - 
+        (priorityOrder[b.status as keyof typeof priorityOrder] || 5)
+      );
+      return [relevantStatuses[0]]; // Return only the highest priority one
+    }
+    
+    return relevantStatuses;
+  };
+
+  const relevantAnalyses = getLatestAnalyses();
 
   // Don't show indicator if no relevant analyses
   if (relevantAnalyses.length === 0) return null;
@@ -102,10 +136,10 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
   };
 
   const getIndicatorText = () => {
-    if (pendingCount > 0) return `${pendingCount} processing`;
-    if (failedCount > 0) return `${failedCount} failed`;
-    if (completedCount > 0) return `${completedCount} completed`;
-    return 'Recent activity';
+    if (pendingCount > 0) return 'Processing';
+    if (failedCount > 0) return 'Failed';
+    if (completedCount > 0) return 'Completed';
+    return 'Recent';
   };
 
   return (
@@ -121,9 +155,9 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
       <PopoverContent className="w-80 p-3" align="end">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium text-sm">Recent Analysis Activity</h4>
+            <h4 className="font-medium text-sm">Latest Analysis Status</h4>
             <Badge variant="outline" className="text-xs">
-              {relevantAnalyses.length} items
+              {relevantAnalyses.length} item{relevantAnalyses.length > 1 ? 's' : ''}
             </Badge>
           </div>
           

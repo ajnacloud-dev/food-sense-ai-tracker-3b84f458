@@ -77,7 +77,7 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
       body: JSON.stringify({
         model: model,
         messages: classificationMessages,
-        temperature: 0, // Changed from 0.2 to 0 for deterministic results
+        temperature: 0,
         max_tokens: 200,
       }),
     });
@@ -104,14 +104,28 @@ Return only: {"category": "food|receipt|workout", "confidence": 0.95}`;
       throw new Error(`No active prompt found for category: ${category}`);
     }
 
+    // Get current time and determine meal type based on time
+    const now = new Date();
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const currentHour = now.getHours();
+    
+    // Determine meal type based on current time
+    let mealType = 'snack';
+    if (currentHour >= 5 && currentHour < 11) {
+      mealType = 'breakfast';
+    } else if (currentHour >= 11 && currentHour < 15) {
+      mealType = 'lunch';
+    } else if (currentHour >= 17 && currentHour < 22) {
+      mealType = 'dinner';
+    }
+
+    const timeContext = `Current time: ${now.toLocaleString()}, Current hour: ${currentHour}, Suggested meal type based on time: ${mealType}`;
+    
     // Enhanced analysis prompt with strict instructions
     let analysisPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
     
-    const now = new Date();
-    const timeContext = `Current time: ${now.toLocaleString()}`;
-    
     if (category === 'food') {
-      analysisPrompt += `\n${timeContext}\nDetermine meal type from time and provide detailed nutrition analysis.`;
+      analysisPrompt += `\n\n${timeContext}\nIMPORTANT: Use the current time context to determine the appropriate meal type. Based on the current hour (${currentHour}), this should likely be classified as "${mealType}". Please provide detailed nutrition analysis and use the time-appropriate meal type.`;
     } else if (category === 'receipt') {
       analysisPrompt += `
       
@@ -125,13 +139,13 @@ CRITICAL RECEIPT ANALYSIS INSTRUCTIONS:
 • Be conservative - better to miss an item than add a wrong one
 • ONLY process what is available and clearly readable`;
     } else if (category === 'workout') {
-      analysisPrompt += `\nIdentify exercises, sets, reps, and estimate calories burned.`;
+      analysisPrompt += `\n${timeContext}\nIdentify exercises, sets, reps, and estimate calories burned.`;
     }
 
     analysisPrompt += '\nReturn ONLY valid JSON (no markdown blocks).';
 
     let analysisMessages = [
-      { role: 'system', content: `${prompt.system_prompt}\nAlways respond with valid JSON only. NEVER hallucinate or add information not explicitly visible.` },
+      { role: 'system', content: `${prompt.system_prompt}\nAlways respond with valid JSON only. NEVER hallucinate or add information not explicitly visible. For food analysis, use the provided time context to determine appropriate meal type.` },
       { role: 'user', content: analysisPrompt }
     ];
 
@@ -161,7 +175,7 @@ CRITICAL RECEIPT ANALYSIS INSTRUCTIONS:
       body: JSON.stringify({
         model: model,
         messages: analysisMessages,
-        temperature: 0, // Changed from 0.2 to 0 for deterministic results
+        temperature: 0,
         max_tokens: 1500,
       }),
     });
@@ -207,7 +221,9 @@ CRITICAL RECEIPT ANALYSIS INSTRUCTIONS:
       metadata: {
         model_used: model,
         total_tokens: totalTokens,
-        temperature_used: 0
+        temperature_used: 0,
+        time_context: timeContext,
+        suggested_meal_type: category === 'food' ? mealType : null
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
