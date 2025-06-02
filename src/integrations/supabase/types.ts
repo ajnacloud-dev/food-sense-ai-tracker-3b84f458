@@ -638,39 +638,137 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_items: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          discount: number | null
+          id: string
+          name: string
+          price: number
+          quantity: number | null
+          receipt_id: string | null
+          sku: string | null
+          subcategory: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount?: number | null
+          id?: string
+          name: string
+          price?: number
+          quantity?: number | null
+          receipt_id?: string | null
+          sku?: string | null
+          subcategory?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          discount?: number | null
+          id?: string
+          name?: string
+          price?: number
+          quantity?: number | null
+          receipt_id?: string | null
+          sku?: string | null
+          subcategory?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_items_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipts: {
         Row: {
+          card_last_digits: string | null
+          city: string | null
+          country: string | null
           created_at: string | null
+          currency: string | null
+          discount_amount: number | null
           id: string
           image_url: string | null
           items: Json | null
+          notes: string | null
+          payment_method: string | null
+          postal_code: string | null
+          purchase_channel: string | null
           receipt_date: string | null
+          receipt_id: string | null
+          receipt_time: string | null
+          state: string | null
+          store_address: string | null
+          subtotal: number | null
           tags: string[] | null
+          tax_amount: number | null
           total_amount: number | null
+          transaction_id: string | null
           updated_at: string | null
           user_id: string
           vendor: string | null
         }
         Insert: {
+          card_last_digits?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string | null
+          currency?: string | null
+          discount_amount?: number | null
           id?: string
           image_url?: string | null
           items?: Json | null
+          notes?: string | null
+          payment_method?: string | null
+          postal_code?: string | null
+          purchase_channel?: string | null
           receipt_date?: string | null
+          receipt_id?: string | null
+          receipt_time?: string | null
+          state?: string | null
+          store_address?: string | null
+          subtotal?: number | null
           tags?: string[] | null
+          tax_amount?: number | null
           total_amount?: number | null
+          transaction_id?: string | null
           updated_at?: string | null
           user_id: string
           vendor?: string | null
         }
         Update: {
+          card_last_digits?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string | null
+          currency?: string | null
+          discount_amount?: number | null
           id?: string
           image_url?: string | null
           items?: Json | null
+          notes?: string | null
+          payment_method?: string | null
+          postal_code?: string | null
+          purchase_channel?: string | null
           receipt_date?: string | null
+          receipt_id?: string | null
+          receipt_time?: string | null
+          state?: string | null
+          store_address?: string | null
+          subtotal?: number | null
           tags?: string[] | null
+          tax_amount?: number | null
           total_amount?: number | null
+          transaction_id?: string | null
           updated_at?: string | null
           user_id?: string
           vendor?: string | null
@@ -825,12 +923,66 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_exercises: {
+        Row: {
+          calories_burned: number | null
+          created_at: string | null
+          distance: number | null
+          duration_minutes: number | null
+          exercise_name: string
+          id: string
+          reps: number | null
+          sets: number | null
+          weight: number | null
+          workout_id: string | null
+        }
+        Insert: {
+          calories_burned?: number | null
+          created_at?: string | null
+          distance?: number | null
+          duration_minutes?: number | null
+          exercise_name: string
+          id?: string
+          reps?: number | null
+          sets?: number | null
+          weight?: number | null
+          workout_id?: string | null
+        }
+        Update: {
+          calories_burned?: number | null
+          created_at?: string | null
+          distance?: number | null
+          duration_minutes?: number | null
+          exercise_name?: string
+          id?: string
+          reps?: number | null
+          sets?: number | null
+          weight?: number | null
+          workout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_exercises_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workouts: {
         Row: {
           calories_burned: number | null
           created_at: string | null
+          description: string | null
           duration: number | null
+          equipment_used: string[] | null
+          estimated_calories: boolean | null
           id: string
+          image_url: string | null
+          intensity_level: string | null
+          location: string | null
+          muscle_groups: string[] | null
           notes: string | null
           updated_at: string | null
           user_id: string
@@ -839,8 +991,15 @@ export type Database = {
         Insert: {
           calories_burned?: number | null
           created_at?: string | null
+          description?: string | null
           duration?: number | null
+          equipment_used?: string[] | null
+          estimated_calories?: boolean | null
           id?: string
+          image_url?: string | null
+          intensity_level?: string | null
+          location?: string | null
+          muscle_groups?: string[] | null
           notes?: string | null
           updated_at?: string | null
           user_id: string
@@ -849,8 +1008,15 @@ export type Database = {
         Update: {
           calories_burned?: number | null
           created_at?: string | null
+          description?: string | null
           duration?: number | null
+          equipment_used?: string[] | null
+          estimated_calories?: boolean | null
           id?: string
+          image_url?: string | null
+          intensity_level?: string | null
+          location?: string | null
+          muscle_groups?: string[] | null
           notes?: string | null
           updated_at?: string | null
           user_id?: string

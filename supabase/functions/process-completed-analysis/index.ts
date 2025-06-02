@@ -15,265 +15,238 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     )
 
-    const { analysisId } = await req.json()
+    const { pendingAnalysisId, category, analysisResult } = await req.json()
 
-    console.log('Processing completed analysis:', analysisId)
+    console.log('Processing completed analysis:', { pendingAnalysisId, category })
 
-    // Get the completed analysis
-    const { data: analysis, error: analysisError } = await supabaseClient
-      .from('pending_analyses')
-      .select('*')
-      .eq('id', analysisId)
-      .eq('status', 'completed')
-      .single()
-
-    if (analysisError || !analysis) {
-      console.error('Analysis not found or not completed:', analysisError)
-      throw new Error('Analysis not found or not completed')
-    }
-
-    console.log('Found completed analysis:', analysis.category)
-
-    // Process based on category
-    if (analysis.category === 'food') {
-      await processFoodAnalysis(supabaseClient, analysis)
+    if (category === 'food' && analysisResult) {
+      await processFoodAnalysis(supabaseClient, analysisResult, pendingAnalysisId)
+    } else if (category === 'receipt' && analysisResult) {
+      await processReceiptAnalysis(supabaseClient, analysisResult, pendingAnalysisId)
+    } else if (category === 'workout' && analysisResult) {
+      await processWorkoutAnalysis(supabaseClient, analysisResult, pendingAnalysisId)
     }
 
     // Create notification
-    await createNotification(supabaseClient, analysis)
+    const { data: pendingAnalysis } = await supabaseClient
+      .from('pending_analyses')
+      .select('user_id')
+      .eq('id', pendingAnalysisId)
+      .single()
+
+    if (pendingAnalysis) {
+      await supabaseClient.from('user_notifications').insert({
+        user_id: pendingAnalysis.user_id,
+        title: `${category.charAt(0).toUpperCase() + category.slice(1)} Analysis Complete`,
+        message: `Your ${category} analysis has been completed and added to your dashboard.`,
+        notification_type: 'analysis_complete',
+        analysis_id: pendingAnalysisId
+      })
+    }
 
     return new Response(
-      JSON.stringify({ success: true, processed: true }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      }
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+
   } catch (error) {
-    console.error('Function error:', error)
+    console.error('Error processing completed analysis:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })
 
-async function processFoodAnalysis(supabaseClient: any, analysis: any) {
-  try {
-    const result = analysis.analysis_result
-    console.log('Processing food analysis result:', JSON.stringify(result, null, 2))
+async function processFoodAnalysis(supabaseClient: any, analysisResult: any, pendingAnalysisId: string) {
+  const { data: pendingAnalysis } = await supabaseClient
+    .from('pending_analyses')
+    .select('user_id')
+    .eq('id', pendingAnalysisId)
+    .single()
 
-    // Extract the actual analysis data
-    let actualAnalysis = null
-    
-    if (result?.analysis) {
-      actualAnalysis = result.analysis
-    } else if (result?.result?.analysis) {
-      actualAnalysis = result.result.analysis
-    } else if (result?.result) {
-      actualAnalysis = result.result
-    } else if (result?.meal_summary || result?.food_items) {
-      actualAnalysis = result
-    } else {
-      const findAnalysisData = (obj: any): any => {
-        if (obj && typeof obj === 'object') {
-          if (obj.meal_summary || obj.food_items) return obj
-          for (const key in obj) {
-            const found = findAnalysisData(obj[key])
-            if (found) return found
-          }
-        }
-        return null
-      }
-      actualAnalysis = findAnalysisData(result)
-    }
+  if (!pendingAnalysis) return
 
-    if (!actualAnalysis) {
-      console.error('No structured analysis data found')
-      throw new Error('No structured analysis data found')
-    }
+  // Create food entry
+  const { data: foodEntry, error: foodError } = await supabaseClient
+    .from('food_entries')
+    .insert({
+      user_id: pendingAnalysis.user_id,
+      description: analysisResult.meal_description || 'AI-analyzed meal',
+      meal_type: analysisResult.meal_type,
+      meal_date: analysisResult.meal_date || new Date().toISOString().split('T')[0],
+      meal_time: analysisResult.meal_time,
+      calories: analysisResult.nutrition?.total_calories,
+      total_protein: analysisResult.nutrition?.total_protein,
+      total_carbohydrates: analysisResult.nutrition?.total_carbohydrates,
+      total_fats: analysisResult.nutrition?.total_fats,
+      total_fiber: analysisResult.nutrition?.total_fiber,
+      total_sodium: analysisResult.nutrition?.total_sodium,
+      confidence_score: analysisResult.confidence_score,
+      extracted_nutrients: analysisResult.nutrition || {},
+      ingredients: analysisResult.ingredients || []
+    })
+    .select()
+    .single()
 
-    console.log('Using analysis data:', JSON.stringify(actualAnalysis, null, 2))
+  if (foodError) {
+    console.error('Error creating food entry:', foodError)
+    return
+  }
 
-    // Extract nutrition totals
-    const totalNutrition = actualAnalysis.meal_summary?.total_nutrition || {}
-    const calories = totalNutrition.calories || 0
-    const totalProtein = totalNutrition.proteins || 0
-    const totalCarbs = totalNutrition.carbohydrates || 0
-    const totalFats = totalNutrition.fats || 0
-    const totalFiber = totalNutrition.fiber || 0
-    const totalSodium = totalNutrition.sodium || 0
-
-    // Extract meal context
-    const mealType = actualAnalysis.meal_summary?.meal_type || null
-    const mealTime = actualAnalysis.meal_summary?.time || null
-    const mealDate = actualAnalysis.meal_summary?.date || null
-    const confidence = actualAnalysis.meal_summary?.classification_confidence || null
-
-    // Generate description from dish names or food items
-    let description = analysis.description || 'Food Analysis'
-    if (actualAnalysis.meal_summary?.dish_names && actualAnalysis.meal_summary.dish_names.length > 0) {
-      description = actualAnalysis.meal_summary.dish_names.join(', ')
-    } else if (actualAnalysis.food_items && actualAnalysis.food_items.length > 0) {
-      const foodNames = actualAnalysis.food_items.map((item: any) => item.name).filter(Boolean)
-      if (foodNames.length > 0) {
-        description = foodNames.join(', ')
-      }
-    }
-
-    // Create/update food entry with normalized data
-    const { data: foodEntry, error: foodError } = await supabaseClient
-      .from('food_entries')
-      .insert({
-        user_id: analysis.user_id,
-        description: description,
-        calories: calories,
-        total_protein: totalProtein,
-        total_carbohydrates: totalCarbs,
-        total_fats: totalFats,
-        total_fiber: totalFiber,
-        total_sodium: totalSodium,
-        meal_type: mealType,
-        meal_time: mealTime,
-        meal_date: mealDate,
-        confidence_score: confidence,
-        image_url: analysis.image_url,
-        extracted_nutrients: actualAnalysis, // Keep as backup
-        ingredients: actualAnalysis.food_items || null
+  // Create individual food items if provided
+  if (analysisResult.food_items && Array.isArray(analysisResult.food_items)) {
+    for (const item of analysisResult.food_items) {
+      await supabaseClient.from('food_items').insert({
+        food_entry_id: foodEntry.id,
+        name: item.name,
+        calories: item.calories,
+        proteins: item.proteins,
+        carbohydrates: item.carbohydrates,
+        fats: item.fats,
+        fiber: item.fiber,
+        sodium: item.sodium,
+        serving_size: item.serving_size,
+        is_vegetarian: item.is_vegetarian,
+        is_vegan: item.is_vegan,
+        contains_allergens: item.contains_allergens
       })
-      .select()
-      .single()
-
-    if (foodError) {
-      console.error('Error creating food entry:', foodError)
-      throw foodError
     }
+  }
 
-    console.log('Food entry created successfully:', foodEntry.id)
-
-    // Insert individual food items
-    if (actualAnalysis.food_items && Array.isArray(actualAnalysis.food_items)) {
-      for (const item of actualAnalysis.food_items) {
-        const nutrition = item.nutrition_values || {}
-        const flags = item.flags || {}
-        
-        const { error: itemError } = await supabaseClient
-          .from('food_items')
-          .insert({
-            food_entry_id: foodEntry.id,
-            name: item.name || 'Unknown Food',
-            serving_size: item.serving_size || null,
-            calories: nutrition.calories || 0,
-            proteins: nutrition.proteins || 0,
-            carbohydrates: nutrition.carbohydrates || 0,
-            fats: nutrition.fats || 0,
-            fiber: nutrition.fiber || 0,
-            sodium: nutrition.sodium || 0,
-            is_vegetarian: flags.vegetarian || false,
-            is_vegan: flags.vegan || false,
-            contains_allergens: flags.contains_allergens || false
-          })
-
-        if (itemError) {
-          console.error('Error creating food item:', itemError)
-        }
-      }
-    }
-
-    // Insert health assessment
-    if (actualAnalysis.health_assessment) {
-      const health = actualAnalysis.health_assessment
-      const nutritionFocus = actualAnalysis.nutrition_focus || {}
-      
-      const { error: healthError } = await supabaseClient
-        .from('health_assessments')
-        .insert({
-          food_entry_id: foodEntry.id,
-          diabetes_rating: health.diabetes?.rating || null,
-          diabetes_suggestion: health.diabetes?.suggestion || null,
-          hypertension_rating: health.hypertension?.rating || null,
-          hypertension_suggestion: health.hypertension?.suggestion || null,
-          general_suggestion: nutritionFocus.suggestion || null,
-          nutrients_high: nutritionFocus.nutrients_high || [],
-          nutrients_low: nutritionFocus.nutrients_low || []
-        })
-
-      if (healthError) {
-        console.error('Error creating health assessment:', healthError)
-      }
-    }
-
-    // Insert meal summary
-    if (actualAnalysis.meal_summary) {
-      const mealSummary = actualAnalysis.meal_summary
-      
-      const { error: summaryError } = await supabaseClient
-        .from('meal_summaries')
-        .insert({
-          food_entry_id: foodEntry.id,
-          dish_names: mealSummary.dish_names || [],
-          meal_suggestion: mealSummary.meal_suggestion || null,
-          classification_confidence: mealSummary.classification_confidence || null
-        })
-
-      if (summaryError) {
-        console.error('Error creating meal summary:', summaryError)
-      }
-    }
-
-    // Update analysis with food_entry_id reference
-    const { error: updateError } = await supabaseClient
-      .from('pending_analyses')
-      .update({ 
-        analysis_result: { 
-          ...result, 
-          food_entry_id: foodEntry.id 
-        } 
-      })
-      .eq('id', analysis.id)
-
-    if (updateError) {
-      console.error('Error updating analysis with food_entry_id:', updateError)
-    }
-
-  } catch (error) {
-    console.error('Error processing food analysis:', error)
-    throw error
+  // Create health assessment if provided
+  if (analysisResult.health_assessment) {
+    await supabaseClient.from('health_assessments').insert({
+      food_entry_id: foodEntry.id,
+      diabetes_rating: analysisResult.health_assessment.diabetes_rating,
+      diabetes_suggestion: analysisResult.health_assessment.diabetes_suggestion,
+      hypertension_rating: analysisResult.health_assessment.hypertension_rating,
+      hypertension_suggestion: analysisResult.health_assessment.hypertension_suggestion,
+      general_suggestion: analysisResult.health_assessment.general_suggestion,
+      nutrients_high: analysisResult.health_assessment.nutrients_high,
+      nutrients_low: analysisResult.health_assessment.nutrients_low
+    })
   }
 }
 
-async function createNotification(supabaseClient: any, analysis: any) {
-  try {
-    const title = analysis.status === 'completed' ? 'Analysis Complete' : 'Analysis Failed'
-    const message = analysis.status === 'completed' 
-      ? `Your ${analysis.category || 'content'} analysis is ready`
-      : `Analysis failed: ${analysis.error_message || 'Unknown error'}`
+async function processReceiptAnalysis(supabaseClient: any, analysisResult: any, pendingAnalysisId: string) {
+  const { data: pendingAnalysis } = await supabaseClient
+    .from('pending_analyses')
+    .select('user_id, image_url')
+    .eq('id', pendingAnalysisId)
+    .single()
 
-    const { error } = await supabaseClient
-      .from('user_notifications')
-      .insert({
-        user_id: analysis.user_id,
-        analysis_id: analysis.id,
-        notification_type: analysis.status === 'completed' ? 'analysis_complete' : 'analysis_failed',
-        title,
-        message,
-        read: false
+  if (!pendingAnalysis) return
+
+  // Create receipt entry
+  const { data: receipt, error: receiptError } = await supabaseClient
+    .from('receipts')
+    .insert({
+      user_id: pendingAnalysis.user_id,
+      image_url: pendingAnalysis.image_url,
+      vendor: analysisResult.merchant?.store_name,
+      store_address: analysisResult.merchant?.store_address,
+      city: analysisResult.merchant?.city,
+      state: analysisResult.merchant?.state,
+      postal_code: analysisResult.merchant?.postal_code,
+      country: analysisResult.merchant?.country,
+      receipt_date: analysisResult.transaction?.date,
+      receipt_time: analysisResult.transaction?.time,
+      receipt_id: analysisResult.transaction?.receipt_id,
+      purchase_channel: analysisResult.transaction?.purchase_channel,
+      subtotal: analysisResult.subtotal,
+      tax_amount: analysisResult.tax_details?.[0]?.tax_amount,
+      discount_amount: analysisResult.discount_details?.[0]?.discount_amount,
+      total_amount: analysisResult.total,
+      payment_method: analysisResult.payment?.method,
+      card_last_digits: analysisResult.payment?.card_last_digits,
+      transaction_id: analysisResult.payment?.transaction_id,
+      currency: analysisResult.currency || 'USD',
+      notes: analysisResult.notes,
+      items: analysisResult.items || []
+    })
+    .select()
+    .single()
+
+  if (receiptError) {
+    console.error('Error creating receipt:', receiptError)
+    return
+  }
+
+  // Create individual receipt items
+  if (analysisResult.items && Array.isArray(analysisResult.items)) {
+    for (const item of analysisResult.items) {
+      await supabaseClient.from('receipt_items').insert({
+        receipt_id: receipt.id,
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        quantity: item.quantity || 1,
+        category: item.category,
+        subcategory: item.subcategory,
+        sku: item.sku,
+        discount: item.discount || 0
       })
-
-    if (error) {
-      console.error('Error creating notification:', error)
-      throw error
     }
+  }
+}
 
-    console.log('Notification created for analysis:', analysis.id)
-  } catch (error) {
-    console.error('Error creating notification:', error)
-    throw error
+async function processWorkoutAnalysis(supabaseClient: any, analysisResult: any, pendingAnalysisId: string) {
+  const { data: pendingAnalysis } = await supabaseClient
+    .from('pending_analyses')
+    .select('user_id, image_url')
+    .eq('id', pendingAnalysisId)
+    .single()
+
+  if (!pendingAnalysis) return
+
+  // Create workout entry
+  const { data: workout, error: workoutError } = await supabaseClient
+    .from('workouts')
+    .insert({
+      user_id: pendingAnalysis.user_id,
+      image_url: pendingAnalysis.image_url,
+      workout_type: analysisResult.workout_type,
+      description: analysisResult.description,
+      duration: analysisResult.duration_minutes,
+      calories_burned: analysisResult.calories_burned,
+      intensity_level: analysisResult.intensity_level,
+      location: analysisResult.location,
+      equipment_used: analysisResult.equipment_used || [],
+      muscle_groups: analysisResult.muscle_groups || [],
+      estimated_calories: analysisResult.estimated_calories || false,
+      notes: JSON.stringify(analysisResult)
+    })
+    .select()
+    .single()
+
+  if (workoutError) {
+    console.error('Error creating workout:', workoutError)
+    return
+  }
+
+  // Create individual workout exercises
+  if (analysisResult.exercises && Array.isArray(analysisResult.exercises)) {
+    for (const exercise of analysisResult.exercises) {
+      await supabaseClient.from('workout_exercises').insert({
+        workout_id: workout.id,
+        exercise_name: exercise.name,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        weight: exercise.weight,
+        duration_minutes: exercise.duration_seconds ? Math.round(exercise.duration_seconds / 60) : null,
+        distance: exercise.distance_km,
+        calories_burned: exercise.calories_burned
+      })
+    }
   }
 }

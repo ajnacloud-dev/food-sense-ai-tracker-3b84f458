@@ -2,7 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Flame, Eye, Trash2 } from "lucide-react";
+import { Clock, Flame, Eye, Trash2, MapPin, Zap } from "lucide-react";
 
 interface WorkoutEntry {
   id: string;
@@ -11,6 +11,11 @@ interface WorkoutEntry {
   calories_burned: number;
   notes: string;
   created_at: string;
+  description?: string;
+  intensity_level?: string;
+  location?: string;
+  equipment_used?: string[];
+  muscle_groups?: string[];
 }
 
 interface WorkoutTableProps {
@@ -53,6 +58,19 @@ const getWorkoutTypeColor = (type: string) => {
   }
 };
 
+const getIntensityColor = (intensity: string) => {
+  switch (intensity?.toLowerCase()) {
+    case 'high':
+      return 'bg-red-100 text-red-800';
+    case 'medium':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'low':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
 export const WorkoutTable = ({ workouts, onDelete, onView }: WorkoutTableProps) => {
   const handleRowClick = (workoutId: string, event: React.MouseEvent) => {
     // Prevent row click when clicking on action buttons
@@ -69,7 +87,9 @@ export const WorkoutTable = ({ workouts, onDelete, onView }: WorkoutTableProps) 
           <TableHead>Type</TableHead>
           <TableHead>Duration</TableHead>
           <TableHead>Calories</TableHead>
-          <TableHead className="hidden sm:table-cell">Notes</TableHead>
+          <TableHead className="hidden sm:table-cell">Intensity</TableHead>
+          <TableHead className="hidden md:table-cell">Location</TableHead>
+          <TableHead className="hidden lg:table-cell">Description</TableHead>
           <TableHead className="hidden md:table-cell">Date</TableHead>
           <TableHead>Actions</TableHead>
         </TableRow>
@@ -99,12 +119,38 @@ export const WorkoutTable = ({ workouts, onDelete, onView }: WorkoutTableProps) 
               </div>
             </TableCell>
             <TableCell className="hidden sm:table-cell">
+              {workout.intensity_level ? (
+                <div className="flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-gray-500" />
+                  <Badge className={getIntensityColor(workout.intensity_level)} variant="outline">
+                    {workout.intensity_level}
+                  </Badge>
+                </div>
+              ) : (
+                '-'
+              )}
+            </TableCell>
+            <TableCell className="hidden md:table-cell">
+              {workout.location ? (
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-gray-500" />
+                  <span className="text-sm text-gray-600 truncate max-w-24">
+                    {workout.location}
+                  </span>
+                </div>
+              ) : (
+                '-'
+              )}
+            </TableCell>
+            <TableCell className="hidden lg:table-cell">
               <div className="max-w-xs truncate text-sm text-gray-600">
-                {workout.notes ? (
-                  typeof workout.notes === 'string' && workout.notes.startsWith('{') 
-                    ? 'AI Analysis Available'
-                    : workout.notes.substring(0, 50) + (workout.notes.length > 50 ? '...' : '')
-                ) : 'No notes'}
+                {workout.description || (
+                  workout.notes ? (
+                    typeof workout.notes === 'string' && workout.notes.startsWith('{') 
+                      ? 'AI Analysis Available'
+                      : workout.notes.substring(0, 50) + (workout.notes.length > 50 ? '...' : '')
+                  ) : 'No description'
+                )}
               </div>
             </TableCell>
             <TableCell className="hidden md:table-cell text-sm text-gray-600">
