@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,8 @@ import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { NutritionDisplay } from "@/components/food/NutritionDisplay";
 import { useAuth } from "@/contexts/AuthContext";
+import { FoodDetailsSidebar } from "@/components/food/FoodDetailsSidebar";
+import { EnhancedNutritionDisplay } from "@/components/food/EnhancedNutritionDisplay";
 
 interface FoodEntry {
   id: string;
@@ -123,6 +124,7 @@ const FoodDetails = () => {
   const nutritionData = foodEntry.extracted_nutrients;
   const mealSummary = nutritionData?.meal_summary;
   const totalNutrition = mealSummary?.total_nutrition;
+  const healthAssessment = nutritionData?.health_assessment;
 
   return (
     <SidebarLayout>
@@ -157,6 +159,11 @@ const FoodDetails = () => {
                         <Flame className="h-3 w-3 mr-1" />
                         {foodEntry.calories || totalNutrition?.calories || 0} cal
                       </span>
+                      {mealSummary?.classification_confidence && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                          {Math.round(mealSummary.classification_confidence * 100)}% confident
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -184,82 +191,39 @@ const FoodDetails = () => {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Image and Quick Stats */}
-            <div className="lg:col-span-1 space-y-6">
-              {/* Food Image */}
-              {foodEntry.image_url && (
-                <Card>
-                  <CardContent className="p-4">
-                    <img
-                      src={foodEntry.image_url}
-                      alt="Food"
-                      className="w-full h-64 object-cover rounded-lg"
-                    />
-                  </CardContent>
-                </Card>
-              )}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Left Sidebar - Compact */}
+            <div className="lg:col-span-1">
+              <div className="space-y-4">
+                {/* Food Image */}
+                {foodEntry.image_url && (
+                  <Card>
+                    <CardContent className="p-4">
+                      <img
+                        src={foodEntry.image_url}
+                        alt="Food"
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    </CardContent>
+                  </Card>
+                )}
 
-              {/* Quick Nutrition Stats */}
-              {totalNutrition && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-blue-600" />
-                      Quick Stats
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 bg-orange-50 rounded-lg">
-                        <Flame className="h-5 w-5 text-orange-600 mx-auto mb-1" />
-                        <div className="text-lg font-bold text-orange-700">{totalNutrition.calories || 0}</div>
-                        <div className="text-xs text-gray-600">Calories</div>
-                      </div>
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <div className="text-lg font-bold text-blue-700">{totalNutrition.proteins || 0}g</div>
-                        <div className="text-xs text-gray-600">Protein</div>
-                      </div>
-                      <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                        <div className="text-lg font-bold text-yellow-700">{totalNutrition.carbohydrates || 0}g</div>
-                        <div className="text-xs text-gray-600">Carbs</div>
-                      </div>
-                      <div className="text-center p-3 bg-purple-50 rounded-lg">
-                        <div className="text-lg font-bold text-purple-700">{totalNutrition.fats || 0}g</div>
-                        <div className="text-xs text-gray-600">Fat</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Meal Rating */}
-              {mealSummary?.overall_meal_rating && (
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Heart className="h-5 w-5 text-pink-600" />
-                      Meal Rating
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-700">{mealSummary.overall_meal_rating}</div>
-                      <div className="text-sm text-gray-600">Overall Score</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                {/* Enhanced Sidebar */}
+                <FoodDetailsSidebar 
+                  totalNutrition={totalNutrition}
+                  mealSummary={mealSummary}
+                  healthAssessment={healthAssessment}
+                />
+              </div>
             </div>
 
-            {/* Right Column - Main Content */}
-            <div className="lg:col-span-2">
+            {/* Right Content - Main */}
+            <div className="lg:col-span-3">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
-                  <TabsTrigger value="health">Health</TabsTrigger>
-                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="health">Health & Details</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
@@ -290,7 +254,7 @@ const FoodDetails = () => {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Apple className="h-5 w-5 text-green-600" />
-                          Dishes
+                          Dishes Identified
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -305,24 +269,50 @@ const FoodDetails = () => {
                     </Card>
                   )}
 
-                  {/* Meal Suggestion */}
-                  {mealSummary?.meal_suggestion && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Meal Suggestion</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="bg-green-50 p-4 rounded-lg">
-                          <p className="text-green-700">{mealSummary.meal_suggestion}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* Meal Context & Suggestion */}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {mealSummary?.time && mealSummary?.date && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Meal Context</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Date:</span>
+                              <span className="font-medium">{mealSummary.date}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Time:</span>
+                              <span className="font-medium">{mealSummary.time}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Type:</span>
+                              <span className="font-medium">{mealSummary.meal_type}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {mealSummary?.meal_suggestion && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Suggestion</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="bg-green-50 p-4 rounded-lg">
+                            <p className="text-green-700">{mealSummary.meal_suggestion}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="nutrition">
                   {nutritionData ? (
-                    <NutritionDisplay nutritionData={nutritionData} />
+                    <EnhancedNutritionDisplay nutritionData={nutritionData} />
                   ) : (
                     <Card>
                       <CardContent className="text-center py-8 text-gray-500">
@@ -334,103 +324,96 @@ const FoodDetails = () => {
                 </TabsContent>
 
                 <TabsContent value="health">
-                  {nutritionData?.health_assessment ? (
-                    <div className="space-y-6">
-                      {nutritionData.health_assessment.diabetes && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <Heart className="h-5 w-5 text-orange-600" />
-                              Diabetes Assessment
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="bg-orange-50 p-4 rounded-lg">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium">Rating:</span>
-                                <Badge variant="outline" className="bg-orange-100 text-orange-700">
-                                  {nutritionData.health_assessment.diabetes.rating}
-                                </Badge>
-                              </div>
-                              <p className="text-orange-700">{nutritionData.health_assessment.diabetes.suggestion}</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {nutritionData.health_assessment.hypertension && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                              <Heart className="h-5 w-5 text-red-600" />
-                              Hypertension Assessment
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="bg-red-50 p-4 rounded-lg">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium">Rating:</span>
-                                <Badge variant="outline" className="bg-red-100 text-red-700">
-                                  {nutritionData.health_assessment.hypertension.rating}
-                                </Badge>
-                              </div>
-                              <p className="text-red-700">{nutritionData.health_assessment.hypertension.suggestion}</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {nutritionData.nutrition_focus && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Nutrition Focus</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {nutritionData.nutrition_focus.nutrients_high && nutritionData.nutrition_focus.nutrients_high.length > 0 && (
-                              <div>
-                                <h4 className="font-medium text-red-600 mb-2">High Nutrients:</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {nutritionData.nutrition_focus.nutrients_high.map((nutrient: string, index: number) => (
-                                    <Badge key={index} variant="destructive">{nutrient}</Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {nutritionData.nutrition_focus.nutrients_low && nutritionData.nutrition_focus.nutrients_low.length > 0 && (
-                              <div>
-                                <h4 className="font-medium text-yellow-600 mb-2">Low Nutrients:</h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {nutritionData.nutrition_focus.nutrients_low.map((nutrient: string, index: number) => (
-                                    <Badge key={index} variant="outline" className="border-yellow-500 text-yellow-600">{nutrient}</Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {nutritionData.nutrition_focus.suggestion && (
-                              <div className="bg-blue-50 p-4 rounded-lg">
-                                <h4 className="font-medium text-blue-700 mb-2">Nutrition Suggestion</h4>
-                                <p className="text-blue-600">{nutritionData.nutrition_focus.suggestion}</p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  ) : (
-                    <Card>
-                      <CardContent className="text-center py-8 text-gray-500">
-                        <Heart className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                        <p>No health assessment available</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="details">
                   <div className="space-y-6">
-                    {/* Calories Input */}
+                    {/* Health Assessment */}
+                    {healthAssessment && (
+                      <div className="grid md:grid-cols-2 gap-6">
+                        {healthAssessment.diabetes && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                <Heart className="h-5 w-5 text-orange-600" />
+                                Diabetes Assessment
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="bg-orange-50 p-4 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium">Rating:</span>
+                                  <Badge variant="outline" className="bg-orange-100 text-orange-700">
+                                    {healthAssessment.diabetes.rating}
+                                  </Badge>
+                                </div>
+                                <p className="text-orange-700">{healthAssessment.diabetes.suggestion}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {healthAssessment.hypertension && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="flex items-center gap-2">
+                                <Heart className="h-5 w-5 text-red-600" />
+                                Hypertension Assessment
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="bg-red-50 p-4 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium">Rating:</span>
+                                  <Badge variant="outline" className="bg-red-100 text-red-700">
+                                    {healthAssessment.hypertension.rating}
+                                  </Badge>
+                                </div>
+                                <p className="text-red-700">{healthAssessment.hypertension.suggestion}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Nutrition Focus */}
+                    {nutritionData?.nutrition_focus && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Nutrition Focus</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {nutritionData.nutrition_focus.nutrients_high && nutritionData.nutrition_focus.nutrients_high.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-red-600 mb-2">High Nutrients:</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {nutritionData.nutrition_focus.nutrients_high.map((nutrient: string, index: number) => (
+                                  <Badge key={index} variant="destructive">{nutrient}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {nutritionData.nutrition_focus.nutrients_low && nutritionData.nutrition_focus.nutrients_low.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-yellow-600 mb-2">Low Nutrients:</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {nutritionData.nutrition_focus.nutrients_low.map((nutrient: string, index: number) => (
+                                  <Badge key={index} variant="outline" className="border-yellow-500 text-yellow-600">{nutrient}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {nutritionData.nutrition_focus.suggestion && (
+                            <div className="bg-blue-50 p-4 rounded-lg">
+                              <h4 className="font-medium text-blue-700 mb-2">Nutrition Suggestion</h4>
+                              <p className="text-blue-600">{nutritionData.nutrition_focus.suggestion}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Calorie Details */}
                     <Card>
                       <CardHeader>
                         <CardTitle>Calorie Information</CardTitle>
@@ -451,62 +434,6 @@ const FoodDetails = () => {
                         )}
                       </CardContent>
                     </Card>
-
-                    {/* Individual Food Items */}
-                    {nutritionData?.food_items && Array.isArray(nutritionData.food_items) && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Individual Food Items</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {nutritionData.food_items.map((item: any, index: number) => (
-                              <div key={index} className="border rounded-lg p-4">
-                                <div className="flex justify-between items-start mb-2">
-                                  <div>
-                                    <h4 className="font-semibold">{item.name}</h4>
-                                    <p className="text-sm text-gray-600">{item.serving_size}</p>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    {item.flags?.vegetarian && <Badge variant="outline" className="text-green-600">Vegetarian</Badge>}
-                                    {item.flags?.contains_allergens && <Badge variant="destructive">Allergens</Badge>}
-                                  </div>
-                                </div>
-                                
-                                {item.nutrition_values && (
-                                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-sm mt-3">
-                                    <div className="text-center p-2 bg-gray-50 rounded">
-                                      <div className="font-medium">{item.nutrition_values.calories || 0}</div>
-                                      <div className="text-gray-500 text-xs">cal</div>
-                                    </div>
-                                    <div className="text-center p-2 bg-gray-50 rounded">
-                                      <div className="font-medium">{item.nutrition_values.proteins || 0}g</div>
-                                      <div className="text-gray-500 text-xs">protein</div>
-                                    </div>
-                                    <div className="text-center p-2 bg-gray-50 rounded">
-                                      <div className="font-medium">{item.nutrition_values.carbohydrates || 0}g</div>
-                                      <div className="text-gray-500 text-xs">carbs</div>
-                                    </div>
-                                    <div className="text-center p-2 bg-gray-50 rounded">
-                                      <div className="font-medium">{item.nutrition_values.fats || 0}g</div>
-                                      <div className="text-gray-500 text-xs">fat</div>
-                                    </div>
-                                    <div className="text-center p-2 bg-gray-50 rounded">
-                                      <div className="font-medium">{item.nutrition_values.fiber || 0}g</div>
-                                      <div className="text-gray-500 text-xs">fiber</div>
-                                    </div>
-                                    <div className="text-center p-2 bg-gray-50 rounded">
-                                      <div className="font-medium">{item.nutrition_values.sodium || 0}mg</div>
-                                      <div className="text-gray-500 text-xs">sodium</div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
                   </div>
                 </TabsContent>
               </Tabs>
