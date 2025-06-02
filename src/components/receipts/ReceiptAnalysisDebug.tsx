@@ -47,7 +47,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     }
   };
 
-  const analyzeItemConfidence = (item: ReceiptItem) => {
+  const analyzeItemConfidence = (item: ReceiptItem): number => {
     let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;
@@ -59,7 +59,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     return Math.max(0, Math.min(1, confidence));
   };
 
-  const getConfidenceColor = (confidence: number) => {
+  const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.8) return 'bg-green-50 text-green-700 border-green-200';
     if (confidence >= 0.6) return 'bg-yellow-50 text-yellow-700 border-yellow-200';
     return 'bg-red-50 text-red-700 border-red-200';
@@ -74,7 +74,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
   const items = analysisResult?.items || [];
   const suspiciousItems = items.filter((item) => analyzeItemConfidence(item) < 0.6);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'

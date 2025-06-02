@@ -50,29 +50,58 @@ const CaretakerDashboard = () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No authenticated user found');
+        return;
+      }
 
-      // Fetch care relationships where current user is the caretaker
-      const { data: relationships } = await supabase
+      console.log('Fetching care relationships for caretaker:', user.id);
+
+      // Fetch care relationships with participant details using a proper join
+      const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
-          *,
-          participant:users!care_relationships_user_id_fkey (id, full_name, email)
+          id,
+          user_id,
+          caretaker_id,
+          caretaker_type,
+          permission_level,
+          status,
+          created_at,
+          users!care_relationships_user_id_fkey (
+            id,
+            full_name,
+            email
+          )
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
 
-      const participantData: Participant[] = (relationships || []).map(rel => ({
-        id: rel.user_id,
-        full_name: rel.participant?.full_name || 'Unknown',
-        email: rel.participant?.email || 'Unknown',
-        caretaker_type: rel.caretaker_type,
-        permission_level: rel.permission_level,
-        status: rel.status,
-        created_at: rel.created_at,
-        health_score: Math.floor(Math.random() * 40) + 60 // Mock health score
-      }));
+      if (relationshipsError) {
+        console.error('Error fetching relationships:', relationshipsError);
+        throw relationshipsError;
+      }
 
+      console.log('Raw relationships data:', relationships);
+
+      // Transform the data to match our interface
+      const participantData: Participant[] = (relationships || []).map(rel => {
+        const participantUser = rel.users;
+        console.log('Processing relationship:', rel, 'with user:', participantUser);
+        
+        return {
+          id: rel.user_id,
+          full_name: participantUser?.full_name || 'No Name Available',
+          email: participantUser?.email || 'No Email Available',
+          caretaker_type: rel.caretaker_type,
+          permission_level: rel.permission_level,
+          status: rel.status,
+          created_at: rel.created_at,
+          health_score: Math.floor(Math.random() * 40) + 60 // Mock health score for now
+        };
+      });
+
+      console.log('Processed participant data:', participantData);
       setParticipants(participantData);
 
       // Calculate stats
@@ -124,6 +153,24 @@ const CaretakerDashboard = () => {
           <p className="text-gray-600">Monitor and support your participants' health journey</p>
         </div>
       </div>
+
+      {/* Debug Information */}
+      <Card className="border-l-4 border-l-blue-500">
+        <CardHeader>
+          <CardTitle className="text-sm">Debug Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600">
+            Found {participants.length} participants. 
+            {participants.length === 0 && " No participants found - check if relationships exist in database."}
+          </p>
+          {participants.length > 0 && (
+            <div className="mt-2 text-xs text-gray-500">
+              Participants: {participants.map(p => `${p.full_name} (${p.email})`).join(', ')}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -185,62 +232,71 @@ const CaretakerDashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Participant</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Permission</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Health Score</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {participants.map((participant) => (
-                    <TableRow key={participant.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{participant.full_name}</div>
-                          <div className="text-sm text-gray-500">{participant.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {participant.caretaker_type.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{participant.permission_level.replace('_', ' ')}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(participant.status)}`}>
-                          {participant.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-green-500 h-2 rounded-full" 
-                              style={{ width: `${participant.health_score}%` }}
-                            />
-                          </div>
-                          <span className="text-sm">{participant.health_score}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedParticipant(participant.id)}
-                          disabled={participant.status !== 'active'}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
+              {participants.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">No participants found.</p>
+                  <p className="text-sm text-gray-400">
+                    Participants need to accept your invitation or you need to join as a caretaker using an invitation code.
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Participant</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Permission</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Health Score</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {participants.map((participant) => (
+                      <TableRow key={participant.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{participant.full_name}</div>
+                            <div className="text-sm text-gray-500">{participant.email}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {participant.caretaker_type.replace('_', ' ')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{participant.permission_level.replace('_', ' ')}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(participant.status)}`}>
+                            {participant.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-16 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-green-500 h-2 rounded-full" 
+                                style={{ width: `${participant.health_score}%` }}
+                              />
+                            </div>
+                            <span className="text-sm">{participant.health_score}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setSelectedParticipant(participant.id)}
+                            disabled={participant.status !== 'active'}
+                          >
+                            View Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
