@@ -58,11 +58,23 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
     );
   };
 
+  const handleCardClick = (event: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons or other interactive elements
+    const target = event.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="button"]')) {
+      return;
+    }
+    onView(entry.id);
+  };
+
   const mealType = getMealTypeFromEntry(entry);
   const dayType = getDayType(entry.created_at);
 
   return (
-    <Card className="hover:shadow-md transition-all duration-200 overflow-hidden border hover:border-gray-300">
+    <Card 
+      className="hover:shadow-md transition-all duration-200 overflow-hidden border hover:border-gray-300 cursor-pointer"
+      onClick={handleCardClick}
+    >
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row">
           {/* Image Section */}
@@ -140,7 +152,10 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onView(entry.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView(entry.id);
+                  }}
                   className="h-8 w-8 p-0 hover:bg-blue-50 transition-colors"
                 >
                   <Eye className="h-3 w-3" />
@@ -148,7 +163,10 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onDelete(entry.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(entry.id);
+                  }}
                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 className="h-3 w-3" />
