@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock, Heart, Apple, Activity } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Utensils, Flame, Calendar, Clock, Apple } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { EnhancedNutritionDisplay } from "@/components/food/EnhancedNutritionDisplay";
+import { ImageModal } from "@/components/ui/image-modal";
+import { NutritionProgress } from "@/components/food/NutritionProgress";
+import { HealthImpact } from "@/components/food/HealthImpact";
 
 interface FoodEntry {
   id: string;
@@ -32,45 +34,11 @@ interface FoodEntry {
   extracted_nutrients: any;
 }
 
-interface FoodItem {
-  id: string;
-  name: string;
-  serving_size: string;
-  calories: number;
-  proteins: number;
-  carbohydrates: number;
-  fats: number;
-  fiber: number;
-  sodium: number;
-  is_vegetarian: boolean;
-  is_vegan: boolean;
-  contains_allergens: boolean;
-}
-
-interface HealthAssessment {
-  diabetes_rating: string;
-  diabetes_suggestion: string;
-  hypertension_rating: string;
-  hypertension_suggestion: string;
-  general_suggestion: string;
-  nutrients_high: string[];
-  nutrients_low: string[];
-}
-
-interface MealSummary {
-  dish_names: string[];
-  meal_suggestion: string;
-  classification_confidence: number;
-}
-
 const FoodDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [foodEntry, setFoodEntry] = useState<FoodEntry | null>(null);
-  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
-  const [healthAssessment, setHealthAssessment] = useState<HealthAssessment | null>(null);
-  const [mealSummary, setMealSummary] = useState<MealSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<Partial<FoodEntry>>({});
@@ -89,7 +57,6 @@ const FoodDetails = () => {
     if (!user) return;
 
     try {
-      // Fetch main food entry
       const { data: entry, error: entryError } = await supabase
         .from('food_entries')
         .select('*')
@@ -99,40 +66,7 @@ const FoodDetails = () => {
 
       if (entryError) throw entryError;
 
-      // Fetch related food items
-      const { data: items, error: itemsError } = await supabase
-        .from('food_items')
-        .select('*')
-        .eq('food_entry_id', id);
-
-      if (itemsError) console.error('Error fetching food items:', itemsError);
-
-      // Fetch health assessment
-      const { data: health, error: healthError } = await supabase
-        .from('health_assessments')
-        .select('*')
-        .eq('food_entry_id', id)
-        .single();
-
-      if (healthError && healthError.code !== 'PGRST116') {
-        console.error('Error fetching health assessment:', healthError);
-      }
-
-      // Fetch meal summary
-      const { data: summary, error: summaryError } = await supabase
-        .from('meal_summaries')
-        .select('*')
-        .eq('food_entry_id', id)
-        .single();
-
-      if (summaryError && summaryError.code !== 'PGRST116') {
-        console.error('Error fetching meal summary:', summaryError);
-      }
-
       setFoodEntry(entry);
-      setFoodItems(items || []);
-      setHealthAssessment(health);
-      setMealSummary(summary);
       setEditedData(entry);
     } catch (error: any) {
       console.error('Error fetching food details:', error);
@@ -176,6 +110,35 @@ const FoodDetails = () => {
     });
   };
 
+  const getCaloriesFromData = (entry: FoodEntry) => {
+    return entry.calories || 
+           entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories || 
+           entry.extracted_nutrients?.calories || 0;
+  };
+
+  const getNutritionFromData = (entry: FoodEntry) => {
+    const extracted = entry.extracted_nutrients;
+    const totalNutrition = extracted?.meal_summary?.total_nutrition;
+    
+    return {
+      calories: getCaloriesFromData(entry),
+      proteins: entry.total_protein || totalNutrition?.proteins || 0,
+      carbohydrates: entry.total_carbohydrates || totalNutrition?.carbohydrates || 0,
+      fats: entry.total_fats || totalNutrition?.fats || 0,
+      fiber: entry.total_fiber || totalNutrition?.fiber || 0,
+      sodium: entry.total_sodium || totalNutrition?.sodium || 0,
+    };
+  };
+
+  const getDishNames = (entry: FoodEntry) => {
+    return entry.extracted_nutrients?.meal_summary?.dish_names || 
+           entry.extracted_nutrients?.dish_names || [];
+  };
+
+  const getFoodItems = (entry: FoodEntry) => {
+    return entry.extracted_nutrients?.food_items || [];
+  };
+
   if (loading) {
     return (
       <SidebarLayout>
@@ -196,12 +159,16 @@ const FoodDetails = () => {
     );
   }
 
+  const nutrition = getNutritionFromData(foodEntry);
+  const dishNames = getDishNames(foodEntry);
+  const foodItems = getFoodItems(foodEntry);
+
   return (
     <SidebarLayout>
       <div className="min-h-screen bg-gray-50">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-white border-b shadow-sm">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between py-4">
               <div className="flex items-center space-x-4">
                 <Button variant="outline" size="sm" onClick={() => navigate("/food")}>
@@ -227,7 +194,7 @@ const FoodDetails = () => {
                       </span>
                       <span className="flex items-center font-semibold text-orange-600">
                         <Flame className="h-3 w-3 mr-1" />
-                        {foodEntry.calories || 0} cal
+                        {nutrition.calories} cal
                       </span>
                       {foodEntry.confidence_score && (
                         <Badge variant="outline" className="bg-blue-50 text-blue-700">
@@ -260,19 +227,19 @@ const FoodDetails = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Left Sidebar */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-2">
               <div className="space-y-4">
                 {/* Food Image */}
                 {foodEntry.image_url && (
                   <Card>
                     <CardContent className="p-4">
-                      <img
+                      <ImageModal
                         src={foodEntry.image_url}
                         alt="Food"
-                        className="w-full h-48 object-cover rounded-lg"
+                        className="w-full h-64"
                       />
                     </CardContent>
                   </Card>
@@ -281,24 +248,26 @@ const FoodDetails = () => {
                 {/* Quick Stats */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-sm">Nutrition Summary</CardTitle>
+                    <CardTitle className="text-base">Nutrition Overview</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Calories:</span>
-                      <span className="font-medium">{foodEntry.calories || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Protein:</span>
-                      <span className="font-medium">{foodEntry.total_protein || 0}g</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Carbs:</span>
-                      <span className="font-medium">{foodEntry.total_carbohydrates || 0}g</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Fats:</span>
-                      <span className="font-medium">{foodEntry.total_fats || 0}g</span>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div className="bg-orange-50 p-3 rounded-lg">
+                        <div className="text-xl font-bold text-orange-600">{nutrition.calories}</div>
+                        <div className="text-xs text-gray-600">Calories</div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="text-xl font-bold text-blue-600">{nutrition.proteins}g</div>
+                        <div className="text-xs text-gray-600">Protein</div>
+                      </div>
+                      <div className="bg-yellow-50 p-3 rounded-lg">
+                        <div className="text-xl font-bold text-yellow-600">{nutrition.carbohydrates}g</div>
+                        <div className="text-xs text-gray-600">Carbs</div>
+                      </div>
+                      <div className="bg-purple-50 p-3 rounded-lg">
+                        <div className="text-xl font-bold text-purple-600">{nutrition.fats}g</div>
+                        <div className="text-xs text-gray-600">Fat</div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -307,29 +276,28 @@ const FoodDetails = () => {
 
             {/* Right Content */}
             <div className="lg:col-span-3">
-              <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
-                  <TabsTrigger value="health">Health & Details</TabsTrigger>
+              <Tabs defaultValue="meal-analysis" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="meal-analysis">Meal Analysis</TabsTrigger>
+                  <TabsTrigger value="health-impact">Health Impact</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="overview" className="space-y-6">
+                <TabsContent value="meal-analysis" className="space-y-6">
                   {/* Description */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Description</CardTitle>
+                      <CardTitle className="text-base">Description</CardTitle>
                     </CardHeader>
                     <CardContent>
                       {editing ? (
                         <Textarea
                           value={editedData.description || ''}
                           onChange={(e) => setEditedData({ ...editedData, description: e.target.value })}
-                          className="min-h-[100px]"
+                          className="min-h-[80px]"
                           placeholder="Describe your food..."
                         />
                       ) : (
-                        <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
+                        <div className="bg-gray-50 rounded-lg p-4 min-h-[80px]">
                           <p className="text-gray-900">{foodEntry.description || 'No description provided'}</p>
                         </div>
                       )}
@@ -337,17 +305,17 @@ const FoodDetails = () => {
                   </Card>
 
                   {/* Dishes */}
-                  {mealSummary?.dish_names && mealSummary.dish_names.length > 0 && (
+                  {dishNames.length > 0 && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
                           <Apple className="h-5 w-5 text-green-600" />
-                          Dishes Identified
+                          Identified Dishes
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="flex flex-wrap gap-2">
-                          {mealSummary.dish_names.map((dish: string, index: number) => (
+                          {dishNames.map((dish: string, index: number) => (
                             <Badge key={index} variant="secondary" className="bg-green-50 text-green-700">
                               {dish}
                             </Badge>
@@ -356,100 +324,64 @@ const FoodDetails = () => {
                       </CardContent>
                     </Card>
                   )}
-                </TabsContent>
 
-                <TabsContent value="nutrition">
-                  {/* Use the enhanced display with normalized data */}
-                  <EnhancedNutritionDisplay 
-                    nutritionData={{
-                      meal_summary: {
-                        total_nutrition: {
-                          calories: foodEntry.calories,
-                          proteins: foodEntry.total_protein,
-                          carbohydrates: foodEntry.total_carbohydrates,
-                          fats: foodEntry.total_fats,
-                          fiber: foodEntry.total_fiber,
-                          sodium: foodEntry.total_sodium
-                        }
-                      },
-                      food_items: foodItems
-                    }} 
-                  />
-                </TabsContent>
+                  {/* Detailed Nutrition */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Nutrition Breakdown</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <NutritionProgress nutrition={nutrition} />
+                    </CardContent>
+                  </Card>
 
-                <TabsContent value="health">
-                  <div className="space-y-6">
-                    {/* Health Assessment */}
-                    {healthAssessment && (
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {healthAssessment.diabetes_rating && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2">
-                                <Heart className="h-5 w-5 text-orange-600" />
-                                Diabetes Assessment
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="bg-orange-50 p-4 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-medium">Rating:</span>
-                                  <Badge variant="outline" className="bg-orange-100 text-orange-700">
-                                    {healthAssessment.diabetes_rating}
-                                  </Badge>
-                                </div>
-                                <p className="text-orange-700">{healthAssessment.diabetes_suggestion}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-
-                        {healthAssessment.hypertension_rating && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2">
-                                <Heart className="h-5 w-5 text-red-600" />
-                                Hypertension Assessment
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="bg-red-50 p-4 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-medium">Rating:</span>
-                                  <Badge variant="outline" className="bg-red-100 text-red-700">
-                                    {healthAssessment.hypertension_rating}
-                                  </Badge>
-                                </div>
-                                <p className="text-red-700">{healthAssessment.hypertension_suggestion}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Calorie Details */}
+                  {/* Food Items */}
+                  {foodItems.length > 0 && (
                     <Card>
                       <CardHeader>
-                        <CardTitle>Calorie Information</CardTitle>
+                        <CardTitle className="text-base">Individual Items ({foodItems.length})</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {editing ? (
-                          <Input
-                            type="number"
-                            value={editedData.calories || 0}
-                            onChange={(e) => setEditedData({ ...editedData, calories: parseInt(e.target.value) || 0 })}
-                            placeholder="Enter calories..."
-                          />
-                        ) : (
-                          <div className="flex items-center gap-3 bg-orange-50 rounded-lg p-4">
-                            <Flame className="h-6 w-6 text-orange-500" />
-                            <span className="text-xl font-semibold text-orange-700">{foodEntry.calories || 0} calories</span>
-                          </div>
-                        )}
+                        <div className="space-y-3">
+                          {foodItems.map((item: any, index: number) => (
+                            <div key={index} className="border rounded-lg p-3 bg-white">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h4 className="font-medium text-sm">{item.name}</h4>
+                                  <p className="text-xs text-gray-600">{item.serving_size}</p>
+                                </div>
+                                <div className="flex gap-1">
+                                  {item.flags?.vegetarian && <Badge variant="outline" className="text-green-600 text-xs">Veg</Badge>}
+                                  {item.flags?.contains_allergens && <Badge variant="destructive" className="text-xs">Allergens</Badge>}
+                                </div>
+                              </div>
+                              
+                              {item.nutrition_values && (
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                    <div className="font-medium">{item.nutrition_values.calories || 0}</div>
+                                    <div className="text-gray-500">cal</div>
+                                  </div>
+                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                    <div className="font-medium">{item.nutrition_values.proteins || 0}g</div>
+                                    <div className="text-gray-500">protein</div>
+                                  </div>
+                                  <div className="text-center p-2 bg-gray-50 rounded">
+                                    <div className="font-medium">{item.nutrition_values.carbohydrates || 0}g</div>
+                                    <div className="text-gray-500">carbs</div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </CardContent>
                     </Card>
-                  </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="health-impact">
+                  <HealthImpact extractedNutrients={foodEntry.extracted_nutrients} />
                 </TabsContent>
               </Tabs>
             </div>
