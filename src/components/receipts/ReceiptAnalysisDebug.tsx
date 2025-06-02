@@ -9,15 +9,69 @@ import { AlertTriangle, CheckCircle, XCircle, Eye, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface ReceiptItem {
+  name: string;
+  description?: string;
+  price: number;
+  quantity: number;
+  category?: string;
+  subcategory?: string;
+  sku?: string;
+  discount?: number;
+}
+
+interface AnalysisResult {
+  items: ReceiptItem[];
+  merchant?: {
+    store_name?: string;
+    store_address?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  transaction?: {
+    date?: string;
+    time?: string;
+    receipt_id?: string;
+    purchase_channel?: string;
+  };
+  subtotal?: number;
+  total?: number;
+  tax_details?: Array<{
+    tax_rate: number;
+    tax_amount: number;
+  }>;
+  discount_details?: Array<{
+    discount_name: string;
+    discount_amount: number;
+  }>;
+  payment?: {
+    method?: string;
+    card_last_digits?: string;
+    transaction_id?: string;
+  };
+  currency?: string;
+  notes?: string;
+}
+
+interface PendingAnalysis {
+  id: string;
+  analysis_result: AnalysisResult;
+  created_at: string;
+  status: string;
+  error_message?: string;
+}
+
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: any;
+  analysisResult: AnalysisResult;
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
-  const [pendingAnalysis, setPendingAnalysis] = useState<any>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysis | null>(null);
   const [editMode, setEditMode] = useState(false);
-  const [editedItems, setEditedItems] = useState<any[]>([]);
+  const [editedItems, setEditedItems] = useState<ReceiptItem[]>([]);
 
   useEffect(() => {
     fetchPendingAnalysis();
@@ -34,7 +88,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
 
       if (error) throw error;
       if (data && data.length > 0) {
-        setPendingAnalysis(data[0]);
+        setPendingAnalysis(data[0] as PendingAnalysis);
         console.log('Raw analysis result:', data[0].analysis_result);
       }
     } catch (error) {
@@ -42,7 +96,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     }
   };
 
-  const analyzeItemConfidence = (item: any) => {
+  const analyzeItemConfidence = (item: ReceiptItem): number => {
     // Simple confidence scoring based on item properties
     let confidence = 0.8; // Base confidence
     
@@ -55,7 +109,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     return Math.max(0, Math.min(1, confidence));
   };
 
-  const getConfidenceColor = (confidence: number) => {
+  const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.8) return 'bg-green-50 text-green-700 border-green-200';
     if (confidence >= 0.6) return 'bg-yellow-50 text-yellow-700 border-yellow-200';
     return 'bg-red-50 text-red-700 border-red-200';
@@ -68,7 +122,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
   };
 
   const items = analysisResult?.items || [];
-  const suspiciousItems = items.filter((item: any) => analyzeItemConfidence(item) < 0.6);
+  const suspiciousItems = items.filter((item: ReceiptItem) => analyzeItemConfidence(item) < 0.6);
 
   return (
     <div className="space-y-6">
@@ -95,13 +149,13 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {items.filter((item: any) => analyzeItemConfidence(item) >= 0.8).length}
+                {items.filter((item: ReceiptItem) => analyzeItemConfidence(item) >= 0.8).length}
               </div>
               <div className="text-sm text-gray-600">High Confidence</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold">
-                {((items.filter((item: any) => analyzeItemConfidence(item) >= 0.6).length / items.length) * 100).toFixed(0)}%
+                {items.length > 0 ? ((items.filter((item: ReceiptItem) => analyzeItemConfidence(item) >= 0.6).length / items.length) * 100).toFixed(0) : 0}%
               </div>
               <div className="text-sm text-gray-600">Accuracy Rate</div>
             </div>
@@ -140,7 +194,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
           </div>
 
           <div className="space-y-3">
-            {items.map((item: any, index: number) => {
+            {items.map((item: ReceiptItem, index: number) => {
               const confidence = analyzeItemConfidence(item);
               return (
                 <Card key={index} className="p-4">
