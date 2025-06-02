@@ -9,7 +9,8 @@ import { AlertTriangle, CheckCircle, XCircle, Eye, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface ReceiptItem {
+// Simple, explicit type definitions to avoid deep instantiation
+interface SimpleReceiptItem {
   name: string;
   description?: string;
   price: number;
@@ -20,50 +21,67 @@ interface ReceiptItem {
   discount?: number;
 }
 
-interface AnalysisResult {
-  items: ReceiptItem[];
-  merchant?: {
-    store_name?: string;
-    store_address?: string;
-    city?: string;
-    state?: string;
-    postal_code?: string;
-    country?: string;
-  };
-  transaction?: {
-    date?: string;
-    time?: string;
-    receipt_id?: string;
-    purchase_channel?: string;
-  };
+interface SimpleMerchant {
+  store_name?: string;
+  store_address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+interface SimpleTransaction {
+  date?: string;
+  time?: string;
+  receipt_id?: string;
+  purchase_channel?: string;
+}
+
+interface SimpleTaxDetail {
+  tax_rate: number;
+  tax_amount: number;
+}
+
+interface SimpleDiscountDetail {
+  discount_name: string;
+  discount_amount: number;
+}
+
+interface SimplePayment {
+  method?: string;
+  card_last_digits?: string;
+  transaction_id?: string;
+}
+
+interface SimpleAnalysisResult {
+  items: SimpleReceiptItem[];
+  merchant?: SimpleMerchant;
+  transaction?: SimpleTransaction;
   subtotal?: number;
   total?: number;
-  tax_details?: Array<{
-    tax_rate: number;
-    tax_amount: number;
-  }>;
-  discount_details?: Array<{
-    discount_name: string;
-    discount_amount: number;
-  }>;
-  payment?: {
-    method?: string;
-    card_last_digits?: string;
-    transaction_id?: string;
-  };
+  tax_details?: SimpleTaxDetail[];
+  discount_details?: SimpleDiscountDetail[];
+  payment?: SimplePayment;
   currency?: string;
   notes?: string;
 }
 
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: AnalysisResult;
+  analysisResult: SimpleAnalysisResult;
+}
+
+interface PendingAnalysisRecord {
+  id: string;
+  analysis_result: any;
+  created_at: string;
+  [key: string]: any;
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
-  const [pendingAnalysis, setPendingAnalysis] = useState<any>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysisRecord | null>(null);
   const [editMode, setEditMode] = useState(false);
-  const [editedItems, setEditedItems] = useState<ReceiptItem[]>([]);
+  const [editedItems, setEditedItems] = useState<SimpleReceiptItem[]>([]);
 
   useEffect(() => {
     fetchPendingAnalysis();
@@ -88,7 +106,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     }
   };
 
-  const analyzeItemConfidence = (item: ReceiptItem): number => {
+  const analyzeItemConfidence = (item: SimpleReceiptItem): number => {
     let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;
@@ -112,8 +130,16 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     return <XCircle className="h-4 w-4" />;
   };
 
-  const items = analysisResult?.items || [];
+  // Safe array access with fallback
+  const items: SimpleReceiptItem[] = Array.isArray(analysisResult?.items) ? analysisResult.items : [];
   const suspiciousItems = items.filter((item) => analyzeItemConfidence(item) < 0.6);
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount || 0);
+  };
 
   return (
     <div className="space-y-6">
@@ -200,10 +226,10 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600">
-                        <div>Price: ${(item.price || 0).toFixed(2)}</div>
+                        <div>Price: {formatCurrency(item.price || 0)}</div>
                         <div>Qty: {item.quantity || 1}</div>
                         <div>Category: {item.category || 'N/A'}</div>
-                        <div>Total: ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</div>
+                        <div>Total: {formatCurrency((item.price || 0) * (item.quantity || 1))}</div>
                       </div>
                       
                       {item.description && (
