@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,29 +20,7 @@ interface FoodEntry {
   extracted_nutrients: any;
   image_url: string;
   created_at: string;
-  source?: 'food_entries' | 'pending_analyses';
-}
-
-// Type for analysis result structure
-interface AnalysisResult {
-  meal_summary?: {
-    total_nutrition?: {
-      calories?: number;
-      proteins?: number;
-      carbohydrates?: number;
-      fats?: number;
-    };
-  };
-  food_items?: Array<{
-    name: string;
-    serving_size?: string;
-    nutrition_values?: any;
-  }>;
-  food_entry_id?: string;
-  result?: any; // For nested result structures
-  category?: string;
-  calories?: number | string; // Sometimes comes as string
-  [key: string]: any;
+  source?: 'food_entries';
 }
 
 const Food = () => {
@@ -68,7 +47,9 @@ const Food = () => {
     if (!user) return;
 
     try {
-      // Fetch from food_entries table
+      console.log('Fetching food entries for user:', user.id);
+      
+      // Only fetch from food_entries table now since analysis results are automatically transferred
       const { data: foodData, error: foodError } = await supabase
         .from('food_entries')
         .select('*')
@@ -77,108 +58,13 @@ const Food = () => {
 
       if (foodError) throw foodError;
 
-      // Fetch completed food analyses from pending_analyses
-      const { data: analysisData, error: analysisError } = await supabase
-        .from('pending_analyses')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('category', 'food')
-        .eq('status', 'completed')
-        .not('analysis_result', 'is', null)
-        .order('completed_at', { ascending: false });
+      console.log('Found food entries:', foodData?.length || 0);
 
-      if (analysisError) throw analysisError;
+      const allEntries = (foodData || []).map(entry => ({ 
+        ...entry, 
+        source: 'food_entries' as const 
+      }));
 
-      // Transform analysis data to match food entry format
-      const transformedAnalyses = (analysisData || [])
-        .filter(analysis => {
-          // Type guard and safety check
-          const result = analysis.analysis_result as AnalysisResult | null;
-          if (!result) return false;
-          
-          // Check if this analysis already has a corresponding food entry
-          const hasCorrespondingEntry = foodData?.some(entry => 
-            result.food_entry_id === entry.id
-          );
-          return !hasCorrespondingEntry;
-        })
-        .map(analysis => {
-          const result = analysis.analysis_result as AnalysisResult;
-          let calories = 0;
-          let extractedNutrients = null;
-          let ingredients = null;
-
-          // Try multiple paths to extract calories
-          if (result.meal_summary?.total_nutrition?.calories) {
-            calories = result.meal_summary.total_nutrition.calories;
-          } else if (result.result?.meal_summary?.total_nutrition?.calories) {
-            calories = result.result.meal_summary.total_nutrition.calories;
-          } else if (result.calories) {
-            calories = typeof result.calories === 'string' ? parseInt(result.calories) : result.calories;
-          } else if (result.result?.calories) {
-            calories = typeof result.result.calories === 'string' ? parseInt(result.result.calories) : result.result.calories;
-          }
-
-          // Extract comprehensive nutrition data
-          if (result.meal_summary || result.food_items) {
-            extractedNutrients = {
-              meal_summary: result.meal_summary,
-              food_items: result.food_items
-            };
-          } else if (result.result?.meal_summary || result.result?.food_items) {
-            extractedNutrients = {
-              meal_summary: result.result.meal_summary,
-              food_items: result.result.food_items
-            };
-          } else if (result.result) {
-            // Fallback to entire result structure
-            extractedNutrients = result.result;
-          }
-
-          // Extract ingredients
-          if (result.food_items && Array.isArray(result.food_items)) {
-            ingredients = result.food_items.map((item: any) => ({
-              name: item.name,
-              serving_size: item.serving_size,
-              nutrition: item.nutrition_values
-            }));
-          } else if (result.result?.food_items && Array.isArray(result.result.food_items)) {
-            ingredients = result.result.food_items.map((item: any) => ({
-              name: item.name,
-              serving_size: item.serving_size,
-              nutrition: item.nutrition_values
-            }));
-          } else if (result.result?.ingredients) {
-            ingredients = result.result.ingredients;
-          }
-
-          console.log('Transformed analysis:', {
-            id: analysis.id,
-            calories,
-            extractedNutrients,
-            ingredients,
-            originalResult: result
-          });
-
-          return {
-            id: analysis.id,
-            description: analysis.description || 'Food Analysis',
-            calories,
-            ingredients,
-            extracted_nutrients: extractedNutrients,
-            image_url: analysis.image_url,
-            created_at: analysis.completed_at || analysis.updated_at,
-            source: 'pending_analyses' as const
-          };
-        });
-
-      // Combine and sort all entries
-      const allEntries = [
-        ...(foodData || []).map(entry => ({ ...entry, source: 'food_entries' as const })),
-        ...transformedAnalyses
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      console.log('All food entries:', allEntries);
       setFoodEntries(allEntries);
       
       // Calculate stats
@@ -202,20 +88,14 @@ const Food = () => {
     toast.success("Food entries refreshed");
   };
 
-  const deleteFoodEntry = async (id: string, source: 'food_entries' | 'pending_analyses') => {
+  const deleteFoodEntry = async (id: string) => {
     try {
-      if (source === 'food_entries') {
-        const { error } = await supabase
-          .from('food_entries')
-          .delete()
-          .eq('id', id);
+      const { error } = await supabase
+        .from('food_entries')
+        .delete()
+        .eq('id', id);
 
-        if (error) throw error;
-      } else {
-        // For pending analyses, we don't delete but could mark as hidden
-        toast.info("Cannot delete analysis results. Use the original entry to remove.");
-        return;
-      }
+      if (error) throw error;
 
       toast.success("Food entry deleted successfully");
       fetchFoodEntries();
@@ -225,18 +105,12 @@ const Food = () => {
     }
   };
 
-  const handleRowClick = (entryId: string, event: React.MouseEvent, source: 'food_entries' | 'pending_analyses') => {
+  const handleRowClick = (entryId: string, event: React.MouseEvent) => {
     // Prevent row click when clicking on action buttons
     if ((event.target as HTMLElement).closest('button')) {
       return;
     }
-    
-    if (source === 'food_entries') {
-      navigate(`/food/${entryId}`);
-    } else {
-      // For pending analyses, show a toast or modal with the data
-      toast.info("This is an analysis result. Full details coming soon!");
-    }
+    navigate(`/food/${entryId}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -252,7 +126,7 @@ const Food = () => {
   const renderNutrients = (nutrients: any) => {
     if (!nutrients) return null;
     
-    // Check for new comprehensive format first
+    // Check for comprehensive format first
     if (nutrients.meal_summary?.total_nutrition) {
       const nutrition = nutrients.meal_summary.total_nutrition;
       return (
@@ -276,24 +150,6 @@ const Food = () => {
           )}
           {nutrients.fat && (
             <Badge variant="secondary">Fat: {nutrients.fat}g</Badge>
-          )}
-        </div>
-      );
-    }
-
-    // Try to extract from nested structures
-    if (nutrients.result?.protein || nutrients.result?.carbs || nutrients.result?.fat) {
-      const result = nutrients.result;
-      return (
-        <div className="flex gap-2 flex-wrap">
-          {result.protein && (
-            <Badge variant="secondary">Protein: {result.protein}g</Badge>
-          )}
-          {result.carbs && (
-            <Badge variant="secondary">Carbs: {result.carbs}g</Badge>
-          )}
-          {result.fat && (
-            <Badge variant="secondary">Fat: {result.fat}g</Badge>
           )}
         </div>
       );
@@ -406,7 +262,7 @@ const Food = () => {
                     <TableRow 
                       key={entry.id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={(e) => handleRowClick(entry.id, e, entry.source || 'food_entries')}
+                      onClick={(e) => handleRowClick(entry.id, e)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -417,12 +273,7 @@ const Food = () => {
                               className="w-10 h-10 rounded object-cover"
                             />
                           )}
-                          <div>
-                            <div className="font-medium">{entry.description}</div>
-                            {entry.source === 'pending_analyses' && (
-                              <Badge variant="outline" className="text-xs mt-1">Analysis Result</Badge>
-                            )}
-                          </div>
+                          <div className="font-medium">{entry.description}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -437,16 +288,14 @@ const Food = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {entry.source === 'food_entries' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/food/${entry.id}`)}
-                            >
-                              <Eye className="h-3 w-3 mr-1" />
-                              View
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/food/${entry.id}`)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
                           {entry.image_url && (
                             <Button
                               variant="outline"
@@ -456,16 +305,14 @@ const Food = () => {
                               <Eye className="h-3 w-3" />
                             </Button>
                           )}
-                          {entry.source === 'food_entries' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteFoodEntry(entry.id, entry.source || 'food_entries')}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteFoodEntry(entry.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

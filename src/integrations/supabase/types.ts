@@ -574,6 +574,53 @@ export type Database = {
           },
         ]
       }
+      user_notifications: {
+        Row: {
+          analysis_id: string | null
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          notification_type: string
+          read: boolean
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          notification_type: string
+          read?: boolean
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          notification_type?: string
+          read?: boolean
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "pending_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
