@@ -8,7 +8,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Join from "./pages/Join";
-import JoinCaretaker from "./pages/JoinCaretaker";
 import Dashboard from "./pages/Dashboard";
 import Capture from "./pages/Capture";
 import Food from "./pages/Food";
@@ -39,7 +38,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/join" element={<Join />} />
-            <Route path="/join-caretaker" element={<JoinCaretaker />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/capture" element={<Capture />} />
             <Route path="/food" element={<Food />} />

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle, XCircle, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface ReceiptItem {
+interface SimpleReceiptItem {
   name: string;
   description?: string;
   price: number;
@@ -16,14 +16,13 @@ interface ReceiptItem {
   subcategory?: string;
 }
 
-interface AnalysisResult {
-  items: ReceiptItem[];
-  [key: string]: any;
+interface SimpleAnalysisResult {
+  items: SimpleReceiptItem[];
 }
 
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: AnalysisResult;
+  analysisResult: SimpleAnalysisResult;
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
@@ -51,7 +50,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     }
   };
 
-  const analyzeItemConfidence = (item: ReceiptItem): number => {
+  const analyzeItemConfidence = (item: SimpleReceiptItem): number => {
     let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;

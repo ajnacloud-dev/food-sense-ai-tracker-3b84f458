@@ -18,8 +18,8 @@ import {
   Menu,
   Home,
   Users,
-  UserPlus,
-  Heart
+  Heart,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -48,6 +48,30 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [userRole, setUserRole] = useState<string>('user');
+
+  // Fetch user role on component mount
+  useState(() => {
+    const fetchUserRole = async () => {
+      if (user) {
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          
+          if (userData?.role) {
+            setUserRole(userData.role);
+          }
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+        }
+      }
+    };
+    
+    fetchUserRole();
+  });
 
   const handleSignOut = async () => {
     try {
@@ -108,18 +132,28 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
                 </Link>
               );
             })}
-            
-            <Link
-              to="/join-caretaker"
-              onClick={onItemClick}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-blue-600 transition-all hover:text-blue-900 hover:bg-blue-50 ${
-                location.pathname === "/join-caretaker" ? "bg-blue-100 text-blue-900" : ""
-              }`}
-            >
-              <UserPlus className="h-4 w-4" />
-              Join with Code
-            </Link>
           </div>
+
+          {userRole === 'admin' && (
+            <>
+              <Separator className="my-4" />
+              <div className="px-3 py-2">
+                <h3 className="mb-2 text-sm font-medium text-gray-500 uppercase tracking-wide">
+                  Administration
+                </h3>
+                <Link
+                  to="/admin"
+                  onClick={onItemClick}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
+                    location.pathname === "/admin" ? "bg-gray-100 text-gray-900" : ""
+                  }`}
+                >
+                  <Shield className="h-4 w-4" />
+                  Admin Dashboard
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </ScrollArea>
 
@@ -127,6 +161,9 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
         {user && (
           <div className="mb-4 px-3">
             <p className="text-sm font-medium text-gray-900">{user.email}</p>
+            {userRole === 'admin' && (
+              <p className="text-xs text-blue-600 font-medium">Administrator</p>
+            )}
           </div>
         )}
         <Button

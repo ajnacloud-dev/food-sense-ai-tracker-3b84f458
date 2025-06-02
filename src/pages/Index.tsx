@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Camera, Receipt, Dumbbell, TrendingUp, Zap, Shield, Users, BarChart3, Brain, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { Camera, Receipt, Dumbbell, TrendingUp, Zap, Shield, Users, BarChart3, Brain, Sparkles, ArrowRight, Loader2, LogIn, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
@@ -78,12 +78,14 @@ const Index = () => {
             <Brain className="h-8 w-8 text-blue-600" />
             <span className="text-2xl font-bold text-gray-900">NutriWealth</span>
           </div>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate("/auth")}>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" onClick={() => navigate("/auth")} className="flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
               Sign In
             </Button>
-            <Button onClick={() => navigate("/auth")}>
-              Get Started Free
+            <Button onClick={() => navigate("/auth")} className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Sign Up Free
             </Button>
           </div>
         </div>
@@ -105,6 +107,7 @@ const Index = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" onClick={() => navigate("/auth")} className="text-lg px-8 py-3">
+              <UserPlus className="mr-2 h-5 w-5" />
               Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 py-3">
@@ -180,7 +183,8 @@ const Index = () => {
           <p className="text-xl mb-8 opacity-90">
             Join thousands of users who are already tracking their health with AI
           </p>
-          <Button size="lg" variant="secondary" onClick={() => navigate("/auth")}>
+          <Button size="lg" variant="secondary" onClick={() => navigate("/auth")} className="flex items-center gap-2 mx-auto">
+            <UserPlus className="h-5 w-5" />
             Start Your Free Trial
           </Button>
         </div>
