@@ -280,9 +280,12 @@ const Dashboard = () => {
           </Card>
         )}
 
-        {/* Responsive Stats Grid */}
+        {/* Responsive Stats Grid with Click Handlers */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
-          <Card className="hover:shadow-md transition-all duration-200">
+          <Card 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105" 
+            onClick={() => navigate("/food")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">Food Entries</CardTitle>
               <Utensils className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
@@ -293,7 +296,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-all duration-200">
+          <Card 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105" 
+            onClick={() => navigate("/receipts")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">Receipts</CardTitle>
               <Receipt className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
@@ -304,7 +310,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-all duration-200">
+          <Card 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105" 
+            onClick={() => navigate("/workouts")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">Workouts</CardTitle>
               <Dumbbell className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
@@ -315,7 +324,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-md transition-all duration-200">
+          <Card 
+            className="hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105" 
+            onClick={() => navigate("/insights")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium">Total Calories</CardTitle>
               <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
