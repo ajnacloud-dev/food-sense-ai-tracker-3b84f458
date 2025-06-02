@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Utensils, Calendar, Flame, Plus, Eye, Trash2 } from "lucide-react";
+import { Utensils, Calendar, Flame, Plus, Eye, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ interface FoodEntry {
   extracted_nutrients: any;
   image_url: string;
   created_at: string;
+  source?: 'food_entries' | 'pending_analyses';
 }
 
 const Food = () => {
@@ -27,6 +28,7 @@ const Food = () => {
   const { user } = useAuth();
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalEntries: 0,
     totalCalories: 0,
@@ -45,19 +47,85 @@ const Food = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch from food_entries table
+      const { data: foodData, error: foodError } = await supabase
         .from('food_entries')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (foodError) throw foodError;
 
-      setFoodEntries(data || []);
+      // Fetch completed food analyses from pending_analyses
+      const { data: analysisData, error: analysisError } = await supabase
+        .from('pending_analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('category', 'food')
+        .eq('status', 'completed')
+        .not('analysis_result', 'is', null)
+        .order('completed_at', { ascending: false });
+
+      if (analysisError) throw analysisError;
+
+      // Transform analysis data to match food entry format
+      const transformedAnalyses = (analysisData || [])
+        .filter(analysis => {
+          // Check if this analysis already has a corresponding food entry
+          const hasCorrespondingEntry = foodData?.some(entry => 
+            analysis.analysis_result?.food_entry_id === entry.id
+          );
+          return !hasCorrespondingEntry;
+        })
+        .map(analysis => {
+          const result = analysis.analysis_result;
+          let calories = 0;
+          let extractedNutrients = null;
+          let ingredients = null;
+
+          // Extract data from analysis result
+          if (result.meal_summary?.total_nutrition?.calories) {
+            calories = result.meal_summary.total_nutrition.calories;
+          }
+          
+          if (result.meal_summary || result.food_items) {
+            extractedNutrients = {
+              meal_summary: result.meal_summary,
+              food_items: result.food_items
+            };
+          }
+
+          if (result.food_items && Array.isArray(result.food_items)) {
+            ingredients = result.food_items.map((item: any) => ({
+              name: item.name,
+              serving_size: item.serving_size,
+              nutrition: item.nutrition_values
+            }));
+          }
+
+          return {
+            id: analysis.id,
+            description: analysis.description || 'Food Analysis',
+            calories,
+            ingredients,
+            extracted_nutrients: extractedNutrients,
+            image_url: analysis.image_url,
+            created_at: analysis.completed_at || analysis.updated_at,
+            source: 'pending_analyses' as const
+          };
+        });
+
+      // Combine and sort all entries
+      const allEntries = [
+        ...(foodData || []).map(entry => ({ ...entry, source: 'food_entries' as const })),
+        ...transformedAnalyses
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setFoodEntries(allEntries);
       
       // Calculate stats
-      const totalEntries = data?.length || 0;
-      const totalCalories = data?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
+      const totalEntries = allEntries.length;
+      const totalCalories = allEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0);
       const avgCalories = totalEntries > 0 ? Math.round(totalCalories / totalEntries) : 0;
       
       setStats({ totalEntries, totalCalories, avgCalories });
@@ -66,17 +134,30 @@ const Food = () => {
       toast.error("Failed to load food entries");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const deleteFoodEntry = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('food_entries')
-        .delete()
-        .eq('id', id);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchFoodEntries();
+    toast.success("Food entries refreshed");
+  };
 
-      if (error) throw error;
+  const deleteFoodEntry = async (id: string, source: 'food_entries' | 'pending_analyses') => {
+    try {
+      if (source === 'food_entries') {
+        const { error } = await supabase
+          .from('food_entries')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+      } else {
+        // For pending analyses, we don't delete but could mark as hidden
+        toast.info("Cannot delete analysis results. Use the original entry to remove.");
+        return;
+      }
 
       toast.success("Food entry deleted successfully");
       fetchFoodEntries();
@@ -86,12 +167,18 @@ const Food = () => {
     }
   };
 
-  const handleRowClick = (entryId: string, event: React.MouseEvent) => {
+  const handleRowClick = (entryId: string, event: React.MouseEvent, source: 'food_entries' | 'pending_analyses') => {
     // Prevent row click when clicking on action buttons
     if ((event.target as HTMLElement).closest('button')) {
       return;
     }
-    navigate(`/food/${entryId}`);
+    
+    if (source === 'food_entries') {
+      navigate(`/food/${entryId}`);
+    } else {
+      // For pending analyses, show a toast or modal with the data
+      toast.info("This is an analysis result. Full details coming soon!");
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -153,10 +240,21 @@ const Food = () => {
             <h1 className="text-3xl font-bold text-gray-900">Food Analysis</h1>
             <p className="text-gray-600">Track your nutrition and dietary intake</p>
           </div>
-          <Button onClick={() => navigate("/capture")} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Food Entry
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button onClick={() => navigate("/capture")} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Food Entry
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -228,7 +326,7 @@ const Food = () => {
                     <TableRow 
                       key={entry.id}
                       className="cursor-pointer hover:bg-gray-50"
-                      onClick={(e) => handleRowClick(entry.id, e)}
+                      onClick={(e) => handleRowClick(entry.id, e, entry.source || 'food_entries')}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -241,6 +339,9 @@ const Food = () => {
                           )}
                           <div>
                             <div className="font-medium">{entry.description}</div>
+                            {entry.source === 'pending_analyses' && (
+                              <Badge variant="outline" className="text-xs mt-1">Analysis Result</Badge>
+                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -256,14 +357,16 @@ const Food = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/food/${entry.id}`)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
+                          {entry.source === 'food_entries' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/food/${entry.id}`)}
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              View
+                            </Button>
+                          )}
                           {entry.image_url && (
                             <Button
                               variant="outline"
@@ -273,14 +376,16 @@ const Food = () => {
                               <Eye className="h-3 w-3" />
                             </Button>
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteFoodEntry(entry.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {entry.source === 'food_entries' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteFoodEntry(entry.id, entry.source || 'food_entries')}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

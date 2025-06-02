@@ -124,7 +124,7 @@ async function processAnalysisInBackground(
   description: string,
   imageUrl: string | null,
   useAdvanced: boolean,
-  authHeader: string // Add auth header parameter
+  authHeader: string
 ) {
   const startTime = Date.now();
   console.log(`Background processing started for ${pendingAnalysisId}`);
@@ -133,7 +133,7 @@ async function processAnalysisInBackground(
     // Double-check the analysis is still in processing state
     const { data: currentAnalysis, error: checkError } = await supabase
       .from('pending_analyses')
-      .select('status')
+      .select('*')
       .eq('id', pendingAnalysisId)
       .single();
 
@@ -227,6 +227,12 @@ async function processAnalysisInBackground(
       throw updateError;
     }
 
+    // If this is a food analysis, transfer data to food_entries table
+    if (category === 'food') {
+      console.log(`Transferring food analysis ${pendingAnalysisId} to food_entries table`);
+      await transferToFoodEntries(supabase, currentAnalysis, result);
+    }
+
     const duration = Date.now() - startTime;
     console.log(`Analysis ${pendingAnalysisId} completed successfully in ${duration}ms`);
 
@@ -249,5 +255,85 @@ async function processAnalysisInBackground(
     if (updateError) {
       console.error(`Failed to update failed analysis ${pendingAnalysisId}:`, updateError);
     }
+  }
+}
+
+async function transferToFoodEntries(supabase: any, analysis: any, result: any) {
+  try {
+    // Extract nutrition data from the result
+    let extractedNutrients = null;
+    let calories = 0;
+    let ingredients = null;
+
+    // Handle both advanced and standard analysis formats
+    if (result.meal_summary || result.food_items) {
+      extractedNutrients = {
+        meal_summary: result.meal_summary,
+        food_items: result.food_items
+      };
+      
+      // Extract calories from meal summary
+      if (result.meal_summary?.total_nutrition?.calories) {
+        calories = result.meal_summary.total_nutrition.calories;
+      }
+      
+      // Extract ingredients from food items
+      if (result.food_items && Array.isArray(result.food_items)) {
+        ingredients = result.food_items.map((item: any) => ({
+          name: item.name,
+          serving_size: item.serving_size,
+          nutrition: item.nutrition_values
+        }));
+      }
+    } else if (result.result) {
+      // Handle nested result structure
+      const analysisData = result.result;
+      extractedNutrients = analysisData;
+      
+      if (analysisData.calories) {
+        calories = parseInt(analysisData.calories) || 0;
+      }
+      
+      if (analysisData.ingredients) {
+        ingredients = analysisData.ingredients;
+      }
+    }
+
+    // Create food entry
+    const { data: foodEntry, error: insertError } = await supabase
+      .from('food_entries')
+      .insert({
+        user_id: analysis.user_id,
+        description: analysis.description || 'Food Analysis',
+        image_url: analysis.image_url,
+        calories: calories,
+        ingredients: ingredients,
+        extracted_nutrients: extractedNutrients
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Failed to create food entry:', insertError);
+      throw insertError;
+    }
+
+    console.log(`Successfully created food entry ${foodEntry.id} from analysis ${analysis.id}`);
+    
+    // Optionally update the pending analysis with a reference to the created food entry
+    await supabase
+      .from('pending_analyses')
+      .update({
+        analysis_result: {
+          ...result,
+          food_entry_id: foodEntry.id
+        }
+      })
+      .eq('id', analysis.id);
+
+  } catch (error) {
+    console.error('Error transferring to food entries:', error);
+    // Don't throw here - we still want the analysis to be marked as completed
+    // even if the transfer fails
   }
 }

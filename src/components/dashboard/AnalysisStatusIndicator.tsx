@@ -2,11 +2,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, X } from 'lucide-react';
+import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, X, Eye } from 'lucide-react';
 import { PendingAnalysis, retryFailedAnalysis } from '@/utils/pendingAnalysisService';
 import { toast } from "sonner";
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface AnalysisStatusIndicatorProps {
   analyses: PendingAnalysis[];
@@ -15,25 +16,27 @@ interface AnalysisStatusIndicatorProps {
 
 export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusIndicatorProps) => {
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
-  // Filter to only show recent and active analyses (last 24 hours)
+  // Filter to show recent analyses (last 4 hours for completed, all active)
   const recentCutoff = new Date();
-  recentCutoff.setHours(recentCutoff.getHours() - 24);
+  recentCutoff.setHours(recentCutoff.getHours() - 4);
 
-  const activeAnalyses = analyses.filter(a => {
+  const relevantAnalyses = analyses.filter(a => {
     const isActive = (a.status === 'pending' && !a.completed_at) || a.status === 'processing';
-    const isRecent = new Date(a.created_at) > recentCutoff;
-    const isFailedRecent = a.status === 'failed' && isRecent;
-    return isActive || isFailedRecent;
+    const isRecentlyCompleted = a.status === 'completed' && new Date(a.completed_at || a.updated_at) > recentCutoff;
+    const isRecentlyFailed = a.status === 'failed' && new Date(a.completed_at || a.updated_at) > recentCutoff;
+    return isActive || isRecentlyCompleted || isRecentlyFailed;
   });
 
-  // Don't show indicator if no active analyses
-  if (activeAnalyses.length === 0) return null;
+  // Don't show indicator if no relevant analyses
+  if (relevantAnalyses.length === 0) return null;
 
-  const pendingCount = activeAnalyses.filter(a => 
+  const pendingCount = relevantAnalyses.filter(a => 
     (a.status === 'pending' && !a.completed_at) || a.status === 'processing'
   ).length;
-  const failedCount = activeAnalyses.filter(a => a.status === 'failed').length;
+  const completedCount = relevantAnalyses.filter(a => a.status === 'completed').length;
+  const failedCount = relevantAnalyses.filter(a => a.status === 'failed').length;
 
   const handleRetry = async (id: string) => {
     try {
@@ -53,12 +56,24 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
     }
   };
 
+  const handleViewResult = (analysis: PendingAnalysis) => {
+    if (analysis.category === 'food') {
+      navigate('/food');
+    } else if (analysis.category === 'receipt') {
+      navigate('/receipts');
+    } else if (analysis.category === 'workout') {
+      navigate('/workouts');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
         return <Clock className="h-3 w-3 text-blue-500" />;
       case 'processing':
         return <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />;
+      case 'completed':
+        return <CheckCircle2 className="h-3 w-3 text-green-500" />;
       case 'failed':
         return <AlertCircle className="h-3 w-3 text-red-500" />;
       default:
@@ -73,13 +88,24 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
     if (failedCount > 0) {
       return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
+    if (completedCount > 0) {
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    }
     return <Clock className="h-4 w-4" />;
   };
 
   const getIndicatorVariant = () => {
     if (failedCount > 0) return 'destructive';
     if (pendingCount > 0) return 'default';
+    if (completedCount > 0) return 'secondary';
     return 'secondary';
+  };
+
+  const getIndicatorText = () => {
+    if (pendingCount > 0) return `${pendingCount} processing`;
+    if (failedCount > 0) return `${failedCount} failed`;
+    if (completedCount > 0) return `${completedCount} completed`;
+    return 'Recent activity';
   };
 
   return (
@@ -88,9 +114,7 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
         <Button variant="ghost" size="sm" className="h-8 px-2">
           <Badge variant={getIndicatorVariant()} className="flex items-center gap-1 px-2 py-1">
             {getIndicatorIcon()}
-            <span className="text-xs">
-              {pendingCount > 0 ? `${pendingCount} processing` : `${failedCount} failed`}
-            </span>
+            <span className="text-xs">{getIndicatorText()}</span>
           </Badge>
         </Button>
       </PopoverTrigger>
@@ -99,12 +123,12 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
           <div className="flex items-center justify-between">
             <h4 className="font-medium text-sm">Recent Analysis Activity</h4>
             <Badge variant="outline" className="text-xs">
-              {activeAnalyses.length} items
+              {relevantAnalyses.length} items
             </Badge>
           </div>
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {activeAnalyses.map((analysis) => (
+            {relevantAnalyses.map((analysis) => (
               <div
                 key={analysis.id}
                 className="flex items-center justify-between p-2 border rounded text-xs hover:bg-gray-50"
@@ -113,10 +137,13 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
                   {getStatusIcon(analysis.status)}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">
-                      {analysis.description || 'Untitled Analysis'}
+                      {analysis.description || `${analysis.category || 'Unknown'} Analysis`}
                     </p>
                     <p className="text-muted-foreground">
-                      {formatDistanceToNow(new Date(analysis.created_at), { addSuffix: true })}
+                      {analysis.status === 'completed' || analysis.status === 'failed' 
+                        ? formatDistanceToNow(new Date(analysis.completed_at || analysis.updated_at), { addSuffix: true })
+                        : formatDistanceToNow(new Date(analysis.created_at), { addSuffix: true })
+                      }
                     </p>
                     {analysis.status === 'failed' && analysis.error_message && (
                       <p className="text-red-600 truncate">
@@ -127,11 +154,26 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
                 </div>
                 <div className="flex items-center gap-1">
                   <Badge 
-                    variant={analysis.status === 'failed' ? 'destructive' : 'secondary'}
+                    variant={
+                      analysis.status === 'failed' ? 'destructive' : 
+                      analysis.status === 'completed' ? 'default' :
+                      'secondary'
+                    }
                     className="text-xs"
                   >
                     {analysis.status === 'processing' ? 'Processing...' : analysis.status}
                   </Badge>
+                  {analysis.status === 'completed' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleViewResult(analysis)}
+                      className="h-6 w-6 p-0"
+                      title="View results"
+                    >
+                      <Eye className="h-3 w-3" />
+                    </Button>
+                  )}
                   {analysis.status === 'failed' && (
                     <Button
                       size="sm"
@@ -139,6 +181,7 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
                       onClick={() => handleRetry(analysis.id)}
                       disabled={retryingIds.has(analysis.id)}
                       className="h-6 w-6 p-0"
+                      title="Retry analysis"
                     >
                       {retryingIds.has(analysis.id) ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
