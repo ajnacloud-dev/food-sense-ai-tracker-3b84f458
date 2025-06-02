@@ -1,8 +1,7 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Flame, Droplets, Wheat, Apple, TrendingUp } from "lucide-react";
+import { Flame, Droplets, Wheat, Apple, TrendingUp, Leaf } from "lucide-react";
 
 interface EnhancedNutritionDisplayProps {
   nutritionData: any;
