@@ -36,6 +36,7 @@ serve(async (req) => {
     }
 
     console.log('Found completed analysis:', analysis.category)
+    console.log('Analysis result structure:', JSON.stringify(analysis.analysis_result, null, 2))
 
     // Process based on category
     if (analysis.category === 'food') {
@@ -71,52 +72,87 @@ async function processFoodAnalysis(supabaseClient: any, analysis: any) {
     let extractedNutrients = null
     let ingredients = null
 
-    console.log('Processing food analysis result structure:', result)
+    console.log('Processing food analysis result structure:', JSON.stringify(result, null, 2))
 
-    // Extract calories with multiple fallback paths
-    if (result?.meal_summary?.total_nutrition?.calories) {
-      calories = result.meal_summary.total_nutrition.calories
-    } else if (result?.result?.meal_summary?.total_nutrition?.calories) {
-      calories = result.result.meal_summary.total_nutrition.calories
-    } else if (result?.calories) {
-      calories = typeof result.calories === 'string' ? parseInt(result.calories) : result.calories
-    } else if (result?.result?.calories) {
-      calories = typeof result.result.calories === 'string' ? parseInt(result.result.calories) : result.result.calories
-    }
-
-    // Extract comprehensive nutrition data
-    if (result?.meal_summary || result?.food_items) {
-      extractedNutrients = {
-        meal_summary: result.meal_summary,
-        food_items: result.food_items
-      }
-    } else if (result?.result?.meal_summary || result?.result?.food_items) {
-      extractedNutrients = {
-        meal_summary: result.result.meal_summary,
-        food_items: result.result.food_items
-      }
+    // Try to find the actual analysis data - it might be nested in different ways
+    let actualAnalysis = null
+    
+    // Check for different possible nesting structures
+    if (result?.analysis) {
+      actualAnalysis = result.analysis
+      console.log('Found analysis data in result.analysis')
+    } else if (result?.result?.analysis) {
+      actualAnalysis = result.result.analysis
+      console.log('Found analysis data in result.result.analysis')
     } else if (result?.result) {
-      extractedNutrients = result.result
+      actualAnalysis = result.result
+      console.log('Found analysis data in result.result')
+    } else if (result?.meal_summary || result?.food_items) {
+      actualAnalysis = result
+      console.log('Found analysis data at root level')
+    } else {
+      // Try to find any object that contains meal_summary or food_items
+      const findAnalysisData = (obj: any): any => {
+        if (obj && typeof obj === 'object') {
+          if (obj.meal_summary || obj.food_items) {
+            return obj
+          }
+          for (const key in obj) {
+            const found = findAnalysisData(obj[key])
+            if (found) return found
+          }
+        }
+        return null
+      }
+      actualAnalysis = findAnalysisData(result)
+      console.log('Found analysis data through deep search:', actualAnalysis ? 'yes' : 'no')
     }
 
-    // Extract ingredients
-    if (result?.food_items && Array.isArray(result.food_items)) {
-      ingredients = result.food_items.map((item: any) => ({
-        name: item.name,
-        serving_size: item.serving_size,
-        nutrition: item.nutrition_values
-      }))
-    } else if (result?.result?.food_items && Array.isArray(result.result.food_items)) {
-      ingredients = result.result.food_items.map((item: any) => ({
-        name: item.name,
-        serving_size: item.serving_size,
-        nutrition: item.nutrition_values
-      }))
-    } else if (result?.result?.ingredients) {
-      ingredients = result.result.ingredients
+    if (actualAnalysis) {
+      console.log('Using analysis data:', JSON.stringify(actualAnalysis, null, 2))
+      
+      // Extract calories with multiple fallback paths
+      if (actualAnalysis.meal_summary?.total_nutrition?.calories) {
+        calories = actualAnalysis.meal_summary.total_nutrition.calories
+        console.log('Found calories in meal_summary.total_nutrition:', calories)
+      } else if (actualAnalysis.calories) {
+        calories = typeof actualAnalysis.calories === 'string' ? parseInt(actualAnalysis.calories) : actualAnalysis.calories
+        console.log('Found calories at root level:', calories)
+      }
+
+      // Extract comprehensive nutrition data
+      extractedNutrients = {
+        meal_summary: actualAnalysis.meal_summary,
+        food_items: actualAnalysis.food_items,
+        health_assessment: actualAnalysis.health_assessment
+      }
+
+      // Extract ingredients
+      if (actualAnalysis.food_items && Array.isArray(actualAnalysis.food_items)) {
+        ingredients = actualAnalysis.food_items.map((item: any) => ({
+          name: item.name,
+          serving_size: item.serving_size,
+          nutrition: item.nutrition_values
+        }))
+        console.log('Extracted ingredients:', ingredients.length, 'items')
+      }
+    } else {
+      console.log('No structured analysis data found, using raw result')
+      // Fallback to original extraction logic
+      if (result?.meal_summary?.total_nutrition?.calories) {
+        calories = result.meal_summary.total_nutrition.calories
+      } else if (result?.result?.meal_summary?.total_nutrition?.calories) {
+        calories = result.result.meal_summary.total_nutrition.calories
+      } else if (result?.calories) {
+        calories = typeof result.calories === 'string' ? parseInt(result.calories) : result.calories
+      } else if (result?.result?.calories) {
+        calories = typeof result.result.calories === 'string' ? parseInt(result.result.calories) : result.result.calories
+      }
+
+      extractedNutrients = result
     }
 
-    console.log('Extracted data:', { calories, extractedNutrients, ingredients })
+    console.log('Final extracted data:', { calories, extractedNutrients: !!extractedNutrients, ingredients: ingredients?.length || 0 })
 
     // Create food entry
     const { data: foodEntry, error: foodError } = await supabaseClient

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,9 +66,16 @@ const Food = () => {
 
       setFoodEntries(allEntries);
       
-      // Calculate stats
+      // Calculate stats with improved calories extraction
       const totalEntries = allEntries.length;
-      const totalCalories = allEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0);
+      const totalCalories = allEntries.reduce((sum, entry) => {
+        // Try to get calories from multiple sources
+        let entryCalories = entry.calories || 0;
+        if (entryCalories === 0 && entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories) {
+          entryCalories = entry.extracted_nutrients.meal_summary.total_nutrition.calories;
+        }
+        return sum + entryCalories;
+      }, 0);
       const avgCalories = totalEntries > 0 ? Math.round(totalCalories / totalEntries) : 0;
       
       setStats({ totalEntries, totalCalories, avgCalories });
@@ -123,7 +129,7 @@ const Food = () => {
     });
   };
 
-  const renderNutrients = (nutrients: any) => {
+  const renderNutrients = (nutrients: any, topLevelCalories: number) => {
     if (!nutrients) return null;
     
     // Check for comprehensive format first
@@ -131,9 +137,13 @@ const Food = () => {
       const nutrition = nutrients.meal_summary.total_nutrition;
       return (
         <div className="flex gap-2 flex-wrap">
-          <Badge variant="secondary">Protein: {nutrition.proteins || 0}g</Badge>
-          <Badge variant="secondary">Carbs: {nutrition.carbohydrates || 0}g</Badge>
-          <Badge variant="secondary">Fat: {nutrition.fats || 0}g</Badge>
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Flame className="h-3 w-3 text-orange-500" />
+            {nutrition.calories || topLevelCalories || 0} cal
+          </Badge>
+          <Badge variant="secondary">P: {nutrition.proteins || 0}g</Badge>
+          <Badge variant="secondary">C: {nutrition.carbohydrates || 0}g</Badge>
+          <Badge variant="secondary">F: {nutrition.fats || 0}g</Badge>
         </div>
       );
     }
@@ -142,20 +152,37 @@ const Food = () => {
     if (nutrients.protein || nutrients.carbs || nutrients.fat) {
       return (
         <div className="flex gap-2 flex-wrap">
+          {topLevelCalories > 0 && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Flame className="h-3 w-3 text-orange-500" />
+              {topLevelCalories} cal
+            </Badge>
+          )}
           {nutrients.protein && (
-            <Badge variant="secondary">Protein: {nutrients.protein}g</Badge>
+            <Badge variant="secondary">P: {nutrients.protein}g</Badge>
           )}
           {nutrients.carbs && (
-            <Badge variant="secondary">Carbs: {nutrients.carbs}g</Badge>
+            <Badge variant="secondary">C: {nutrients.carbs}g</Badge>
           )}
           {nutrients.fat && (
-            <Badge variant="secondary">Fat: {nutrients.fat}g</Badge>
+            <Badge variant="secondary">F: {nutrients.fat}g</Badge>
           )}
         </div>
       );
     }
 
     return null;
+  };
+
+  const getDisplayCalories = (entry: FoodEntry) => {
+    // Try to get calories from multiple sources
+    if (entry.calories && entry.calories > 0) {
+      return entry.calories;
+    }
+    if (entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories) {
+      return entry.extracted_nutrients.meal_summary.total_nutrition.calories;
+    }
+    return 0;
   };
 
   if (loading) {
@@ -251,72 +278,70 @@ const Food = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Description</TableHead>
-                    <TableHead>Calories</TableHead>
-                    <TableHead>Nutrients</TableHead>
+                    <TableHead>Nutrition Info</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {foodEntries.map((entry) => (
-                    <TableRow 
-                      key={entry.id}
-                      className="cursor-pointer hover:bg-gray-50"
-                      onClick={(e) => handleRowClick(entry.id, e)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {entry.image_url && (
-                            <img
-                              src={entry.image_url}
-                              alt="Food"
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                          )}
-                          <div className="font-medium">{entry.description}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <Flame className="h-3 w-3" />
-                          {entry.calories || 0} cal
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{renderNutrients(entry.extracted_nutrients)}</TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {formatDate(entry.created_at)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/food/${entry.id}`)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                          {entry.image_url && (
+                  {foodEntries.map((entry) => {
+                    const displayCalories = getDisplayCalories(entry);
+                    return (
+                      <TableRow 
+                        key={entry.id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={(e) => handleRowClick(entry.id, e)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {entry.image_url && (
+                              <img
+                                src={entry.image_url}
+                                alt="Food"
+                                className="w-10 h-10 rounded object-cover"
+                              />
+                            )}
+                            <div className="font-medium">{entry.description}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {renderNutrients(entry.extracted_nutrients, displayCalories)}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {formatDate(entry.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(entry.image_url, '_blank')}
+                              onClick={() => navigate(`/food/${entry.id}`)}
                             >
-                              <Eye className="h-3 w-3" />
+                              <Eye className="h-3 w-3 mr-1" />
+                              View
                             </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteFoodEntry(entry.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {entry.image_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(entry.image_url, '_blank')}
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteFoodEntry(entry.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
