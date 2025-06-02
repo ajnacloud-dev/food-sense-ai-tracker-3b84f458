@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Utensils, Calendar, Flame, Plus, Eye, Trash2, RefreshCw } from "lucide-react";
+import { Utensils, Calendar, Flame, Plus, Eye, Trash2, RefreshCw, Leaf } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,6 +11,8 @@ import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 import { MealTypeFilter } from "@/components/food/MealTypeFilter";
+import { ComprehensiveFilterBar } from "@/components/food/ComprehensiveFilterBar";
+import { calculateVegetarianPercentage, getVegetarianBadgeColor } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
   id: string;
@@ -35,6 +36,9 @@ const Food = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState('all');
+  const [selectedDietType, setSelectedDietType] = useState('all');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   // Extract meal type from JSON data or database field
   const getMealTypeFromEntry = (entry: FoodEntry) => {
@@ -44,15 +48,58 @@ const Food = () => {
            'unknown';
   };
 
-  // Filter entries based on selected meal type
+  // Filter entries based on all selected filters
   const filteredEntries = useMemo(() => {
-    if (selectedMealType === 'all') return foodEntries;
-    
-    return foodEntries.filter(entry => {
-      const mealType = getMealTypeFromEntry(entry).toLowerCase();
-      return mealType === selectedMealType.toLowerCase();
-    });
-  }, [foodEntries, selectedMealType]);
+    let filtered = foodEntries;
+
+    // Filter by meal type
+    if (selectedMealType !== 'all') {
+      filtered = filtered.filter(entry => {
+        const mealType = getMealTypeFromEntry(entry).toLowerCase();
+        return mealType === selectedMealType.toLowerCase();
+      });
+    }
+
+    // Filter by diet type
+    if (selectedDietType !== 'all') {
+      filtered = filtered.filter(entry => {
+        const vegData = calculateVegetarianPercentage(entry);
+        switch (selectedDietType) {
+          case 'vegetarian':
+            return vegData.isVegetarian;
+          case 'vegan':
+            return vegData.isVegan;
+          case 'non-vegetarian':
+            return !vegData.isVegetarian;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      filtered = filtered.filter(entry => {
+        const entryDate = new Date(entry.created_at);
+        const entryDateOnly = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+        
+        if (startDate && endDate) {
+          const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+          const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+          return entryDateOnly >= start && entryDateOnly <= end;
+        } else if (startDate) {
+          const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+          return entryDateOnly >= start;
+        } else if (endDate) {
+          const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+          return entryDateOnly <= end;
+        }
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [foodEntries, selectedMealType, selectedDietType, startDate, endDate]);
 
   // Calculate meal type counts for filter badges
   const mealTypeCounts = useMemo(() => {
@@ -64,13 +111,44 @@ const Food = () => {
     return counts;
   }, [foodEntries]);
 
+  // Calculate diet type counts for filter badges
+  const dietTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: foodEntries.length };
+    foodEntries.forEach(entry => {
+      const vegData = calculateVegetarianPercentage(entry);
+      if (vegData.isVegan) {
+        counts.vegan = (counts.vegan || 0) + 1;
+        counts.vegetarian = (counts.vegetarian || 0) + 1;
+      } else if (vegData.isVegetarian) {
+        counts.vegetarian = (counts.vegetarian || 0) + 1;
+      } else {
+        counts['non-vegetarian'] = (counts['non-vegetarian'] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [foodEntries]);
+
   // Calculate stats based on filtered entries
   const stats = useMemo(() => {
     const totalEntries = filteredEntries.length;
     const totalCalories = filteredEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0);
     const avgCalories = totalEntries > 0 ? Math.round(totalCalories / totalEntries) : 0;
     
-    return { totalEntries, totalCalories, avgCalories };
+    // Calculate vegetarian percentage across filtered entries
+    let totalVegCalories = 0;
+    let totalFilteredCalories = 0;
+    filteredEntries.forEach(entry => {
+      const vegData = calculateVegetarianPercentage(entry);
+      const entryCalories = entry.calories || 0;
+      totalFilteredCalories += entryCalories;
+      totalVegCalories += (entryCalories * vegData.percentage) / 100;
+    });
+    
+    const overallVegPercentage = totalFilteredCalories > 0 
+      ? Math.round((totalVegCalories / totalFilteredCalories) * 100)
+      : 0;
+    
+    return { totalEntries, totalCalories, avgCalories, overallVegPercentage };
   }, [filteredEntries]);
 
   useEffect(() => {
@@ -147,12 +225,19 @@ const Food = () => {
   };
 
   const renderNutrients = (entry: FoodEntry) => {
+    const vegData = calculateVegetarianPercentage(entry);
+    
     return (
       <div className="flex gap-2 flex-wrap">
         <Badge variant="outline" className="flex items-center gap-1">
           <Flame className="h-3 w-3 text-orange-500" />
           {entry.calories || 0} cal
         </Badge>
+        {vegData.percentage > 0 && (
+          <Badge className={`${getVegetarianBadgeColor(vegData.percentage)} border text-xs`}>
+            {vegData.percentage}% Veg
+          </Badge>
+        )}
         {entry.total_protein > 0 && (
           <Badge variant="secondary">P: {entry.total_protein}g</Badge>
         )}
@@ -212,33 +297,36 @@ const Food = () => {
           </div>
         </div>
 
-        {/* Meal Type Filter */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Filter by Meal Type</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <MealTypeFilter
-              selectedMealType={selectedMealType}
-              onMealTypeChange={setSelectedMealType}
-              mealTypeCounts={mealTypeCounts}
-            />
-          </CardContent>
-        </Card>
+        {/* Comprehensive Filter Bar */}
+        <ComprehensiveFilterBar
+          selectedMealType={selectedMealType}
+          onMealTypeChange={setSelectedMealType}
+          mealTypeCounts={mealTypeCounts}
+          selectedDietType={selectedDietType}
+          onDietTypeChange={setSelectedDietType}
+          dietTypeCounts={dietTypeCounts}
+          startDate={startDate}
+          endDate={endDate}
+          onDateRangeChange={(start, end) => {
+            setStartDate(start);
+            setEndDate(end);
+          }}
+        />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {selectedMealType === 'all' ? 'Total Entries' : `${selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} Entries`}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
               <Utensils className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalEntries}</div>
               <p className="text-xs text-muted-foreground">
-                {selectedMealType === 'all' ? 'Food items analyzed' : `${selectedMealType} meals tracked`}
+                {filteredEntries.length !== foodEntries.length ? 
+                  `Filtered from ${foodEntries.length} total` : 
+                  'Food items analyzed'
+                }
               </p>
             </CardContent>
           </Card>
@@ -250,9 +338,7 @@ const Food = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalCalories.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                {selectedMealType === 'all' ? 'Calories tracked' : `From ${selectedMealType} meals`}
-              </p>
+              <p className="text-xs text-muted-foreground">Calories tracked</p>
             </CardContent>
           </Card>
 
@@ -266,18 +352,27 @@ const Food = () => {
               <p className="text-xs text-muted-foreground">Per food entry</p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Vegetarian %</CardTitle>
+              <Leaf className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.overallVegPercentage}%</div>
+              <p className="text-xs text-muted-foreground">Plant-based calories</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Food Entries Table */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              {selectedMealType === 'all' ? 'Food Entries' : `${selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} Entries`}
-            </CardTitle>
+            <CardTitle>Food Entries</CardTitle>
             <CardDescription>
-              {selectedMealType === 'all' 
-                ? 'Your analyzed food items and nutritional information' 
-                : `Your ${selectedMealType} meals and nutritional information`
+              {filteredEntries.length !== foodEntries.length ? 
+                `Showing ${filteredEntries.length} of ${foodEntries.length} entries` :
+                'Your analyzed food items and nutritional information'
               }
             </CardDescription>
           </CardHeader>
@@ -285,13 +380,11 @@ const Food = () => {
             {filteredEntries.length === 0 ? (
               <div className="text-center py-8">
                 <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {selectedMealType === 'all' ? 'No food entries yet' : `No ${selectedMealType} entries found`}
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No food entries found</h3>
                 <p className="text-gray-600 mb-4">
-                  {selectedMealType === 'all' 
-                    ? 'Start tracking your nutrition by adding your first food entry'
-                    : `Try selecting a different meal type or add some ${selectedMealType} entries`
+                  {foodEntries.length === 0 ? 
+                    'Start tracking your nutrition by adding your first food entry' :
+                    'Try adjusting your filters or add more food entries'
                   }
                 </p>
                 <Button onClick={() => navigate("/capture")}>
