@@ -28,13 +28,12 @@ serve(async (req) => {
       );
     }
 
-    const { pendingAnalysisId, description, imageUrl, useAdvanced = false } = await req.json();
+    const { pendingAnalysisId, description, imageUrl } = await req.json();
 
-    console.log('Starting async analysis:', {
+    console.log('Starting async analysis with LangGraph workflow:', {
       pendingAnalysisId,
       description: description?.substring(0, 100),
-      hasImage: !!imageUrl,
-      useAdvanced
+      hasFile: !!imageUrl
     });
 
     if (!pendingAnalysisId) {
@@ -89,21 +88,20 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Start background analysis with auth token
-    console.log('Starting background processing for:', pendingAnalysisId);
-    EdgeRuntime.waitUntil(processAnalysisInBackground(
+    // Start background analysis with LangGraph workflow
+    console.log('Starting LangGraph workflow processing for:', pendingAnalysisId);
+    EdgeRuntime.waitUntil(processAnalysisWithLangGraph(
       supabase,
       pendingAnalysisId,
       description,
       imageUrl,
-      useAdvanced,
-      authHeader // Pass the auth header
+      authHeader
     ));
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Analysis started in background',
+        message: 'Analysis started with LangGraph workflow',
         pendingAnalysisId 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -118,16 +116,15 @@ serve(async (req) => {
   }
 });
 
-async function processAnalysisInBackground(
+async function processAnalysisWithLangGraph(
   supabase: any,
   pendingAnalysisId: string,
   description: string,
   imageUrl: string | null,
-  useAdvanced: boolean,
   authHeader: string
 ) {
   const startTime = Date.now();
-  console.log(`Background processing started for ${pendingAnalysisId}`);
+  console.log(`LangGraph processing started for ${pendingAnalysisId}`);
 
   try {
     // Double-check the analysis is still in processing state
@@ -142,71 +139,39 @@ async function processAnalysisInBackground(
       return;
     }
 
-    let result;
+    console.log(`Calling LangGraph workflow for ${pendingAnalysisId}`);
     
-    if (useAdvanced) {
-      console.log(`Calling advanced workflow for ${pendingAnalysisId}`);
-      
-      // Create a new supabase client for function invocation with user auth
-      const userSupabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-      );
+    // Create a new supabase client for function invocation with user auth
+    const userSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
 
-      const { data: workflowResult, error: workflowError } = await userSupabase.functions
-        .invoke('langgraph-workflow', {
-          body: {
-            description,
-            imageUrl,
-            workflowConfig: null
-          },
-          headers: {
-            Authorization: authHeader
+    const { data: workflowResult, error: workflowError } = await userSupabase.functions
+      .invoke('langgraph-workflow', {
+        body: {
+          description,
+          imageUrl,
+          workflowConfig: {
+            debug: false,
+            simplifiedFlow: true
           }
-        });
+        },
+        headers: {
+          Authorization: authHeader
+        }
+      });
 
-      if (workflowError) {
-        console.error(`Advanced workflow error for ${pendingAnalysisId}:`, workflowError);
-        throw new Error(`Advanced workflow failed: ${workflowError.message || 'Unknown error'}`);
-      }
-
-      console.log(`Advanced workflow completed for ${pendingAnalysisId}`);
-      result = workflowResult;
-    } else {
-      console.log(`Calling standard analysis for ${pendingAnalysisId}`);
-      
-      // Create a new supabase client for function invocation with user auth
-      const userSupabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-      );
-
-      const { data: analysisResult, error: analysisError } = await userSupabase.functions
-        .invoke('auto-classify-and-analyze', {
-          body: { description, imageUrl },
-          headers: {
-            Authorization: authHeader
-          }
-        });
-
-      if (analysisError) {
-        console.error(`Standard analysis error for ${pendingAnalysisId}:`, analysisError);
-        throw new Error(`Analysis failed: ${analysisError.message || 'Unknown error'}`);
-      }
-
-      console.log(`Standard analysis completed for ${pendingAnalysisId}`);
-      result = analysisResult;
+    if (workflowError) {
+      console.error(`LangGraph workflow error for ${pendingAnalysisId}:`, workflowError);
+      throw new Error(`LangGraph workflow failed: ${workflowError.message || 'Unknown error'}`);
     }
+
+    console.log(`LangGraph workflow completed for ${pendingAnalysisId}`);
 
     // Extract category from result
-    let category = result.category;
-    if (!category && result.result?.classification?.category) {
-      category = result.result.classification.category;
-    }
-    if (!category && result.result?.category) {
-      category = result.result.category;
-    }
-
+    let category = workflowResult.result?.classification?.category || 'unknown';
+    
     console.log(`Updating analysis ${pendingAnalysisId} as completed with category: ${category}`);
 
     // Update with successful result, but only if still in processing state
@@ -214,8 +179,8 @@ async function processAnalysisInBackground(
       .from('pending_analyses')
       .update({
         status: 'completed',
-        category: category || 'unknown',
-        analysis_result: result,
+        category: category,
+        analysis_result: workflowResult,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -230,7 +195,7 @@ async function processAnalysisInBackground(
     // If this is a food analysis, transfer data to food_entries table
     if (category === 'food') {
       console.log(`Transferring food analysis ${pendingAnalysisId} to food_entries table`);
-      await transferToFoodEntries(supabase, currentAnalysis, result);
+      await transferToFoodEntries(supabase, currentAnalysis, workflowResult);
     }
 
     const duration = Date.now() - startTime;
@@ -260,42 +225,28 @@ async function processAnalysisInBackground(
 
 async function transferToFoodEntries(supabase: any, analysis: any, result: any) {
   try {
-    // Extract nutrition data from the result
+    // Extract nutrition data from the LangGraph result
     let extractedNutrients = null;
     let calories = 0;
     let ingredients = null;
 
-    // Handle both advanced and standard analysis formats
-    if (result.meal_summary || result.food_items) {
-      extractedNutrients = {
-        meal_summary: result.meal_summary,
-        food_items: result.food_items
-      };
+    // Handle LangGraph workflow format
+    if (result.result?.analysis) {
+      const analysisData = result.result.analysis;
+      extractedNutrients = analysisData;
       
       // Extract calories from meal summary
-      if (result.meal_summary?.total_nutrition?.calories) {
-        calories = result.meal_summary.total_nutrition.calories;
+      if (analysisData.meal_summary?.total_nutrition?.calories) {
+        calories = analysisData.meal_summary.total_nutrition.calories;
       }
       
       // Extract ingredients from food items
-      if (result.food_items && Array.isArray(result.food_items)) {
-        ingredients = result.food_items.map((item: any) => ({
+      if (analysisData.food_items && Array.isArray(analysisData.food_items)) {
+        ingredients = analysisData.food_items.map((item: any) => ({
           name: item.name,
           serving_size: item.serving_size,
           nutrition: item.nutrition_values
         }));
-      }
-    } else if (result.result) {
-      // Handle nested result structure
-      const analysisData = result.result;
-      extractedNutrients = analysisData;
-      
-      if (analysisData.calories) {
-        calories = parseInt(analysisData.calories) || 0;
-      }
-      
-      if (analysisData.ingredients) {
-        ingredients = analysisData.ingredients;
       }
     }
 
@@ -320,7 +271,7 @@ async function transferToFoodEntries(supabase: any, analysis: any, result: any) 
 
     console.log(`Successfully created food entry ${foodEntry.id} from analysis ${analysis.id}`);
     
-    // Optionally update the pending analysis with a reference to the created food entry
+    // Update the pending analysis with a reference to the created food entry
     await supabase
       .from('pending_analyses')
       .update({
@@ -334,6 +285,5 @@ async function transferToFoodEntries(supabase: any, analysis: any, result: any) 
   } catch (error) {
     console.error('Error transferring to food entries:', error);
     // Don't throw here - we still want the analysis to be marked as completed
-    // even if the transfer fails
   }
 }

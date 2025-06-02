@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,7 +9,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { FileUpload } from "./FileUpload";
 import { ProcessingIndicator } from "./ProcessingIndicator";
-import { uploadImage } from "@/utils/analysisService";
+import { uploadFile } from "@/utils/analysisService";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
 import { useAuth } from "@/contexts/AuthContext";
 import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
@@ -16,7 +17,7 @@ import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
 interface QuickCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAnalysisStarted?: () => void; // Add callback for when analysis starts
+  onAnalysisStarted?: () => void;
 }
 
 export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickCaptureModalProps) => {
@@ -32,7 +33,7 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file && !description) {
-      toast.error("Please upload an image or provide a description");
+      toast.error("Please upload a file or provide a description");
       return;
     }
 
@@ -54,31 +55,28 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
 
       const { userData, currentUsage } = usageCheck;
 
-      // Upload image if provided
-      let imageUrl = null;
+      // Upload file if provided
+      let fileUrl = null;
       if (file) {
-        setUploadProgress('Uploading image...');
-        imageUrl = await uploadImage(file, user.id);
+        setUploadProgress('Uploading file...');
+        fileUrl = await uploadFile(file, user.id);
       }
 
-      setUploadProgress('Starting analysis...');
+      setUploadProgress('Starting AI analysis...');
 
       // Create pending analysis record
       const pendingAnalysisId = await createPendingAnalysis(
         user.id,
         description || 'AI-analyzed content',
-        imageUrl
+        fileUrl
       );
 
-      // Always use standard analysis (fast & reliable)
-      const useAdvanced = false;
-      
+      // Start analysis with LangGraph workflow
       const { error: asyncError } = await supabase.functions.invoke('async-analyze', {
         body: {
           pendingAnalysisId,
           description,
-          imageUrl,
-          useAdvanced
+          imageUrl: fileUrl
         }
       });
 
@@ -87,7 +85,7 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
         throw new Error(asyncError.message || 'Failed to start analysis');
       }
 
-      toast.success("Analysis started! You'll be notified when complete.", {
+      toast.success("AI analysis started! You'll be notified when complete.", {
         description: "Check your dashboard for updates"
       });
 
@@ -131,7 +129,7 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-500" />
-            Quick Capture
+            Smart Capture
           </DialogTitle>
         </DialogHeader>
 

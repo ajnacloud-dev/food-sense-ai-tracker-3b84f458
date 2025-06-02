@@ -91,7 +91,7 @@ const createMeaningfulDescription = (analysis: any, originalDescription?: string
     return `${analysis.meal_summary.meal_type} meal`;
   }
 
-  return originalDescription || 'Food entry';
+  return originalDescription || 'AI-analyzed content';
 };
 
 export const insertAnalysisResult = async (userId: string, category: string, analysis: any, imageUrl: string | null, description: string): Promise<string> => {
@@ -208,7 +208,7 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
   }
 };
 
-export const uploadImage = async (file: File, userId: string) => {
+export const uploadFile = async (file: File, userId: string) => {
   try {
     // Ensure storage bucket exists before attempting upload
     await ensureStorageBucket();
@@ -216,7 +216,7 @@ export const uploadImage = async (file: File, userId: string) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     
-    console.log(`Uploading file: ${fileName}, Size: ${file.size} bytes`);
+    console.log(`Uploading file: ${fileName}, Size: ${file.size} bytes, Type: ${file.type}`);
     
     const { error: uploadError } = await supabase.storage
       .from('uploads')
@@ -253,11 +253,14 @@ export const uploadImage = async (file: File, userId: string) => {
       .from('uploads')
       .getPublicUrl(fileName);
     
-    console.log(`Image uploaded successfully: ${publicUrl}`);
+    console.log(`File uploaded successfully: ${publicUrl}`);
     return publicUrl;
     
   } catch (error) {
-    console.error('Image upload failed:', error);
+    console.error('File upload failed:', error);
     throw error;
   }
 };
+
+// Backwards compatibility - alias for uploadFile
+export const uploadImage = uploadFile;

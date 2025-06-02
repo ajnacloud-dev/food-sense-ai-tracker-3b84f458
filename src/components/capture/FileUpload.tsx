@@ -1,5 +1,5 @@
 
-import { Upload, Image } from "lucide-react";
+import { Upload, Image, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface FileUploadProps {
@@ -18,36 +18,49 @@ export const FileUpload = ({ file, onFileChange }: FileUploadProps) => {
         return;
       }
       
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      // Validate file type (images and PDFs)
+      const allowedTypes = [
+        'image/jpeg', 
+        'image/png', 
+        'image/webp', 
+        'image/gif',
+        'application/pdf'
+      ];
       if (!allowedTypes.includes(selectedFile.type)) {
-        toast.error("Please upload a valid image file");
+        toast.error("Please upload a valid image file (JPEG, PNG, WebP, GIF) or PDF document");
         return;
       }
       
       onFileChange(selectedFile);
-      toast.success(`Image selected: ${selectedFile.name}`);
+      toast.success(`File selected: ${selectedFile.name}`);
     }
   };
 
   const handleRemoveFile = () => {
     onFileChange(null);
-    toast.success("Image removed");
+    toast.success("File removed");
   };
+
+  const isPDF = file?.type === 'application/pdf';
+  const isImage = file?.type.startsWith('image/');
 
   return (
     <div className="space-y-2">
-      <label htmlFor="image" className="text-sm font-medium">Upload Image</label>
+      <label htmlFor="file" className="text-sm font-medium">Upload File</label>
       
       {file ? (
         <div className="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Image className="h-8 w-8 text-green-600" />
+              {isPDF ? (
+                <FileText className="h-8 w-8 text-green-600" />
+              ) : (
+                <Image className="h-8 w-8 text-green-600" />
+              )}
               <div>
                 <p className="text-sm font-medium text-green-800">{file.name}</p>
                 <p className="text-xs text-green-600">
-                  {(file.size / 1024 / 1024).toFixed(1)} MB
+                  {(file.size / 1024 / 1024).toFixed(1)} MB • {isPDF ? 'PDF Document' : 'Image'}
                 </p>
               </div>
             </div>
@@ -63,19 +76,21 @@ export const FileUpload = ({ file, onFileChange }: FileUploadProps) => {
       ) : (
         <div className="border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
           <input
-            id="image"
+            id="file"
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
             onChange={handleFileChange}
             className="hidden"
           />
-          <label htmlFor="image" className="cursor-pointer block p-6 text-center">
-            <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+          <label htmlFor="file" className="cursor-pointer block p-6 text-center">
+            <div className="flex justify-center items-center gap-2 mb-3">
+              <Upload className="h-10 w-10 text-gray-400" />
+            </div>
             <p className="text-sm text-gray-600 mb-1">
-              Tap to upload an image
+              Tap to upload a file
             </p>
             <p className="text-xs text-gray-500">
-              JPEG, PNG, WebP, GIF up to 10MB
+              Images (JPEG, PNG, WebP, GIF) or PDF documents up to 10MB
             </p>
           </label>
         </div>

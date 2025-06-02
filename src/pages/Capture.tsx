@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FileUpload } from "@/components/capture/FileUpload";
 import { ProcessingIndicator } from "@/components/capture/ProcessingIndicator";
-import { uploadImage } from "@/utils/analysisService";
+import { uploadFile } from "@/utils/analysisService";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
 import { useAuth } from "@/contexts/AuthContext";
 import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
@@ -35,7 +35,7 @@ const Capture = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file && !description) {
-      toast.error("Please upload an image or provide a description");
+      toast.error("Please upload a file or provide a description");
       return;
     }
 
@@ -57,31 +57,28 @@ const Capture = () => {
 
       const { userData, currentUsage } = usageCheck;
 
-      // Upload image if provided
-      let imageUrl = null;
+      // Upload file if provided
+      let fileUrl = null;
       if (file) {
-        setUploadProgress('Uploading image...');
-        imageUrl = await uploadImage(file, user.id);
+        setUploadProgress('Uploading file...');
+        fileUrl = await uploadFile(file, user.id);
       }
 
-      setUploadProgress('Starting analysis...');
+      setUploadProgress('Starting AI analysis...');
 
       // Create pending analysis record
       const pendingAnalysisId = await createPendingAnalysis(
         user.id,
         description || 'AI-analyzed content',
-        imageUrl
+        fileUrl
       );
 
-      // Always use standard analysis (fast & reliable)
-      const useAdvanced = false;
-      
+      // Start analysis with LangGraph workflow
       const { error: asyncError } = await supabase.functions.invoke('async-analyze', {
         body: {
           pendingAnalysisId,
           description,
-          imageUrl,
-          useAdvanced
+          imageUrl: fileUrl
         }
       });
 
@@ -90,7 +87,7 @@ const Capture = () => {
         throw new Error(asyncError.message || 'Failed to start analysis');
       }
 
-      toast.success("Analysis started! You'll be notified when complete.", {
+      toast.success("AI analysis started! You'll be notified when complete.", {
         description: "Check your dashboard for updates"
       });
 
@@ -143,7 +140,7 @@ const Capture = () => {
               Capture & Analyze
             </CardTitle>
             <CardDescription className="text-sm">
-              Upload an image or describe what you want to track. Analysis will run in the background.
+              Upload an image or PDF, or describe what you want to track. Advanced AI analysis will run in the background.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -190,12 +187,12 @@ const Capture = () => {
               >
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Starting Analysis...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-5 w-5" />
+                    <Sparkles className="mr-2 h-4 w-4" />
                     Start AI Analysis
                   </>
                 )}
@@ -203,12 +200,6 @@ const Capture = () => {
             </form>
           </CardContent>
         </Card>
-
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            Analysis runs in the background - you'll be notified when complete
-          </p>
-        </div>
       </div>
     </SidebarLayout>
   );
