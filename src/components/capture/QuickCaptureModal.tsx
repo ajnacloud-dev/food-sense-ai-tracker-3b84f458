@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -71,8 +70,8 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
         imageUrl
       );
 
-      // Start async analysis
-      const useAdvanced = userData?.is_subscribed || false;
+      // Always use standard analysis (fast & reliable)
+      const useAdvanced = false;
       
       const { error: asyncError } = await supabase.functions.invoke('async-analyze', {
         body: {

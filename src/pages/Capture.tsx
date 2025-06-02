@@ -73,8 +73,8 @@ const Capture = () => {
         imageUrl
       );
 
-      // Start async analysis
-      const useAdvanced = userData?.is_subscribed || false;
+      // Always use standard analysis (fast & reliable)
+      const useAdvanced = false;
       
       const { error: asyncError } = await supabase.functions.invoke('async-analyze', {
         body: {
