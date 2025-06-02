@@ -5,44 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, CheckCircle, XCircle, Eye, Edit } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
-// Simple interfaces to avoid TypeScript deep instantiation
-interface ReceiptItem {
+interface SimpleReceiptItem {
   name: string;
   description?: string;
   price: number;
   quantity: number;
   category?: string;
   subcategory?: string;
-  sku?: string;
-  discount?: number;
 }
 
-interface AnalysisResult {
-  items: ReceiptItem[];
-  merchant?: Record<string, any>;
-  transaction?: Record<string, any>;
-  subtotal?: number;
-  total?: number;
-  tax_details?: Array<Record<string, any>>;
-  discount_details?: Array<Record<string, any>>;
-  payment?: Record<string, any>;
-  currency?: string;
-  notes?: string;
+interface SimpleAnalysisResult {
+  items: SimpleReceiptItem[];
+  [key: string]: any;
 }
 
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: AnalysisResult;
+  analysisResult: SimpleAnalysisResult;
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
   const [pendingAnalysis, setPendingAnalysis] = useState<any>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [editedItems, setEditedItems] = useState<ReceiptItem[]>([]);
 
   useEffect(() => {
     fetchPendingAnalysis();
@@ -60,14 +46,13 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
       if (error) throw error;
       if (data && data.length > 0) {
         setPendingAnalysis(data[0]);
-        console.log('Raw analysis result:', data[0].analysis_result);
       }
     } catch (error) {
       console.error('Error fetching pending analysis:', error);
     }
   };
 
-  const analyzeItemConfidence = (item: ReceiptItem): number => {
+  const analyzeItemConfidence = (item: SimpleReceiptItem): number => {
     let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;
@@ -91,7 +76,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     return <XCircle className="h-4 w-4" />;
   };
 
-  const items: ReceiptItem[] = Array.isArray(analysisResult?.items) ? analysisResult.items : [];
+  const items = Array.isArray(analysisResult?.items) ? analysisResult.items : [];
   const suspiciousItems = items.filter((item) => analyzeItemConfidence(item) < 0.6);
 
   const formatCurrency = (amount: number): string => {
@@ -103,7 +88,6 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
 
   return (
     <div className="space-y-6">
-      {/* Analysis Overview */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -140,7 +124,6 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
         </CardContent>
       </Card>
 
-      {/* Suspicious Items Alert */}
       {suspiciousItems.length > 0 && (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
@@ -151,25 +134,13 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
       )}
 
       <Tabs defaultValue="items" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="items">Item Analysis</TabsTrigger>
           <TabsTrigger value="raw">Raw Data</TabsTrigger>
-          <TabsTrigger value="prompts">Prompts Used</TabsTrigger>
         </TabsList>
 
         <TabsContent value="items" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Extracted Items</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditMode(!editMode)}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              {editMode ? 'Cancel Edit' : 'Edit Items'}
-            </Button>
-          </div>
-
+          <h3 className="text-lg font-semibold">Extracted Items</h3>
           <div className="space-y-3">
             {items.map((item, index) => {
               const confidence = analyzeItemConfidence(item);
@@ -229,35 +200,6 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="prompts" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Analysis Prompts</CardTitle>
-              <CardDescription>View the prompts used for this receipt analysis</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">System Prompt</h4>
-                  <div className="bg-blue-50 p-4 rounded-lg text-sm">
-                    You are an AI assistant specialized in receipt analysis. You extract ONLY the information that is clearly visible on receipt images with high accuracy. Never hallucinate or add items that are not explicitly shown. Always return valid JSON matching the exact schema provided.
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium mb-2">User Prompt Template</h4>
-                  <div className="bg-green-50 p-4 rounded-lg text-sm">
-                    Analyze the receipt image and extract ONLY the items that are clearly visible on the receipt. 
-                    Do not hallucinate or add items that are not explicitly shown. 
-                    Return JSON matching the provided schema with accurate item names, prices, and quantities.
-                    IMPORTANT: Process only what is available and clearly readable.
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

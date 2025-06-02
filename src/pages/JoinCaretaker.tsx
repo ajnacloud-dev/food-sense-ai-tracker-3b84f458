@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, ArrowRight } from "lucide-react";
+import { UserPlus, ArrowRight, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import SidebarLayout from "@/components/layout/SidebarLayout";
 
 const JoinCaretaker = () => {
   const [invitationCode, setInvitationCode] = useState("");
@@ -132,73 +134,97 @@ const JoinCaretaker = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center gap-2">
-            <UserPlus className="h-5 w-5 text-green-600" />
-            Join as Caretaker
-          </CardTitle>
-          <CardDescription>
-            Enter your invitation code to join as a caretaker for a participant
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleJoinAsCaretaker} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="invitationCode">Invitation Code</Label>
-              <Input
-                id="invitationCode"
-                type="text"
-                placeholder="Enter your invitation code"
-                value={invitationCode}
-                onChange={(e) => handleInvitationCodeChange(e.target.value)}
-                disabled={loading || validatingCode}
-                required
-              />
-            </div>
-            
-            {validatingCode && (
-              <div className="text-sm text-gray-500">Validating invitation code...</div>
-            )}
-            
-            {codeValidation && (
-              <div className={`text-sm ${codeValidation.valid ? 'text-green-600' : 'text-red-600'}`}>
-                {codeValidation.message}
-              </div>
-            )}
+    <SidebarLayout>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Join as Caretaker</h1>
+          <p className="text-gray-600 mt-2">Enter an invitation code to become a caretaker for someone's health data</p>
+        </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loading || validatingCode || (codeValidation && !codeValidation.valid)}
-            >
-              {loading ? "Joining..." : (
-                <>
-                  Join as Caretaker
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </>
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            <strong>How this works:</strong> When someone wants you to help monitor their health data, they'll send you an invitation code. 
+            Enter that code here to gain access to their health information with the permissions they've granted you.
+          </AlertDescription>
+        </Alert>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-green-600" />
+              Enter Invitation Code
+            </CardTitle>
+            <CardDescription>
+              Paste or type the invitation code you received from the participant
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleJoinAsCaretaker} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="invitationCode">Invitation Code</Label>
+                <Input
+                  id="invitationCode"
+                  type="text"
+                  placeholder="Enter invitation code (e.g., ABC123XY)"
+                  value={invitationCode}
+                  onChange={(e) => handleInvitationCodeChange(e.target.value)}
+                  disabled={loading || validatingCode}
+                  required
+                  className="font-mono"
+                />
+              </div>
+              
+              {validatingCode && (
+                <div className="text-sm text-gray-500">Validating invitation code...</div>
               )}
-            </Button>
-          </form>
-          
-          <div className="mt-6 text-center space-y-2">
-            <div className="text-sm text-gray-500">
-              Don't have an invitation code?
-            </div>
-            <div className="text-sm text-gray-600">
-              Ask the participant to send you an invitation code through their settings.
-            </div>
-            <Link 
-              to="/dashboard" 
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              
+              {codeValidation && (
+                <div className={`text-sm ${codeValidation.valid ? 'text-green-600' : 'text-red-600'}`}>
+                  {codeValidation.message}
+                </div>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || validatingCode || (codeValidation && !codeValidation.valid)}
+              >
+                {loading ? "Joining..." : (
+                  <>
+                    Join as Caretaker
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-blue-800">Need an Invitation Code?</CardTitle>
+          </CardHeader>
+          <CardContent className="text-blue-700">
+            <ul className="list-disc list-inside space-y-2">
+              <li>Ask the person whose health data you want to monitor to send you an invitation code</li>
+              <li>They can generate one from their "Invite Caretakers" page in their dashboard</li>
+              <li>Each code is unique and has specific permissions attached to it</li>
+              <li>Codes may have expiration dates or usage limits</li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-center">
+          <Link 
+            to="/dashboard" 
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            ← Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    </SidebarLayout>
   );
 };
 

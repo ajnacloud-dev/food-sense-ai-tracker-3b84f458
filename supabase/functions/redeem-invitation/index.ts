@@ -75,25 +75,27 @@ serve(async (req) => {
       );
     }
 
-    // Check if this user has already used this invitation
-    const { data: existingRelationship } = await supabaseClient
-      .from('care_relationships')
-      .select('id')
-      .eq('caretaker_id', userId)
-      .eq('user_id', invitation.created_by)
-      .single();
+    // Check if this user has already used this invitation (unless it's self-caretaking)
+    if (userId !== invitation.created_by) {
+      const { data: existingRelationship } = await supabaseClient
+        .from('care_relationships')
+        .select('id')
+        .eq('caretaker_id', userId)
+        .eq('user_id', invitation.created_by)
+        .single();
 
-    if (existingRelationship) {
-      return new Response(
-        JSON.stringify({ error: 'You already have a relationship with this participant' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      if (existingRelationship) {
+        return new Response(
+          JSON.stringify({ error: 'You already have a relationship with this participant' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
 
-    // Create the care relationship
+    // Create the care relationship (allow self-caretaking)
     const { error: relationshipError } = await supabaseClient
       .from('care_relationships')
       .insert({
@@ -132,13 +134,28 @@ serve(async (req) => {
       // Don't fail the request as the relationship was created successfully
     }
 
-    console.log(`Successfully redeemed invitation code ${invitationCode} for user ${userId}`);
+    // Update user role to include caretaker capabilities
+    const { error: userUpdateError } = await supabaseClient
+      .from('users')
+      .update({ 
+        role: 'caretaker' 
+      })
+      .eq('id', userId);
+
+    if (userUpdateError) {
+      console.error('Error updating user role:', userUpdateError);
+      // Don't fail the request as the relationship was created successfully
+    }
+
+    const relationshipType = userId === invitation.created_by ? 'self-caretaking' : 'caretaking';
+    console.log(`Successfully redeemed invitation code ${invitationCode} for user ${userId} (${relationshipType})`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Invitation code redeemed successfully',
-        relationshipCreated: true 
+        relationshipCreated: true,
+        selfCaretaking: userId === invitation.created_by
       }),
       { 
         status: 200, 
