@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,9 @@ interface AnalysisResult {
     nutrition_values?: any;
   }>;
   food_entry_id?: string;
+  result?: any; // For nested result structures
+  category?: string;
+  calories?: number | string; // Sometimes comes as string
   [key: string]: any;
 }
 
@@ -106,25 +108,57 @@ const Food = () => {
           let extractedNutrients = null;
           let ingredients = null;
 
-          // Extract data from analysis result with type safety
+          // Try multiple paths to extract calories
           if (result.meal_summary?.total_nutrition?.calories) {
             calories = result.meal_summary.total_nutrition.calories;
+          } else if (result.result?.meal_summary?.total_nutrition?.calories) {
+            calories = result.result.meal_summary.total_nutrition.calories;
+          } else if (result.calories) {
+            calories = typeof result.calories === 'string' ? parseInt(result.calories) : result.calories;
+          } else if (result.result?.calories) {
+            calories = typeof result.result.calories === 'string' ? parseInt(result.result.calories) : result.result.calories;
           }
-          
+
+          // Extract comprehensive nutrition data
           if (result.meal_summary || result.food_items) {
             extractedNutrients = {
               meal_summary: result.meal_summary,
               food_items: result.food_items
             };
+          } else if (result.result?.meal_summary || result.result?.food_items) {
+            extractedNutrients = {
+              meal_summary: result.result.meal_summary,
+              food_items: result.result.food_items
+            };
+          } else if (result.result) {
+            // Fallback to entire result structure
+            extractedNutrients = result.result;
           }
 
+          // Extract ingredients
           if (result.food_items && Array.isArray(result.food_items)) {
             ingredients = result.food_items.map((item: any) => ({
               name: item.name,
               serving_size: item.serving_size,
               nutrition: item.nutrition_values
             }));
+          } else if (result.result?.food_items && Array.isArray(result.result.food_items)) {
+            ingredients = result.result.food_items.map((item: any) => ({
+              name: item.name,
+              serving_size: item.serving_size,
+              nutrition: item.nutrition_values
+            }));
+          } else if (result.result?.ingredients) {
+            ingredients = result.result.ingredients;
           }
+
+          console.log('Transformed analysis:', {
+            id: analysis.id,
+            calories,
+            extractedNutrients,
+            ingredients,
+            originalResult: result
+          });
 
           return {
             id: analysis.id,
@@ -144,6 +178,7 @@ const Food = () => {
         ...transformedAnalyses
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+      console.log('All food entries:', allEntries);
       setFoodEntries(allEntries);
       
       // Calculate stats
@@ -230,19 +265,41 @@ const Food = () => {
     }
     
     // Legacy format fallback
-    return (
-      <div className="flex gap-2 flex-wrap">
-        {nutrients.protein && (
-          <Badge variant="secondary">Protein: {nutrients.protein}g</Badge>
-        )}
-        {nutrients.carbs && (
-          <Badge variant="secondary">Carbs: {nutrients.carbs}g</Badge>
-        )}
-        {nutrients.fat && (
-          <Badge variant="secondary">Fat: {nutrients.fat}g</Badge>
-        )}
-      </div>
-    );
+    if (nutrients.protein || nutrients.carbs || nutrients.fat) {
+      return (
+        <div className="flex gap-2 flex-wrap">
+          {nutrients.protein && (
+            <Badge variant="secondary">Protein: {nutrients.protein}g</Badge>
+          )}
+          {nutrients.carbs && (
+            <Badge variant="secondary">Carbs: {nutrients.carbs}g</Badge>
+          )}
+          {nutrients.fat && (
+            <Badge variant="secondary">Fat: {nutrients.fat}g</Badge>
+          )}
+        </div>
+      );
+    }
+
+    // Try to extract from nested structures
+    if (nutrients.result?.protein || nutrients.result?.carbs || nutrients.result?.fat) {
+      const result = nutrients.result;
+      return (
+        <div className="flex gap-2 flex-wrap">
+          {result.protein && (
+            <Badge variant="secondary">Protein: {result.protein}g</Badge>
+          )}
+          {result.carbs && (
+            <Badge variant="secondary">Carbs: {result.carbs}g</Badge>
+          )}
+          {result.fat && (
+            <Badge variant="secondary">Fat: {result.fat}g</Badge>
+          )}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   if (loading) {
