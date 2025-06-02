@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Utensils } from "lucide-react";
@@ -9,7 +8,7 @@ import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 import { CompactFilterButton } from "@/components/food/CompactFilterButton";
-import { CompactStatsHeader } from "@/components/food/CompactStatsHeader";
+import { StatsCards } from "@/components/food/StatsCards";
 import { FoodTable } from "@/components/food/FoodTable";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 
@@ -244,8 +243,8 @@ const Food = () => {
           </div>
         </div>
 
-        {/* Compact Stats */}
-        <CompactStatsHeader
+        {/* Enhanced Stats Cards */}
+        <StatsCards
           totalEntries={stats.totalEntries}
           totalCalories={stats.totalCalories}
           avgCalories={stats.avgCalories}
