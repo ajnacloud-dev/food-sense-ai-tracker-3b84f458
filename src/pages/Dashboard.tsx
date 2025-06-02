@@ -12,6 +12,7 @@ import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AutoRefreshIndicator } from "@/components/dashboard/AutoRefreshIndicator";
+import { JoinCaretakerCTA } from "@/components/dashboard/JoinCaretakerCTA";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasCaretakerRelationships, setHasCaretakerRelationships] = useState(false);
+  const [showJoinCTA, setShowJoinCTA] = useState(false);
 
   useEffect(() => {
     fetchUser();
@@ -39,6 +42,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       fetchDashboardStats();
+      checkCaretakerStatus();
     }
   }, [user]);
 
@@ -58,6 +62,25 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error fetching user:', error);
       setError('Failed to load user data');
+    }
+  };
+
+  const checkCaretakerStatus = async () => {
+    if (!user) return;
+
+    try {
+      // Check if user has any caretaker relationships
+      const { data: relationships } = await supabase
+        .from('care_relationships')
+        .select('id')
+        .eq('caretaker_id', user.id)
+        .eq('status', 'active')
+        .limit(1);
+
+      setHasCaretakerRelationships(relationships && relationships.length > 0);
+      setShowJoinCTA(!relationships || relationships.length === 0);
+    } catch (error) {
+      console.error('Error checking caretaker status:', error);
     }
   };
 
@@ -250,6 +273,9 @@ const Dashboard = () => {
             <NotificationBell />
           </div>
         </div>
+
+        {/* Show Join Caretaker CTA for users without caretaker relationships */}
+        {showJoinCTA && <JoinCaretakerCTA />}
 
         {/* Usage Status - Responsive */}
         {!stats.isSubscribed && (

@@ -1,14 +1,13 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle, XCircle, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface SimpleReceiptItem {
+interface ReceiptItem {
   name: string;
   description?: string;
   price: number;
@@ -17,14 +16,14 @@ interface SimpleReceiptItem {
   subcategory?: string;
 }
 
-interface SimpleAnalysisResult {
-  items: SimpleReceiptItem[];
+interface AnalysisResult {
+  items: ReceiptItem[];
   [key: string]: any;
 }
 
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: SimpleAnalysisResult;
+  analysisResult: AnalysisResult;
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
@@ -52,7 +51,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     }
   };
 
-  const analyzeItemConfidence = (item: SimpleReceiptItem): number => {
+  const analyzeItemConfidence = (item: ReceiptItem): number => {
     let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;

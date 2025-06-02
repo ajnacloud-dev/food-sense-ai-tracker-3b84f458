@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, ArrowRight, Info } from "lucide-react";
+import { UserPlus, ArrowRight, Info, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -135,20 +135,42 @@ const JoinCaretaker = () => {
 
   return (
     <SidebarLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Join as Caretaker</h1>
-          <p className="text-gray-600 mt-2">Enter an invitation code to become a caretaker for someone's health data</p>
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Join as Caretaker</h1>
+          <p className="text-gray-600 text-lg">Help monitor someone's health data by entering their invitation code</p>
         </div>
 
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            <strong>How this works:</strong> When someone wants you to help monitor their health data, they'll send you an invitation code. 
-            Enter that code here to gain access to their health information with the permissions they've granted you.
-          </AlertDescription>
-        </Alert>
+        {/* How it Works Section */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <Info className="h-5 w-5" />
+              How the Caretaker System Works
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-blue-700">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-white rounded-lg">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">1</div>
+                <h3 className="font-semibold mb-1">Participant Invites</h3>
+                <p className="text-sm">Someone generates an invitation code for you</p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">2</div>
+                <h3 className="font-semibold mb-1">You Join</h3>
+                <p className="text-sm">Enter the code below to join as their caretaker</p>
+              </div>
+              <div className="text-center p-4 bg-white rounded-lg">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-2 text-sm font-bold">3</div>
+                <h3 className="font-semibold mb-1">Monitor Data</h3>
+                <p className="text-sm">Access their health data with granted permissions</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* Main Join Form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -160,7 +182,7 @@ const JoinCaretaker = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleJoinAsCaretaker} className="space-y-4">
+            <form onSubmit={handleJoinAsCaretaker} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="invitationCode">Invitation Code</Label>
                 <Input
@@ -171,29 +193,42 @@ const JoinCaretaker = () => {
                   onChange={(e) => handleInvitationCodeChange(e.target.value)}
                   disabled={loading || validatingCode}
                   required
-                  className="font-mono"
+                  className="font-mono text-lg py-3"
                 />
               </div>
               
               {validatingCode && (
-                <div className="text-sm text-gray-500">Validating invitation code...</div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                  Validating invitation code...
+                </div>
               )}
               
               {codeValidation && (
-                <div className={`text-sm ${codeValidation.valid ? 'text-green-600' : 'text-red-600'}`}>
-                  {codeValidation.message}
-                </div>
+                <Alert className={codeValidation.valid ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+                  <div className="flex items-center gap-2">
+                    {codeValidation.valid ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Info className="h-4 w-4 text-red-600" />
+                    )}
+                    <AlertDescription className={codeValidation.valid ? "text-green-700" : "text-red-700"}>
+                      {codeValidation.message}
+                    </AlertDescription>
+                  </div>
+                </Alert>
               )}
 
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full py-3 text-lg" 
+                size="lg"
                 disabled={loading || validatingCode || (codeValidation && !codeValidation.valid)}
               >
                 {loading ? "Joining..." : (
                   <>
                     Join as Caretaker
-                    <ArrowRight className="h-4 w-4 ml-2" />
+                    <ArrowRight className="h-5 w-5 ml-2" />
                   </>
                 )}
               </Button>
@@ -201,16 +236,29 @@ const JoinCaretaker = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-blue-200 bg-blue-50">
+        {/* Additional Information */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-blue-800">Need an Invitation Code?</CardTitle>
+            <CardTitle className="text-gray-800">Need an Invitation Code?</CardTitle>
           </CardHeader>
-          <CardContent className="text-blue-700">
-            <ul className="list-disc list-inside space-y-2">
-              <li>Ask the person whose health data you want to monitor to send you an invitation code</li>
-              <li>They can generate one from their "Invite Caretakers" page in their dashboard</li>
-              <li>Each code is unique and has specific permissions attached to it</li>
-              <li>Codes may have expiration dates or usage limits</li>
+          <CardContent className="text-gray-700">
+            <ul className="space-y-3">
+              <li className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>Ask the person whose health data you want to monitor to send you an invitation code</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>They can generate one from their "Invite Caretakers" page in their dashboard</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>Each code has specific permissions and may have expiration dates</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>You can be a caretaker for multiple participants</span>
+              </li>
             </ul>
           </CardContent>
         </Card>

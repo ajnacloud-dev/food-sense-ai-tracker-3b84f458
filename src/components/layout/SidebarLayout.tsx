@@ -35,12 +35,8 @@ const navigationItems = [
   { name: "Billing", href: "/billing", icon: CreditCard },
 ];
 
-const caretakerItems = [
+const careItems = [
   { name: "Caretaker Dashboard", href: "/caretaker", icon: Heart },
-  { name: "Join with Code", href: "/join-caretaker", icon: UserPlus },
-];
-
-const participantItems = [
   { name: "Invite Caretakers", href: "/invite-caretakers", icon: Users },
 ];
 
@@ -94,9 +90,9 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
           
           <div className="px-3 py-2">
             <h3 className="mb-2 text-sm font-medium text-gray-500 uppercase tracking-wide">
-              Caretaker
+              Care Management
             </h3>
-            {caretakerItems.map((item) => {
+            {careItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
@@ -112,28 +108,17 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
                 </Link>
               );
             })}
-          </div>
-
-          <div className="px-3 py-2">
-            <h3 className="mb-2 text-sm font-medium text-gray-500 uppercase tracking-wide">
-              Participant
-            </h3>
-            {participantItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={onItemClick}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
-                    location.pathname === item.href ? "bg-gray-100 text-gray-900" : ""
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
+            
+            <Link
+              to="/join-caretaker"
+              onClick={onItemClick}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-blue-600 transition-all hover:text-blue-900 hover:bg-blue-50 ${
+                location.pathname === "/join-caretaker" ? "bg-blue-100 text-blue-900" : ""
+              }`}
+            >
+              <UserPlus className="h-4 w-4" />
+              Join with Code
+            </Link>
           </div>
         </div>
       </ScrollArea>
