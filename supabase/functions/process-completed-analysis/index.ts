@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -76,13 +75,18 @@ async function processFoodAnalysis(supabaseClient: any, analysisResult: any, pen
 
   if (!pendingAnalysis) return
 
-  // Create food entry
+  // Extract meal type from various possible locations in the analysis result
+  const mealType = analysisResult.meal_summary?.meal_type || 
+                   analysisResult.meal_type || 
+                   null
+
+  // Create food entry with properly extracted meal_type
   const { data: foodEntry, error: foodError } = await supabaseClient
     .from('food_entries')
     .insert({
       user_id: pendingAnalysis.user_id,
       description: analysisResult.meal_description || 'AI-analyzed meal',
-      meal_type: analysisResult.meal_type,
+      meal_type: mealType, // Now properly extracting from JSON
       meal_date: analysisResult.meal_date || new Date().toISOString().split('T')[0],
       meal_time: analysisResult.meal_time,
       calories: analysisResult.nutrition?.total_calories,

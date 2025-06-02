@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
+import { MealTypeFilter } from "@/components/food/MealTypeFilter";
 
 interface FoodEntry {
   id: string;
@@ -24,6 +25,7 @@ interface FoodEntry {
   meal_type: string;
   image_url: string;
   created_at: string;
+  extracted_nutrients: any;
 }
 
 const Food = () => {
@@ -32,11 +34,44 @@ const Food = () => {
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
-    totalEntries: 0,
-    totalCalories: 0,
-    avgCalories: 0,
-  });
+  const [selectedMealType, setSelectedMealType] = useState('all');
+
+  // Extract meal type from JSON data or database field
+  const getMealTypeFromEntry = (entry: FoodEntry) => {
+    return entry.extracted_nutrients?.meal_summary?.meal_type || 
+           entry.extracted_nutrients?.meal_type || 
+           entry.meal_type || 
+           'unknown';
+  };
+
+  // Filter entries based on selected meal type
+  const filteredEntries = useMemo(() => {
+    if (selectedMealType === 'all') return foodEntries;
+    
+    return foodEntries.filter(entry => {
+      const mealType = getMealTypeFromEntry(entry).toLowerCase();
+      return mealType === selectedMealType.toLowerCase();
+    });
+  }, [foodEntries, selectedMealType]);
+
+  // Calculate meal type counts for filter badges
+  const mealTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    foodEntries.forEach(entry => {
+      const mealType = getMealTypeFromEntry(entry).toLowerCase();
+      counts[mealType] = (counts[mealType] || 0) + 1;
+    });
+    return counts;
+  }, [foodEntries]);
+
+  // Calculate stats based on filtered entries
+  const stats = useMemo(() => {
+    const totalEntries = filteredEntries.length;
+    const totalCalories = filteredEntries.reduce((sum, entry) => sum + (entry.calories || 0), 0);
+    const avgCalories = totalEntries > 0 ? Math.round(totalCalories / totalEntries) : 0;
+    
+    return { totalEntries, totalCalories, avgCalories };
+  }, [filteredEntries]);
 
   useEffect(() => {
     if (!user) {
@@ -61,15 +96,7 @@ const Food = () => {
       if (foodError) throw foodError;
 
       console.log('Found food entries:', foodData?.length || 0);
-
       setFoodEntries(foodData || []);
-      
-      // Calculate stats using normalized data
-      const totalEntries = foodData?.length || 0;
-      const totalCalories = foodData?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
-      const avgCalories = totalEntries > 0 ? Math.round(totalCalories / totalEntries) : 0;
-      
-      setStats({ totalEntries, totalCalories, avgCalories });
     } catch (error: any) {
       console.error('Error fetching food entries:', error);
       toast.error("Failed to load food entries");
@@ -103,7 +130,6 @@ const Food = () => {
   };
 
   const handleRowClick = (entryId: string, event: React.MouseEvent) => {
-    // Prevent row click when clicking on action buttons
     if ((event.target as HTMLElement).closest('button')) {
       return;
     }
@@ -137,6 +163,17 @@ const Food = () => {
           <Badge variant="secondary">F: {entry.total_fats}g</Badge>
         )}
       </div>
+    );
+  };
+
+  const renderMealType = (entry: FoodEntry) => {
+    const mealType = getMealTypeFromEntry(entry);
+    if (!mealType || mealType === 'unknown') return null;
+    
+    return (
+      <Badge variant="outline" className="capitalize">
+        {mealType}
+      </Badge>
     );
   };
 
@@ -175,16 +212,34 @@ const Food = () => {
           </div>
         </div>
 
+        {/* Meal Type Filter */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Filter by Meal Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MealTypeFilter
+              selectedMealType={selectedMealType}
+              onMealTypeChange={setSelectedMealType}
+              mealTypeCounts={mealTypeCounts}
+            />
+          </CardContent>
+        </Card>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {selectedMealType === 'all' ? 'Total Entries' : `${selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} Entries`}
+              </CardTitle>
               <Utensils className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalEntries}</div>
-              <p className="text-xs text-muted-foreground">Food items analyzed</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedMealType === 'all' ? 'Food items analyzed' : `${selectedMealType} meals tracked`}
+              </p>
             </CardContent>
           </Card>
 
@@ -195,7 +250,9 @@ const Food = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalCalories.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Calories tracked</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedMealType === 'all' ? 'Calories tracked' : `From ${selectedMealType} meals`}
+              </p>
             </CardContent>
           </Card>
 
@@ -214,15 +271,29 @@ const Food = () => {
         {/* Food Entries Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Food Entries</CardTitle>
-            <CardDescription>Your analyzed food items and nutritional information</CardDescription>
+            <CardTitle>
+              {selectedMealType === 'all' ? 'Food Entries' : `${selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} Entries`}
+            </CardTitle>
+            <CardDescription>
+              {selectedMealType === 'all' 
+                ? 'Your analyzed food items and nutritional information' 
+                : `Your ${selectedMealType} meals and nutritional information`
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {foodEntries.length === 0 ? (
+            {filteredEntries.length === 0 ? (
               <div className="text-center py-8">
                 <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No food entries yet</h3>
-                <p className="text-gray-600 mb-4">Start tracking your nutrition by adding your first food entry</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {selectedMealType === 'all' ? 'No food entries yet' : `No ${selectedMealType} entries found`}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {selectedMealType === 'all' 
+                    ? 'Start tracking your nutrition by adding your first food entry'
+                    : `Try selecting a different meal type or add some ${selectedMealType} entries`
+                  }
+                </p>
                 <Button onClick={() => navigate("/capture")}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Food Entry
@@ -240,7 +311,7 @@ const Food = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {foodEntries.map((entry) => (
+                  {filteredEntries.map((entry) => (
                     <TableRow 
                       key={entry.id}
                       className="cursor-pointer hover:bg-gray-50"
@@ -259,11 +330,7 @@ const Food = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {entry.meal_type && (
-                          <Badge variant="outline" className="capitalize">
-                            {entry.meal_type}
-                          </Badge>
-                        )}
+                        {renderMealType(entry)}
                       </TableCell>
                       <TableCell>
                         {renderNutrients(entry)}
