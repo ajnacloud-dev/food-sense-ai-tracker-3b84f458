@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,8 +72,14 @@ const Food = () => {
       const totalCalories = allEntries.reduce((sum, entry) => {
         // Try to get calories from multiple sources
         let entryCalories = entry.calories || 0;
-        if (entryCalories === 0 && entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories) {
-          entryCalories = entry.extracted_nutrients.meal_summary.total_nutrition.calories;
+        if (entryCalories === 0) {
+          const nutrients = entry.extracted_nutrients;
+          if (nutrients && typeof nutrients === 'object' && nutrients !== null) {
+            const nutObj = nutrients as any;
+            if (nutObj.meal_summary?.total_nutrition?.calories) {
+              entryCalories = nutObj.meal_summary.total_nutrition.calories;
+            }
+          }
         }
         return sum + entryCalories;
       }, 0);
@@ -130,7 +137,7 @@ const Food = () => {
   };
 
   const renderNutrients = (nutrients: any, topLevelCalories: number) => {
-    if (!nutrients) return null;
+    if (!nutrients || typeof nutrients !== 'object' || nutrients === null) return null;
     
     // Check for comprehensive format first
     if (nutrients.meal_summary?.total_nutrition) {
@@ -179,9 +186,15 @@ const Food = () => {
     if (entry.calories && entry.calories > 0) {
       return entry.calories;
     }
-    if (entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories) {
-      return entry.extracted_nutrients.meal_summary.total_nutrition.calories;
+    
+    const nutrients = entry.extracted_nutrients;
+    if (nutrients && typeof nutrients === 'object' && nutrients !== null) {
+      const nutObj = nutrients as any;
+      if (nutObj.meal_summary?.total_nutrition?.calories) {
+        return nutObj.meal_summary.total_nutrition.calories;
+      }
     }
+    
     return 0;
   };
 
