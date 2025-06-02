@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Brain, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { InvitationCodeInput } from "@/components/auth/InvitationCodeInput";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -155,30 +156,19 @@ const Auth = () => {
               />
             </div>
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="invitationCode">
-                  Invitation Code {invitationCode ? "(Auto-filled)" : "(Optional)"}
-                </Label>
-                <Input
-                  id="invitationCode"
-                  type="text"
-                  placeholder="Enter invitation code if you have one"
-                  value={invitationCode}
-                  onChange={(e) => setInvitationCode(e.target.value)}
-                  className={invitationCode ? "border-green-300 bg-green-50" : ""}
-                />
-                {invitationCode && (
-                  <p className="text-sm text-green-600">
-                    You're joining as a caretaker with invitation code: {invitationCode}
-                  </p>
-                )}
-              </div>
+              <InvitationCodeInput
+                value={invitationCode}
+                onChange={setInvitationCode}
+                disabled={loading}
+                autoFilled={!!searchParams.get('invite')}
+              />
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
-          <div className="mt-4 text-center">
+          
+          <div className="mt-4 text-center space-y-2">
             <Button
               variant="link"
               onClick={() => setIsLogin(!isLogin)}
@@ -186,6 +176,21 @@ const Auth = () => {
             >
               {isLogin ? "Need an account? Sign up" : "Already have an account? Sign in"}
             </Button>
+            
+            {isLogin && (
+              <div className="pt-2 border-t">
+                <div className="text-sm text-gray-500 mb-2">
+                  Have an invitation code?
+                </div>
+                <Link 
+                  to="/join" 
+                  className="text-sm text-blue-600 hover:text-blue-800 underline flex items-center justify-center gap-1"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Join as Caretaker
+                </Link>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

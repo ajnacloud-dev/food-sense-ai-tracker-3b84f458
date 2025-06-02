@@ -106,13 +106,13 @@ const InviteCaretakers = () => {
   };
 
   const copyToClipboard = (code: string) => {
-    const inviteUrl = `${window.location.origin}/auth?invite=${code}`;
+    const inviteUrl = `${window.location.origin}/join?invite=${code}`;
     navigator.clipboard.writeText(inviteUrl);
     toast.success('Invitation link copied to clipboard!');
   };
 
   const shareViaEmail = (code: string) => {
-    const inviteUrl = `${window.location.origin}/auth?invite=${code}`;
+    const inviteUrl = `${window.location.origin}/join?invite=${code}`;
     const subject = encodeURIComponent('Health Monitoring Invitation');
     const body = encodeURIComponent(
       `You've been invited to be a caretaker. Use this link to join: ${inviteUrl}\n\nInvitation Code: ${code}`
@@ -146,6 +146,25 @@ const InviteCaretakers = () => {
             <p className="text-gray-600">Generate invitation codes for your caretakers</p>
           </div>
         </div>
+
+        {/* Instructions Card */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-blue-800">How the Invitation System Works</CardTitle>
+          </CardHeader>
+          <CardContent className="text-blue-700">
+            <ol className="list-decimal list-inside space-y-2">
+              <li>Generate an invitation code below with the appropriate permissions</li>
+              <li>Share the invitation link with your caretaker via email or copy the link</li>
+              <li>The caretaker clicks the link and is taken to a signup page</li>
+              <li>They complete their account creation with the invitation code pre-filled</li>
+              <li>Once they sign up, they automatically become your caretaker with the specified permissions</li>
+            </ol>
+            <div className="mt-3 p-3 bg-white rounded border border-blue-200">
+              <strong>Note:</strong> Caretakers can also visit <code className="bg-blue-100 px-1 rounded">/join</code> directly and enter the invitation code manually.
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Generate New Invitation */}
         <Card>
