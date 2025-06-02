@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,15 +14,25 @@ interface ReceiptItem {
   category?: string;
 }
 
+interface AnalysisResult {
+  items: ReceiptItem[];
+}
+
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: {
-    items: ReceiptItem[];
-  };
+  analysisResult: AnalysisResult;
+}
+
+interface PendingAnalysis {
+  id: string;
+  analysis_result: any;
+  created_at: string;
+  status: string;
+  [key: string]: any;
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
-  const [pendingAnalysis, setPendingAnalysis] = useState<any>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysis | null>(null);
 
   useEffect(() => {
     fetchPendingAnalysis();

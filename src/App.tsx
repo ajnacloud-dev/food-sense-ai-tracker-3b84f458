@@ -22,6 +22,9 @@ import Admin from "./pages/Admin";
 import AdminTestWorkflow from "./pages/AdminTestWorkflow";
 import Caretaker from "./pages/Caretaker";
 import InviteCaretakers from "./pages/InviteCaretakers";
+import Participant from "./pages/Participant";
+import ParticipantPermissions from "./pages/ParticipantPermissions";
+import ParticipantInvitations from "./pages/ParticipantInvitations";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
@@ -52,6 +55,9 @@ const App = () => (
             <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
             <Route path="/caretaker" element={<Caretaker />} />
             <Route path="/invite-caretakers" element={<InviteCaretakers />} />
+            <Route path="/participant" element={<Participant />} />
+            <Route path="/participant/permissions" element={<ParticipantPermissions />} />
+            <Route path="/participant/invitations" element={<ParticipantInvitations />} />
             <Route path="/privacy" element={<Privacy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
