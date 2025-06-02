@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
-import { CaretakerDashboard } from "@/components/caretaker/CaretakerDashboard";
+import CaretakerDashboard from "@/components/caretaker/CaretakerDashboard";
 import { JoinWithCode } from "@/components/caretaker/JoinWithCode";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

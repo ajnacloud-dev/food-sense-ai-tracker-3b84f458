@@ -7,22 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle, XCircle, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface SimpleReceiptItem {
+interface ReceiptItem {
   name: string;
-  description?: string;
   price: number;
   quantity: number;
+  description?: string;
   category?: string;
-  subcategory?: string;
-}
-
-interface SimpleAnalysisResult {
-  items: SimpleReceiptItem[];
 }
 
 interface ReceiptAnalysisDebugProps {
   receiptId: string;
-  analysisResult: SimpleAnalysisResult;
+  analysisResult: {
+    items: ReceiptItem[];
+  };
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
@@ -50,7 +47,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     }
   };
 
-  const analyzeItemConfidence = (item: SimpleReceiptItem): number => {
+  const analyzeItemConfidence = (item: ReceiptItem) => {
     let confidence = 0.8;
     
     if (!item.name || item.name.toLowerCase().includes('unknown')) confidence -= 0.3;
@@ -62,7 +59,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     return Math.max(0, Math.min(1, confidence));
   };
 
-  const getConfidenceColor = (confidence: number): string => {
+  const getConfidenceColor = (confidence: number) => {
     if (confidence >= 0.8) return 'bg-green-50 text-green-700 border-green-200';
     if (confidence >= 0.6) return 'bg-yellow-50 text-yellow-700 border-yellow-200';
     return 'bg-red-50 text-red-700 border-red-200';
@@ -74,10 +71,10 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
     return <XCircle className="h-4 w-4" />;
   };
 
-  const items = Array.isArray(analysisResult?.items) ? analysisResult.items : [];
+  const items = analysisResult?.items || [];
   const suspiciousItems = items.filter((item) => analyzeItemConfidence(item) < 0.6);
 
-  const formatCurrency = (amount: number): string => {
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
@@ -114,7 +111,7 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold">
-                {items.length > 0 ? ((items.filter((item) => analyzeItemConfidence(item) >= 0.6).length / items.length) * 100).toFixed(0) : 0}%
+                {items.length > 0 ? Math.round((items.filter((item) => analyzeItemConfidence(item) >= 0.6).length / items.length) * 100) : 0}%
               </div>
               <div className="text-sm text-gray-600">Accuracy Rate</div>
             </div>
@@ -147,10 +144,10 @@ export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnaly
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium">{item.name}</h4>
+                        <h4 className="font-medium">{item.name || 'Unknown Item'}</h4>
                         <Badge variant="outline" className={getConfidenceColor(confidence)}>
                           {getConfidenceIcon(confidence)}
-                          {(confidence * 100).toFixed(0)}%
+                          {Math.round(confidence * 100)}%
                         </Badge>
                       </div>
                       
