@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,7 @@ import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
-import { MealTypeFilter } from "@/components/food/MealTypeFilter";
-import { ComprehensiveFilterBar } from "@/components/food/ComprehensiveFilterBar";
+import { CompactFilterButton } from "@/components/food/CompactFilterButton";
 import { calculateVegetarianPercentage, getVegetarianBadgeColor } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
@@ -46,6 +46,13 @@ const Food = () => {
            entry.extracted_nutrients?.meal_type || 
            entry.meal_type || 
            'unknown';
+  };
+
+  // Get day type (weekday/weekend)
+  const getDayType = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayOfWeek = date.getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
   };
 
   // Filter entries based on all selected filters
@@ -233,11 +240,6 @@ const Food = () => {
           <Flame className="h-3 w-3 text-orange-500" />
           {entry.calories || 0} cal
         </Badge>
-        {vegData.percentage > 0 && (
-          <Badge className={`${getVegetarianBadgeColor(vegData.percentage)} border text-xs`}>
-            {vegData.percentage}% Veg
-          </Badge>
-        )}
         {entry.total_protein > 0 && (
           <Badge variant="secondary">P: {entry.total_protein}g</Badge>
         )}
@@ -258,6 +260,35 @@ const Food = () => {
     return (
       <Badge variant="outline" className="capitalize">
         {mealType}
+      </Badge>
+    );
+  };
+
+  const renderDietaryType = (entry: FoodEntry) => {
+    const vegData = calculateVegetarianPercentage(entry);
+    
+    if (vegData.isVegan) {
+      return <Badge className="bg-green-600 text-white">Vegan</Badge>;
+    } else if (vegData.isVegetarian) {
+      return <Badge className="bg-green-100 text-green-700 border-green-200">Vegetarian</Badge>;
+    } else if (vegData.percentage > 0) {
+      return <Badge className={getVegetarianBadgeColor(vegData.percentage)}>{vegData.percentage}% Veg</Badge>;
+    } else {
+      return <Badge variant="outline" className="text-red-600">Non-Veg</Badge>;
+    }
+  };
+
+  const renderDayType = (entry: FoodEntry) => {
+    const dayType = getDayType(entry.created_at);
+    return (
+      <Badge 
+        variant="outline" 
+        className={dayType === 'weekend' 
+          ? "bg-purple-50 text-purple-700 border-purple-200" 
+          : "bg-blue-50 text-blue-700 border-blue-200"
+        }
+      >
+        {dayType === 'weekend' ? 'Weekend' : 'Weekday'}
       </Badge>
     );
   };
@@ -297,8 +328,8 @@ const Food = () => {
           </div>
         </div>
 
-        {/* Comprehensive Filter Bar */}
-        <ComprehensiveFilterBar
+        {/* Compact Filter Bar */}
+        <CompactFilterButton
           selectedMealType={selectedMealType}
           onMealTypeChange={setSelectedMealType}
           mealTypeCounts={mealTypeCounts}
@@ -398,6 +429,8 @@ const Food = () => {
                   <TableRow>
                     <TableHead>Description</TableHead>
                     <TableHead>Meal Type</TableHead>
+                    <TableHead>Dietary Type</TableHead>
+                    <TableHead>Day Type</TableHead>
                     <TableHead>Nutrition Info</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Actions</TableHead>
@@ -424,6 +457,12 @@ const Food = () => {
                       </TableCell>
                       <TableCell>
                         {renderMealType(entry)}
+                      </TableCell>
+                      <TableCell>
+                        {renderDietaryType(entry)}
+                      </TableCell>
+                      <TableCell>
+                        {renderDayType(entry)}
                       </TableCell>
                       <TableCell>
                         {renderNutrients(entry)}
