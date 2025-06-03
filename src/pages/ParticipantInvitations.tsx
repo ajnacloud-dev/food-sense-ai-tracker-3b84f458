@@ -27,6 +27,21 @@ interface InvitationCode {
   default_permissions?: PermissionCategory[];
 }
 
+// Database response type with Json for default_permissions
+interface DatabaseInvitationCode {
+  id: string;
+  code: string;
+  caretaker_type: string;
+  permission_level: string;
+  expires_at: string;
+  current_uses: number;
+  max_uses: number;
+  created_at: string;
+  used_by?: string;
+  used_at?: string;
+  default_permissions?: any; // Json type from database
+}
+
 const ParticipantInvitations = () => {
   const navigate = useNavigate();
   const [invitations, setInvitations] = useState<InvitationCode[]>([]);
@@ -55,7 +70,16 @@ const ParticipantInvitations = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInvitations(data || []);
+      
+      // Transform database response to proper types
+      const transformedData: InvitationCode[] = (data || []).map((item: DatabaseInvitationCode) => ({
+        ...item,
+        default_permissions: Array.isArray(item.default_permissions) 
+          ? item.default_permissions as PermissionCategory[]
+          : []
+      }));
+      
+      setInvitations(transformedData);
     } catch (error) {
       console.error('Error fetching invitations:', error);
       toast.error('Failed to load invitations');
