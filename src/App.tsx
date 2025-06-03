@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,6 +22,10 @@ import Billing from "./pages/Billing";
 import Admin from "./pages/Admin";
 import AdminTestWorkflow from "./pages/AdminTestWorkflow";
 import Caretaker from "./pages/Caretaker";
+import CaretakerFood from "./pages/CaretakerFood";
+import CaretakerReceipts from "./pages/CaretakerReceipts";
+import CaretakerWorkouts from "./pages/CaretakerWorkouts";
+import CaretakerInsights from "./pages/CaretakerInsights";
 import InviteCaretakers from "./pages/InviteCaretakers";
 import Participant from "./pages/Participant";
 import ParticipantPermissions from "./pages/ParticipantPermissions";
@@ -55,6 +60,10 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
               <Route path="/caretaker" element={<Caretaker />} />
+              <Route path="/caretaker/food" element={<CaretakerFood />} />
+              <Route path="/caretaker/receipts" element={<CaretakerReceipts />} />
+              <Route path="/caretaker/workouts" element={<CaretakerWorkouts />} />
+              <Route path="/caretaker/insights" element={<CaretakerInsights />} />
               <Route path="/invite-caretakers" element={<InviteCaretakers />} />
               <Route path="/participant" element={<Participant />} />
               <Route path="/participant/permissions" element={<ParticipantPermissions />} />

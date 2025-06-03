@@ -1,256 +1,254 @@
-
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Trash2, Flame, Calendar, ArrowUpDown } from "lucide-react";
-import { calculateDetailedDietaryBreakdown, getDietaryDisplayBadges } from "@/utils/vegetarianUtils";
-import { useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Calendar } from "lucide-react";
+import { format } from 'date-fns';
+import { DateRange } from "react-day-picker";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface FoodEntry {
   id: string;
-  description: string;
-  calories: number;
-  total_protein: number;
-  total_carbohydrates: number;
-  total_fats: number;
-  total_fiber: number;
-  total_sodium: number;
-  meal_type: string;
-  image_url: string;
   created_at: string;
-  extracted_nutrients: any;
+  notes: string;
+  rating: number;
+  user_id: string;
+  food_items: FoodItem[];
+}
+
+interface FoodItem {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  unit: string;
+  quantity: number;
 }
 
 interface FoodTableProps {
-  entries: FoodEntry[];
-  onView: (id: string) => void;
-  onDelete: (id: string) => void;
-  getMealTypeFromEntry: (entry: FoodEntry) => string;
+  participantId?: string;
 }
 
-type SortField = 'description' | 'calories' | 'created_at' | 'meal_type';
-type SortDirection = 'asc' | 'desc';
-
-export const FoodTable = ({ entries, onView, onDelete, getMealTypeFromEntry }: FoodTableProps) => {
-  const [sortField, setSortField] = useState<SortField>('created_at');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const isMobile = useIsMobile();
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getDayType = (dateString: string) => {
-    const date = new Date(dateString);
-    const dayOfWeek = date.getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
-  };
-
-  const renderDietaryBreakdown = (entry: FoodEntry) => {
-    const breakdown = calculateDetailedDietaryBreakdown(entry);
-    const badges = getDietaryDisplayBadges(breakdown);
-    
-    return (
-      <div className="flex flex-wrap gap-1">
-        {badges.map((badge, index) => (
-          <Badge key={index} className={`${badge.color} text-xs`}>
-            {badge.text}
-          </Badge>
-        ))}
-      </div>
-    );
-  };
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleRowClick = (entryId: string, event: React.MouseEvent) => {
-    // Don't navigate if clicking on buttons or other interactive elements
-    const target = event.target as HTMLElement;
-    if (target.closest('button') || target.closest('[role="button"]')) {
-      return;
-    }
-    onView(entryId);
-  };
-
-  const sortedEntries = [...entries].sort((a, b) => {
-    let aValue: any = a[sortField];
-    let bValue: any = b[sortField];
-
-    if (sortField === 'meal_type') {
-      aValue = getMealTypeFromEntry(a);
-      bValue = getMealTypeFromEntry(b);
-    }
-
-    if (sortField === 'created_at') {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
-    }
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
+export const FoodTable = ({ participantId }: FoodTableProps) => {
+  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState<{
+    date: DateRange | undefined;
+    searchTerm: string;
+  }>({
+    date: undefined,
+    searchTerm: '',
   });
 
-  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead className="cursor-pointer select-none" onClick={() => handleSort(field)}>
-      <div className="flex items-center gap-2 hover:text-gray-900">
-        {children}
-        <ArrowUpDown className="h-3 w-3" />
-      </div>
-    </TableHead>
-  );
+  const { data: { user } } = useAuth();
+  const targetUserId = participantId || user?.id;
+
+  const fetchFoodEntries = async () => {
+    if (!targetUserId) return;
+
+    try {
+      setLoading(true);
+      console.log('FoodTable: Fetching entries for user:', targetUserId);
+      
+      let query = supabase
+        .from('food_entries')
+        .select(`
+          *,
+          food_items (*)
+        `)
+        .eq('user_id', targetUserId)
+        .order('created_at', { ascending: false });
+
+      if (filters.date?.from) {
+        const from = format(filters.date.from, 'yyyy-MM-dd');
+        query = query.gte('created_at', from);
+      }
+  
+      if (filters.date?.to) {
+        const to = format(filters.date.to, 'yyyy-MM-dd');
+        query = query.lte('created_at', to);
+      }
+  
+      if (filters.searchTerm) {
+        query = query.ilike('notes', `%${filters.searchTerm}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('FoodTable: Error fetching food entries:', error);
+        throw error;
+      }
+
+      console.log('FoodTable: Fetched entries:', data?.length || 0);
+      setFoodEntries(data || []);
+    } catch (error) {
+      console.error('FoodTable: Error:', error);
+      toast.error('Failed to fetch food entries');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFoodEntries();
+  }, [targetUserId, filters]);
+
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+  };
+
+  const calculateTotals = (entry: FoodEntry) => {
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+  
+    entry.food_items.forEach(item => {
+      totalCalories += (item.calories * item.quantity);
+      totalProtein += (item.protein * item.quantity);
+      totalCarbs += (item.carbs * item.quantity);
+      totalFat += (item.fat * item.quantity);
+    });
+  
+    return { totalCalories, totalProtein, totalCarbs, totalFat };
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64">Loading food entries...</div>;
+  }
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-50/50">
-              <SortableHeader field="description">Food Description</SortableHeader>
-              <SortableHeader field="meal_type">Meal Type</SortableHeader>
-              <TableHead className="hidden lg:table-cell">Dietary Breakdown</TableHead>
-              <TableHead className="hidden xl:table-cell">Day Type</TableHead>
-              <SortableHeader field="calories">Nutrition</SortableHeader>
-              <SortableHeader field="created_at">Date</SortableHeader>
-              <TableHead className="text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedEntries.map((entry, index) => {
-              const mealType = getMealTypeFromEntry(entry);
-              const dayType = getDayType(entry.created_at);
-              
-              return (
-                <TableRow 
-                  key={entry.id} 
-                  className={`hover:bg-gray-50/50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}
-                  onClick={(e) => handleRowClick(entry.id, e)}
+    <Card>
+      <CardHeader>
+        <CardTitle>Food Entries</CardTitle>
+        <CardDescription>
+          Track your daily food intake and nutrition.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="search">Search:</Label>
+            <Input
+              id="search"
+              placeholder="Search notes..."
+              value={filters.searchTerm}
+              onChange={(e) => handleFilterChange({ ...filters, searchTerm: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label>Date Range:</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[300px] justify-start text-left font-normal",
+                    !filters.date?.from && "text-muted-foreground"
+                  )}
                 >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2 lg:gap-3">
-                      {entry.image_url && (
-                        <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-md overflow-hidden flex-shrink-0">
-                          <img
-                            src={entry.image_url}
-                            alt="Food"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 line-clamp-2">
-                          {entry.description}
-                        </p>
-                        {/* Show dietary breakdown on mobile in description cell */}
-                        <div className="lg:hidden mt-1">
-                          {renderDietaryBreakdown(entry)}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    {mealType && mealType !== 'unknown' ? (
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {mealType}
-                      </Badge>
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {filters.date?.from ? (
+                    filters.date.to ? (
+                      `${format(filters.date.from, "MMM dd, yyyy")} - ${format(filters.date.to, "MMM dd, yyyy")}`
                     ) : (
-                      <span className="text-gray-400 text-xs">Unknown</span>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell className="hidden lg:table-cell">
-                    {renderDietaryBreakdown(entry)}
-                  </TableCell>
-                  
-                  <TableCell className="hidden xl:table-cell">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${dayType === 'weekend' 
-                        ? "bg-purple-50 text-purple-700 border-purple-200" 
-                        : "bg-blue-50 text-blue-700 border-blue-200"
-                      }`}
-                    >
-                      {dayType === 'weekend' ? 'Weekend' : 'Weekday'}
-                    </Badge>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-sm">
-                        <Flame className="h-3 w-3 text-orange-500" />
-                        <span className="font-medium">{entry.calories || 0}</span>
-                        <span className="text-gray-500 text-xs hidden sm:inline">cal</span>
-                      </div>
-                      {(entry.total_protein > 0 || entry.total_carbohydrates > 0 || entry.total_fats > 0) && (
-                        <div className="text-xs text-gray-600 space-x-1 lg:space-x-2 hidden sm:block">
-                          {entry.total_protein > 0 && <span>P:{entry.total_protein}g</span>}
-                          {entry.total_carbohydrates > 0 && <span>C:{entry.total_carbohydrates}g</span>}
-                          {entry.total_fats > 0 && <span>F:{entry.total_fats}g</span>}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Calendar className="h-3 w-3" />
-                      <span className="hidden sm:inline">{formatDate(entry.created_at)}</span>
-                      <span className="sm:hidden">{new Date(entry.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex gap-1 justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onView(entry.id);
-                        }}
-                        className="h-8 w-8 p-0 hover:bg-blue-50 transition-colors"
-                      >
-                        <Eye className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(entry.id);
-                        }}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+                      format(filters.date.from, "MMM dd, yyyy")
+                    )
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center" side="bottom">
+                <CalendarComponent
+                  mode="range"
+                  defaultMonth={filters.date?.from}
+                  selected={filters.date}
+                  onSelect={(date) => handleFilterChange({ ...filters, date })}
+                  disabled={{
+                    before: new Date('2020-01-01'),
+                    after: new Date(),
+                  }}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <ScrollArea className="rounded-md border mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead>Food Items</TableHead>
+                <TableHead>Calories</TableHead>
+                <TableHead>Protein</TableHead>
+                <TableHead>Carbs</TableHead>
+                <TableHead>Fat</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="text-right">Rating</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {foodEntries.map((entry) => {
+                const { totalCalories, totalProtein, totalCarbs, totalFat } = calculateTotals(entry);
+
+                return (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">{format(new Date(entry.created_at), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>
+                      <ul className="list-disc pl-4">
+                        {entry.food_items.map((item) => (
+                          <li key={item.id}>
+                            {item.quantity} {item.unit}(s) of {item.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                    <TableCell>{totalCalories.toFixed(0)}</TableCell>
+                    <TableCell>{totalProtein.toFixed(0)}g</TableCell>
+                    <TableCell>{totalCarbs.toFixed(0)}g</TableCell>
+                    <TableCell>{totalFat.toFixed(0)}g</TableCell>
+                    <TableCell>{entry.notes}</TableCell>
+                    <TableCell className="text-right">{entry.rating}/5</TableCell>
+                  </TableRow>
+                );
+              })}
+              {foodEntries.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">
+                    No food entries found.
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      
-      {sortedEntries.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No food entries found matching your filters.</p>
-        </div>
-      )}
-    </div>
+              )}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 };
+
+export default FoodTable;

@@ -51,13 +51,13 @@ const CaretakerDashboard = () => {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No authenticated user found');
+        console.log('CaretakerDashboard: No authenticated user found');
         return;
       }
 
-      console.log('Fetching care relationships for caretaker:', user.id);
+      console.log('CaretakerDashboard: Fetching care relationships for caretaker:', user.id);
 
-      // Fetch care relationships with participant details using proper join
+      // Fetch care relationships with participant details using explicit join
       const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
@@ -78,14 +78,14 @@ const CaretakerDashboard = () => {
         .order('created_at', { ascending: false });
 
       if (relationshipsError) {
-        console.error('Error fetching relationships:', relationshipsError);
+        console.error('CaretakerDashboard: Error fetching relationships:', relationshipsError);
         throw relationshipsError;
       }
 
-      console.log('Raw relationships data from database:', relationships);
+      console.log('CaretakerDashboard: Raw relationships data:', relationships);
 
       if (!relationships || relationships.length === 0) {
-        console.log('No relationships found');
+        console.log('CaretakerDashboard: No relationships found');
         setParticipants([]);
         setStats({
           totalParticipants: 0,
@@ -99,11 +99,12 @@ const CaretakerDashboard = () => {
       // Transform the data with detailed logging
       const participantData: Participant[] = relationships.map(rel => {
         const userData = rel.users as any;
-        console.log('Processing relationship:', {
+        console.log('CaretakerDashboard: Processing relationship:', {
           user_id: rel.user_id,
           userData: userData,
           full_name: userData?.full_name,
-          email: userData?.email
+          email: userData?.email,
+          status: rel.status
         });
         
         return {
@@ -118,7 +119,7 @@ const CaretakerDashboard = () => {
         };
       });
 
-      console.log('Final participant data:', participantData);
+      console.log('CaretakerDashboard: Final participant data:', participantData);
       setParticipants(participantData);
 
       // Auto-create permissions for active relationships that don't have them
@@ -140,12 +141,12 @@ const CaretakerDashboard = () => {
       // If we have active participants but no selected one, select the first active one
       const firstActiveParticipant = participantData.find(p => p.status === 'active');
       if (firstActiveParticipant && !selectedParticipant) {
-        console.log('Auto-selecting first active participant:', firstActiveParticipant.id);
+        console.log('CaretakerDashboard: Auto-selecting first active participant:', firstActiveParticipant.id);
         setSelectedParticipant(firstActiveParticipant.id);
       }
 
     } catch (error) {
-      console.error('Error fetching caretaker data:', error);
+      console.error('CaretakerDashboard: Error fetching caretaker data:', error);
       toast.error('Failed to load caretaker dashboard');
     } finally {
       setLoading(false);
