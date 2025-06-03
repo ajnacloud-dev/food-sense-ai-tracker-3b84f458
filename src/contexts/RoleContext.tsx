@@ -7,8 +7,12 @@ interface RoleContextType {
   isParticipant: boolean;
   isCaretaker: boolean;
   hasCaretakerRelationships: boolean;
+  primaryRole: 'participant' | 'caretaker' | null;
+  currentRole: 'participant' | 'caretaker';
   isLoading: boolean;
   refreshRoles: () => Promise<void>;
+  switchRole: (role: 'participant' | 'caretaker') => void;
+  canSwitchRoles: boolean;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -26,6 +30,8 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isParticipant, setIsParticipant] = useState(false);
   const [isCaretaker, setIsCaretaker] = useState(false);
   const [hasCaretakerRelationships, setHasCaretakerRelationships] = useState(false);
+  const [primaryRole, setPrimaryRole] = useState<'participant' | 'caretaker' | null>(null);
+  const [currentRole, setCurrentRole] = useState<'participant' | 'caretaker'>('participant');
   const [isLoading, setIsLoading] = useState(true);
 
   const checkRoles = async () => {
@@ -33,6 +39,8 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsParticipant(false);
       setIsCaretaker(false);
       setHasCaretakerRelationships(false);
+      setPrimaryRole(null);
+      setCurrentRole('participant');
       setIsLoading(false);
       return;
     }
@@ -68,6 +76,25 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsCaretaker(hasRelationships);
       setHasCaretakerRelationships(hasRelationships);
 
+      // Determine primary role based on data patterns
+      let determinedPrimaryRole: 'participant' | 'caretaker' | null = null;
+      
+      if (hasOwnData && hasRelationships) {
+        // User has both roles - default to participant unless they have significantly more caretaker activity
+        determinedPrimaryRole = 'participant';
+      } else if (hasOwnData) {
+        determinedPrimaryRole = 'participant';
+      } else if (hasRelationships) {
+        determinedPrimaryRole = 'caretaker';
+      }
+
+      setPrimaryRole(determinedPrimaryRole);
+      
+      // Set current role to primary role if not already set
+      if (determinedPrimaryRole && currentRole !== determinedPrimaryRole && !hasOwnData && !hasRelationships) {
+        setCurrentRole(determinedPrimaryRole);
+      }
+
     } catch (error) {
       console.error('Error checking user roles:', error);
     } finally {
@@ -83,13 +110,25 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await checkRoles();
   };
 
+  const switchRole = (role: 'participant' | 'caretaker') => {
+    if ((role === 'participant' && isParticipant) || (role === 'caretaker' && isCaretaker)) {
+      setCurrentRole(role);
+    }
+  };
+
+  const canSwitchRoles = isParticipant && isCaretaker;
+
   return (
     <RoleContext.Provider value={{
       isParticipant,
       isCaretaker,
       hasCaretakerRelationships,
+      primaryRole,
+      currentRole,
       isLoading,
-      refreshRoles
+      refreshRoles,
+      switchRole,
+      canSwitchRoles
     }}>
       {children}
     </RoleContext.Provider>

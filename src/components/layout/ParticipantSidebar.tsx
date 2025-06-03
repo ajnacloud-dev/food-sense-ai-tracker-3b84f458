@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Brain, 
   Camera, 
@@ -17,7 +18,8 @@ import {
   Users,
   Shield,
   Settings,
-  Heart
+  Heart,
+  ArrowLeftRight
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -47,7 +49,13 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { hasCaretakerRelationships, isLoading: roleLoading } = useRole();
+  const { 
+    hasCaretakerRelationships, 
+    isLoading: roleLoading, 
+    canSwitchRoles, 
+    currentRole, 
+    switchRole 
+  } = useRole();
   const [userRole, setUserRole] = useState<string>('user');
 
   useState(() => {
@@ -81,6 +89,16 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
     }
   };
 
+  const handleRoleSwitch = (role: 'participant' | 'caretaker') => {
+    switchRole(role);
+    if (role === 'caretaker') {
+      navigate('/caretaker');
+    } else {
+      navigate('/dashboard');
+    }
+    onItemClick?.();
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
@@ -89,6 +107,34 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
           <span>NutriWealth</span>
         </Link>
       </div>
+
+      {/* Role Switcher */}
+      {canSwitchRoles && (
+        <div className="p-4 border-b">
+          <label className="text-sm font-medium text-gray-700 mb-2 block">
+            Current Role:
+          </label>
+          <Select value={currentRole} onValueChange={handleRoleSwitch}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="participant">
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Participant
+                </div>
+              </SelectItem>
+              <SelectItem value="caretaker">
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4" />
+                  Caretaker
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       
       <ScrollArea className="flex-1">
         <div className="space-y-1 p-2">
@@ -132,7 +178,7 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
               );
             })}
             
-            {!roleLoading && hasCaretakerRelationships && (
+            {!roleLoading && hasCaretakerRelationships && !canSwitchRoles && (
               <Link
                 to="/caretaker"
                 onClick={onItemClick}
@@ -173,13 +219,15 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
         {user && (
           <div className="mb-4 px-3">
             <p className="text-sm font-medium text-gray-900">{user.email}</p>
-            <p className="text-xs text-blue-600 font-medium">Participant</p>
-            {userRole === 'admin' && (
-              <p className="text-xs text-red-600 font-medium">Administrator</p>
-            )}
-            {hasCaretakerRelationships && (
-              <p className="text-xs text-green-600 font-medium">Also Caretaker</p>
-            )}
+            <div className="flex flex-wrap gap-1 mt-1">
+              <p className="text-xs text-blue-600 font-medium">Participant</p>
+              {userRole === 'admin' && (
+                <p className="text-xs text-red-600 font-medium">• Administrator</p>
+              )}
+              {hasCaretakerRelationships && (
+                <p className="text-xs text-green-600 font-medium">• Caretaker</p>
+              )}
+            </div>
           </div>
         )}
         <Button

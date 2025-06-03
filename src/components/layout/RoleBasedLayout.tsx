@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -16,14 +17,14 @@ interface RoleBasedLayoutProps {
 const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange }: RoleBasedLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
-  const { hasCaretakerRelationships } = useRole();
+  const { currentRole, hasCaretakerRelationships } = useRole();
 
-  // Determine which sidebar to show based on current route and user role
+  // Determine which sidebar to show based on current role and route
   const getCurrentSidebar = () => {
     const path = window.location.pathname;
     
-    // If we're on caretaker routes, show caretaker sidebar
-    if (path.startsWith('/caretaker') && hasCaretakerRelationships) {
+    // If we're on caretaker routes or current role is caretaker, show caretaker sidebar
+    if ((path.startsWith('/caretaker') || currentRole === 'caretaker') && hasCaretakerRelationships) {
       return (
         <CaretakerSidebar 
           selectedParticipantId={selectedParticipantId}
@@ -39,8 +40,8 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
   const getMobileSidebar = () => {
     const path = window.location.pathname;
     
-    // If we're on caretaker routes, show caretaker sidebar
-    if (path.startsWith('/caretaker') && hasCaretakerRelationships) {
+    // If we're on caretaker routes or current role is caretaker, show caretaker sidebar
+    if ((path.startsWith('/caretaker') || currentRole === 'caretaker') && hasCaretakerRelationships) {
       return (
         <CaretakerSidebar 
           selectedParticipantId={selectedParticipantId}

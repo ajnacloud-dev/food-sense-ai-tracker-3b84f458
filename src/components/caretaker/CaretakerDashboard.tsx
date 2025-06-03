@@ -57,7 +57,7 @@ const CaretakerDashboard = () => {
 
       console.log('Fetching care relationships for caretaker:', user.id);
 
-      // Fetch care relationships with participant details using a proper join
+      // Fetch care relationships with participant details
       const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
@@ -67,12 +67,7 @@ const CaretakerDashboard = () => {
           caretaker_type,
           permission_level,
           status,
-          created_at,
-          users!care_relationships_user_id_fkey (
-            id,
-            full_name,
-            email
-          )
+          created_at
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
@@ -82,17 +77,42 @@ const CaretakerDashboard = () => {
         throw relationshipsError;
       }
 
-      console.log('Raw relationships data:', relationships);
+      console.log('Relationships found:', relationships);
 
-      // Transform the data to match our interface
-      const participantData: Participant[] = (relationships || []).map(rel => {
-        const participantUser = rel.users;
-        console.log('Processing relationship:', rel, 'with user:', participantUser);
+      if (!relationships || relationships.length === 0) {
+        console.log('No relationships found');
+        setParticipants([]);
+        setStats({
+          totalParticipants: 0,
+          activeParticipants: 0,
+          pendingInvites: 0,
+          todayActivities: 0
+        });
+        return;
+      }
+
+      // Get participant user details
+      const participantIds = relationships.map(rel => rel.user_id);
+      const { data: userDetails, error: usersError } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', participantIds);
+
+      if (usersError) {
+        console.error('Error fetching user details:', usersError);
+        throw usersError;
+      }
+
+      console.log('User details found:', userDetails);
+
+      // Combine relationship and user data
+      const participantData: Participant[] = relationships.map(rel => {
+        const userDetail = userDetails?.find(user => user.id === rel.user_id);
         
         return {
           id: rel.user_id,
-          full_name: participantUser?.full_name || 'No Name Available',
-          email: participantUser?.email || 'No Email Available',
+          full_name: userDetail?.full_name || 'Name not available',
+          email: userDetail?.email || 'Email not available',
           caretaker_type: rel.caretaker_type,
           permission_level: rel.permission_level,
           status: rel.status,
@@ -101,8 +121,13 @@ const CaretakerDashboard = () => {
         };
       });
 
-      console.log('Processed participant data:', participantData);
+      console.log('Final participant data:', participantData);
       setParticipants(participantData);
+
+      // Auto-create permissions for active relationships that don't have them
+      for (const relationship of relationships.filter(rel => rel.status === 'active')) {
+        await ensureParticipantPermissions(relationship.user_id, user.id);
+      }
 
       // Calculate stats
       const activeParticipants = participantData.filter(p => p.status === 'active').length;
@@ -120,6 +145,36 @@ const CaretakerDashboard = () => {
       toast.error('Failed to load caretaker dashboard');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const ensureParticipantPermissions = async (participantId: string, caretakerId: string) => {
+    try {
+      const categories = ['food', 'receipt', 'workout'];
+      
+      for (const category of categories) {
+        const { data: existingPermission } = await supabase
+          .from('participant_permissions')
+          .select('id')
+          .eq('participant_id', participantId)
+          .eq('caretaker_id', caretakerId)
+          .eq('category', category)
+          .single();
+
+        if (!existingPermission) {
+          await supabase
+            .from('participant_permissions')
+            .insert({
+              participant_id: participantId,
+              caretaker_id: caretakerId,
+              category: category,
+              is_granted: true,
+              granted_at: new Date().toISOString()
+            });
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring participant permissions:', error);
     }
   };
 
@@ -153,24 +208,6 @@ const CaretakerDashboard = () => {
           <p className="text-gray-600">Monitor and support your participants' health journey</p>
         </div>
       </div>
-
-      {/* Debug Information */}
-      <Card className="border-l-4 border-l-blue-500">
-        <CardHeader>
-          <CardTitle className="text-sm">Debug Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600">
-            Found {participants.length} participants. 
-            {participants.length === 0 && " No participants found - check if relationships exist in database."}
-          </p>
-          {participants.length > 0 && (
-            <div className="mt-2 text-xs text-gray-500">
-              Participants: {participants.map(p => `${p.full_name} (${p.email})`).join(', ')}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
