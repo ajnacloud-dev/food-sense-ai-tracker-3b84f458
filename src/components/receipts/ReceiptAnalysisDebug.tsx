@@ -24,7 +24,7 @@ interface ReceiptAnalysisDebugProps {
   analysisResult: AnalysisResult;
 }
 
-interface PendingAnalysis {
+interface PendingAnalysisData {
   id: string;
   analysis_result: any;
   created_at: string;
@@ -36,7 +36,7 @@ interface PendingAnalysis {
 }
 
 export const ReceiptAnalysisDebug = ({ receiptId, analysisResult }: ReceiptAnalysisDebugProps) => {
-  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysis | null>(null);
+  const [pendingAnalysis, setPendingAnalysis] = useState<PendingAnalysisData | null>(null);
 
   useEffect(() => {
     fetchPendingAnalysis();

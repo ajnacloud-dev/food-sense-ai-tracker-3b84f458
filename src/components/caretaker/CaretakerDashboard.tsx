@@ -82,7 +82,7 @@ const CaretakerDashboard = () => {
         throw relationshipsError;
       }
 
-      console.log('Relationships found:', relationships);
+      console.log('Raw relationships data from database:', relationships);
 
       if (!relationships || relationships.length === 0) {
         console.log('No relationships found');
@@ -96,9 +96,15 @@ const CaretakerDashboard = () => {
         return;
       }
 
-      // Transform the data with proper null checking
+      // Transform the data with detailed logging
       const participantData: Participant[] = relationships.map(rel => {
-        const userData = rel.users as any; // Type assertion for the joined data
+        const userData = rel.users as any;
+        console.log('Processing relationship:', {
+          user_id: rel.user_id,
+          userData: userData,
+          full_name: userData?.full_name,
+          email: userData?.email
+        });
         
         return {
           id: rel.user_id,
@@ -131,6 +137,13 @@ const CaretakerDashboard = () => {
         todayActivities: Math.floor(Math.random() * 20) + 5 // Mock data
       });
 
+      // If we have active participants but no selected one, select the first active one
+      const firstActiveParticipant = participantData.find(p => p.status === 'active');
+      if (firstActiveParticipant && !selectedParticipant) {
+        console.log('Auto-selecting first active participant:', firstActiveParticipant.id);
+        setSelectedParticipant(firstActiveParticipant.id);
+      }
+
     } catch (error) {
       console.error('Error fetching caretaker data:', error);
       toast.error('Failed to load caretaker dashboard');
@@ -141,6 +154,8 @@ const CaretakerDashboard = () => {
 
   const ensureParticipantPermissions = async (participantId: string, caretakerId: string) => {
     try {
+      console.log('Ensuring permissions for participant:', participantId, 'caretaker:', caretakerId);
+      
       // Use correct enum values that match the database
       const categories: Array<'food_entries' | 'receipts' | 'workouts'> = ['food_entries', 'receipts', 'workouts'];
       
@@ -154,7 +169,8 @@ const CaretakerDashboard = () => {
           .single();
 
         if (!existingPermission) {
-          await supabase
+          console.log('Creating permission for category:', category);
+          const { error: insertError } = await supabase
             .from('participant_permissions')
             .insert({
               participant_id: participantId,
@@ -163,6 +179,14 @@ const CaretakerDashboard = () => {
               is_granted: true,
               granted_at: new Date().toISOString()
             });
+            
+          if (insertError) {
+            console.error('Error creating permission:', insertError);
+          } else {
+            console.log('Successfully created permission for category:', category);
+          }
+        } else {
+          console.log('Permission already exists for category:', category);
         }
       }
     } catch (error) {
@@ -200,6 +224,30 @@ const CaretakerDashboard = () => {
           <p className="text-gray-600">Monitor and support your participants' health journey</p>
         </div>
       </div>
+
+      {/* Debug Information */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-blue-800">Debug Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-blue-700">
+            <p>Total participants found: {participants.length}</p>
+            <p>Participants with names: {participants.filter(p => p.full_name !== 'Name not available').length}</p>
+            <p>Active participants: {participants.filter(p => p.status === 'active').length}</p>
+            {participants.length > 0 && (
+              <div className="mt-2">
+                <p className="font-semibold">Participant details:</p>
+                {participants.map(p => (
+                  <div key={p.id} className="ml-2">
+                    - ID: {p.id}, Name: {p.full_name}, Email: {p.email}, Status: {p.status}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

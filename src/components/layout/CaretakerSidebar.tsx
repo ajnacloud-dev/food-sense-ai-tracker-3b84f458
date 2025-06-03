@@ -45,10 +45,13 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      console.log('CaretakerSidebar: Fetching participants for caretaker:', user.id);
+
       const { data: relationships, error } = await supabase
         .from('care_relationships')
         .select(`
           user_id,
+          status,
           users!care_relationships_user_id_fkey (
             id,
             full_name,
@@ -58,10 +61,22 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
         .eq('caretaker_id', user.id)
         .eq('status', 'active');
 
-      if (error) throw error;
+      if (error) {
+        console.error('CaretakerSidebar: Error fetching relationships:', error);
+        throw error;
+      }
+
+      console.log('CaretakerSidebar: Raw relationships data:', relationships);
 
       const participantData: Participant[] = (relationships || []).map(rel => {
         const userData = rel.users as any;
+        console.log('CaretakerSidebar: Processing participant:', {
+          user_id: rel.user_id,
+          userData: userData,
+          full_name: userData?.full_name,
+          email: userData?.email
+        });
+        
         return {
           id: rel.user_id,
           full_name: userData?.full_name || 'Name not available',
@@ -69,15 +84,16 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
         };
       });
 
-      console.log('Participants loaded in sidebar:', participantData);
+      console.log('CaretakerSidebar: Final participants loaded:', participantData);
       setParticipants(participantData);
       
       // Auto-select first participant if none selected
       if (participantData.length > 0 && !selectedParticipantId && onParticipantChange) {
+        console.log('CaretakerSidebar: Auto-selecting first participant:', participantData[0].id);
         onParticipantChange(participantData[0].id);
       }
     } catch (error) {
-      console.error('Error fetching participants:', error);
+      console.error('CaretakerSidebar: Error fetching participants:', error);
       toast.error('Failed to load participants');
     }
   };
@@ -109,11 +125,12 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
       </div>
 
       {/* Participant Selector */}
-      {participants.length > 0 && (
-        <div className="p-4 border-b">
-          <label className="text-sm font-medium text-gray-700 mb-2 block">
-            Monitoring Participant:
-          </label>
+      <div className="p-4 border-b">
+        <label className="text-sm font-medium text-gray-700 mb-2 block">
+          Monitoring Participant:
+        </label>
+        
+        {participants.length > 0 ? (
           <Select
             value={selectedParticipantId || ''}
             onValueChange={onParticipantChange}
@@ -132,8 +149,20 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
               ))}
             </SelectContent>
           </Select>
+        ) : (
+          <div className="text-sm text-gray-500 p-2 border rounded">
+            No active participants found
+          </div>
+        )}
+        
+        {/* Debug info */}
+        <div className="mt-2 text-xs text-gray-400">
+          Found {participants.length} participant(s)
+          {selectedParticipantId && (
+            <div>Selected: {selectedParticipantId}</div>
+          )}
         </div>
-      )}
+      </div>
       
       <ScrollArea className="flex-1">
         <div className="space-y-1 p-2">
