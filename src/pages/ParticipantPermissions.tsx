@@ -4,14 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import SidebarLayout from "@/components/layout/SidebarLayout";
+import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
 import PermissionManager from "@/components/participant/PermissionManager";
 
 const ParticipantPermissions = () => {
   const navigate = useNavigate();
 
   return (
-    <SidebarLayout>
+    <RoleBasedLayout>
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
           <Button variant="outline" onClick={() => navigate('/participant')}>
@@ -36,7 +36,7 @@ const ParticipantPermissions = () => {
           </CardContent>
         </Card>
       </div>
-    </SidebarLayout>
+    </RoleBasedLayout>
   );
 };
 
