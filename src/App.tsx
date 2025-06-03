@@ -1,10 +1,10 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { RoleProvider } from "@/contexts/RoleContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Join from "./pages/Join";
@@ -33,37 +33,39 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/join" element={<Join />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/capture" element={<Capture />} />
-            <Route path="/food" element={<Food />} />
-            <Route path="/food/:id" element={<FoodDetails />} />
-            <Route path="/receipts" element={<Receipts />} />
-            <Route path="/receipts/:id" element={<ReceiptDetails />} />
-            <Route path="/workouts" element={<Workouts />} />
-            <Route path="/workouts/:id" element={<WorkoutDetails />} />
-            <Route path="/insights" element={<Insights />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
-            <Route path="/caretaker" element={<Caretaker />} />
-            <Route path="/invite-caretakers" element={<InviteCaretakers />} />
-            <Route path="/participant" element={<Participant />} />
-            <Route path="/participant/permissions" element={<ParticipantPermissions />} />
-            <Route path="/participant/invitations" element={<ParticipantInvitations />} />
-            <Route path="/privacy" element={<Privacy />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <RoleProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/join" element={<Join />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/capture" element={<Capture />} />
+              <Route path="/food" element={<Food />} />
+              <Route path="/food/:id" element={<FoodDetails />} />
+              <Route path="/receipts" element={<Receipts />} />
+              <Route path="/receipts/:id" element={<ReceiptDetails />} />
+              <Route path="/workouts" element={<Workouts />} />
+              <Route path="/workouts/:id" element={<WorkoutDetails />} />
+              <Route path="/insights" element={<Insights />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
+              <Route path="/caretaker" element={<Caretaker />} />
+              <Route path="/invite-caretakers" element={<InviteCaretakers />} />
+              <Route path="/participant" element={<Participant />} />
+              <Route path="/participant/permissions" element={<ParticipantPermissions />} />
+              <Route path="/participant/invitations" element={<ParticipantInvitations />} />
+              <Route path="/privacy" element={<Privacy />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </RoleProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -7,14 +7,16 @@ import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
 import CaretakerDashboard from "@/components/caretaker/CaretakerDashboard";
 import { JoinWithCode } from "@/components/caretaker/JoinWithCode";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Heart, UserPlus, ArrowLeft } from "lucide-react";
+import { useRole } from "@/contexts/RoleContext";
 
 const Caretaker = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [hasCaretakerRelationships, setHasCaretakerRelationships] = useState(false);
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>('');
+  const { hasCaretakerRelationships, isParticipant, refreshRoles } = useRole();
 
   useEffect(() => {
     checkUserAndRelationships();
@@ -31,6 +33,9 @@ const Caretaker = () => {
 
       setUser(user);
 
+      // Refresh roles to get latest data
+      await refreshRoles();
+
       // Check if user has any caretaker relationships
       const { data: relationships } = await supabase
         .from('care_relationships')
@@ -38,11 +43,8 @@ const Caretaker = () => {
         .eq('caretaker_id', user.id)
         .eq('status', 'active');
 
-      const hasRelationships = relationships && relationships.length > 0;
-      setHasCaretakerRelationships(hasRelationships);
-
       // Set first participant as selected by default
-      if (hasRelationships && relationships[0]) {
+      if (relationships && relationships.length > 0) {
         setSelectedParticipantId(relationships[0].user_id);
       }
     } catch (error) {
@@ -79,6 +81,16 @@ const Caretaker = () => {
                 <h1 className="text-3xl font-bold text-gray-900">Welcome to Care Management</h1>
                 <p className="text-gray-600">Join as a caretaker to start monitoring participant health data</p>
               </div>
+              {isParticipant && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/dashboard')}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to My Dashboard
+                </Button>
+              )}
             </div>
 
             <Card>
@@ -95,6 +107,26 @@ const Caretaker = () => {
                 <JoinWithCode />
               </CardContent>
             </Card>
+
+            {isParticipant && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Already a Participant?</CardTitle>
+                  <CardDescription>
+                    You can invite others to be your caretakers from your participant dashboard
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={() => navigate('/participant/invitations')}
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Invite Caretakers
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         ) : (
           <CaretakerDashboard />

@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRole } from "@/contexts/RoleContext";
 import ParticipantSidebar from "./ParticipantSidebar";
 import CaretakerSidebar from "./CaretakerSidebar";
 
@@ -15,49 +15,15 @@ interface RoleBasedLayoutProps {
 
 const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange }: RoleBasedLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userRole, setUserRole] = useState<string>('user');
-  const [isCaretaker, setIsCaretaker] = useState(false);
   const { user } = useAuth();
-
-  useEffect(() => {
-    checkUserRole();
-  }, [user]);
-
-  const checkUserRole = async () => {
-    if (!user) return;
-
-    try {
-      // Check if user has caretaker relationships
-      const { data: caretakerRelationships } = await supabase
-        .from('care_relationships')
-        .select('id')
-        .eq('caretaker_id', user.id)
-        .eq('status', 'active');
-
-      const hasCaretakerRelationships = caretakerRelationships && caretakerRelationships.length > 0;
-      setIsCaretaker(hasCaretakerRelationships);
-
-      // Get user role from users table
-      const { data: userData } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (userData?.role) {
-        setUserRole(userData.role);
-      }
-    } catch (error) {
-      console.error('Error checking user role:', error);
-    }
-  };
+  const { hasCaretakerRelationships } = useRole();
 
   // Determine which sidebar to show based on current route and user role
   const getCurrentSidebar = () => {
     const path = window.location.pathname;
     
     // If we're on caretaker routes, show caretaker sidebar
-    if (path.startsWith('/caretaker') && isCaretaker) {
+    if (path.startsWith('/caretaker') && hasCaretakerRelationships) {
       return (
         <CaretakerSidebar 
           selectedParticipantId={selectedParticipantId}
@@ -74,7 +40,7 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
     const path = window.location.pathname;
     
     // If we're on caretaker routes, show caretaker sidebar
-    if (path.startsWith('/caretaker') && isCaretaker) {
+    if (path.startsWith('/caretaker') && hasCaretakerRelationships) {
       return (
         <CaretakerSidebar 
           selectedParticipantId={selectedParticipantId}
