@@ -60,13 +60,22 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
 
       if (error) throw error;
 
-      const participantData: Participant[] = (relationships || []).map(rel => ({
-        id: rel.user_id,
-        full_name: rel.users?.full_name || 'Unknown',
-        email: rel.users?.email || 'Unknown'
-      }));
+      const participantData: Participant[] = (relationships || []).map(rel => {
+        const userData = rel.users as any;
+        return {
+          id: rel.user_id,
+          full_name: userData?.full_name || 'Name not available',
+          email: userData?.email || 'Email not available'
+        };
+      });
 
+      console.log('Participants loaded in sidebar:', participantData);
       setParticipants(participantData);
+      
+      // Auto-select first participant if none selected
+      if (participantData.length > 0 && !selectedParticipantId && onParticipantChange) {
+        onParticipantChange(participantData[0].id);
+      }
     } catch (error) {
       console.error('Error fetching participants:', error);
       toast.error('Failed to load participants');

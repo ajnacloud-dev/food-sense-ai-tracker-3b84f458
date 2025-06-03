@@ -57,7 +57,7 @@ const CaretakerDashboard = () => {
 
       console.log('Fetching care relationships for caretaker:', user.id);
 
-      // Fetch care relationships with participant details
+      // Fetch care relationships with participant details using proper join
       const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
@@ -67,7 +67,12 @@ const CaretakerDashboard = () => {
           caretaker_type,
           permission_level,
           status,
-          created_at
+          created_at,
+          users!care_relationships_user_id_fkey (
+            id,
+            full_name,
+            email
+          )
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
@@ -91,28 +96,14 @@ const CaretakerDashboard = () => {
         return;
       }
 
-      // Get participant user details
-      const participantIds = relationships.map(rel => rel.user_id);
-      const { data: userDetails, error: usersError } = await supabase
-        .from('users')
-        .select('id, full_name, email')
-        .in('id', participantIds);
-
-      if (usersError) {
-        console.error('Error fetching user details:', usersError);
-        throw usersError;
-      }
-
-      console.log('User details found:', userDetails);
-
-      // Combine relationship and user data
+      // Transform the data with proper null checking
       const participantData: Participant[] = relationships.map(rel => {
-        const userDetail = userDetails?.find(user => user.id === rel.user_id);
+        const userData = rel.users as any; // Type assertion for the joined data
         
         return {
           id: rel.user_id,
-          full_name: userDetail?.full_name || 'Name not available',
-          email: userDetail?.email || 'Email not available',
+          full_name: userData?.full_name || 'Name not available',
+          email: userData?.email || 'Email not available',
           caretaker_type: rel.caretaker_type,
           permission_level: rel.permission_level,
           status: rel.status,
@@ -150,7 +141,8 @@ const CaretakerDashboard = () => {
 
   const ensureParticipantPermissions = async (participantId: string, caretakerId: string) => {
     try {
-      const categories = ['food', 'receipt', 'workout'];
+      // Use correct enum values that match the database
+      const categories: Array<'food_entries' | 'receipts' | 'workouts'> = ['food_entries', 'receipts', 'workouts'];
       
       for (const category of categories) {
         const { data: existingPermission } = await supabase
