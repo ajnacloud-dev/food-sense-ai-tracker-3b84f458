@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -95,20 +94,22 @@ const CaretakerDashboard = () => {
         return;
       }
 
+      // Fixed data processing - properly handle the nested user data
       const participantData: Participant[] = relationships.map(rel => {
-        const userData = rel.users as any;
+        // Access the nested user data correctly
+        const userInfo = rel.users as { id: string; full_name: string | null; email: string | null };
+        
         console.log('CaretakerDashboard: Processing relationship:', {
+          relationshipId: rel.id,
           user_id: rel.user_id,
-          userData: userData,
-          full_name: userData?.full_name,
-          email: userData?.email,
+          userInfo: userInfo,
           status: rel.status
         });
         
         return {
           id: rel.user_id,
-          full_name: userData?.full_name || 'Name not available',
-          email: userData?.email || 'Email not available',
+          full_name: userInfo?.full_name || userInfo?.email?.split('@')[0] || 'Unknown User',
+          email: userInfo?.email || 'No email available',
           caretaker_type: rel.caretaker_type,
           permission_level: rel.permission_level,
           status: rel.status,
@@ -120,6 +121,7 @@ const CaretakerDashboard = () => {
       console.log('CaretakerDashboard: Final participant data:', participantData);
       setParticipants(participantData);
 
+      // Ensure permissions for active participants
       for (const relationship of relationships.filter(rel => rel.status === 'active')) {
         await ensureParticipantPermissions(relationship.user_id, user.id);
       }
@@ -134,6 +136,7 @@ const CaretakerDashboard = () => {
         todayActivities: Math.floor(Math.random() * 20) + 5
       });
 
+      // Auto-select first active participant
       const firstActiveParticipant = participantData.find(p => p.status === 'active');
       if (firstActiveParticipant && !selectedParticipant) {
         console.log('CaretakerDashboard: Auto-selecting first active participant:', firstActiveParticipant.id);

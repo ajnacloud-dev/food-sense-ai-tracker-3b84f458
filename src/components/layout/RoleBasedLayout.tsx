@@ -19,12 +19,21 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
   const { user } = useAuth();
   const { currentRole, isPureCaretaker, isPureParticipant, isDualRole } = useRole();
 
-  // Determine which sidebar to show based on current role and user type
+  // Determine which sidebar to show based on user type and current role
   const getCurrentSidebar = () => {
     const path = window.location.pathname;
     
-    // If user is pure caretaker, always show caretaker sidebar
+    console.log('RoleBasedLayout: Determining sidebar', {
+      isPureCaretaker,
+      isPureParticipant,
+      isDualRole,
+      currentRole,
+      path
+    });
+    
+    // Pure caretaker: ALWAYS show caretaker sidebar
     if (isPureCaretaker) {
+      console.log('RoleBasedLayout: Showing caretaker sidebar for pure caretaker');
       return (
         <CaretakerSidebar 
           selectedParticipantId={selectedParticipantId}
@@ -33,16 +42,18 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
       );
     }
     
-    // If user is pure participant, always show participant sidebar
+    // Pure participant: ALWAYS show participant sidebar
     if (isPureParticipant) {
+      console.log('RoleBasedLayout: Showing participant sidebar for pure participant');
       return <ParticipantSidebar />;
     }
     
-    // For dual role users, show based on current role or path
+    // Dual role users: show based on current role or path
     if (isDualRole) {
       const isCaretakerPath = path.startsWith('/caretaker');
       
       if (isCaretakerPath || currentRole === 'caretaker') {
+        console.log('RoleBasedLayout: Showing caretaker sidebar for dual role user in caretaker mode');
         return (
           <CaretakerSidebar 
             selectedParticipantId={selectedParticipantId}
@@ -50,18 +61,20 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
           />
         );
       } else {
+        console.log('RoleBasedLayout: Showing participant sidebar for dual role user in participant mode');
         return <ParticipantSidebar />;
       }
     }
     
     // Default fallback to participant sidebar
+    console.log('RoleBasedLayout: Showing participant sidebar as fallback');
     return <ParticipantSidebar />;
   };
 
   const getMobileSidebar = () => {
     const path = window.location.pathname;
     
-    // If user is pure caretaker, always show caretaker sidebar
+    // Pure caretaker: ALWAYS show caretaker sidebar
     if (isPureCaretaker) {
       return (
         <CaretakerSidebar 
@@ -72,12 +85,12 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
       );
     }
     
-    // If user is pure participant, always show participant sidebar
+    // Pure participant: ALWAYS show participant sidebar
     if (isPureParticipant) {
       return <ParticipantSidebar onItemClick={() => setSidebarOpen(false)} />;
     }
     
-    // For dual role users, show based on current role or path
+    // Dual role users: show based on current role or path
     if (isDualRole) {
       const isCaretakerPath = path.startsWith('/caretaker');
       

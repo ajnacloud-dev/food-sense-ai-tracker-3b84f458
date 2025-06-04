@@ -12,7 +12,6 @@ import {
   BarChart3, 
   LogOut, 
   Heart,
-  User,
   ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,19 +70,19 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
 
       console.log('CaretakerSidebar: Raw relationships data:', relationships);
 
+      // Fixed data processing - properly handle the nested user data
       const participantData: Participant[] = (relationships || []).map(rel => {
-        const userData = rel.users as any;
+        const userInfo = rel.users as { id: string; full_name: string | null; email: string | null };
+        
         console.log('CaretakerSidebar: Processing participant:', {
           user_id: rel.user_id,
-          userData: userData,
-          full_name: userData?.full_name,
-          email: userData?.email
+          userInfo: userInfo
         });
         
         return {
           id: rel.user_id,
-          full_name: userData?.full_name || 'Name not available',
-          email: userData?.email || 'Email not available'
+          full_name: userInfo?.full_name || userInfo?.email?.split('@')[0] || 'Unknown User',
+          email: userInfo?.email || 'No email available'
         };
       });
 
@@ -183,7 +182,7 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
           </div>
         )}
         
-        {/* Debug info - remove in production */}
+        {/* Debug info */}
         <div className="mt-2 text-xs text-gray-400">
           Found {participants.length} participant(s)
           {selectedParticipantId && (

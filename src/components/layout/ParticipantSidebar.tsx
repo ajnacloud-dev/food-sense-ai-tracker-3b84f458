@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,7 +56,7 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
   } = useRole();
   const [userRole, setUserRole] = useState<string>('user');
 
-  useState(() => {
+  useEffect(() => {
     const fetchUserRole = async () => {
       if (user) {
         try {
@@ -76,7 +76,15 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
     };
     
     fetchUserRole();
-  });
+  }, [user]);
+
+  // If user is pure caretaker, redirect them immediately
+  useEffect(() => {
+    if (isPureCaretaker && !roleLoading) {
+      console.log('ParticipantSidebar: Pure caretaker detected, redirecting to /caretaker');
+      navigate('/caretaker', { replace: true });
+    }
+  }, [isPureCaretaker, roleLoading, navigate]);
 
   const handleSignOut = async () => {
     try {
@@ -87,9 +95,8 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
     }
   };
 
-  // If user is pure caretaker, redirect them
+  // Don't render anything for pure caretakers (they should be redirected)
   if (isPureCaretaker) {
-    navigate('/caretaker');
     return null;
   }
 
@@ -109,10 +116,6 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
         <div className="space-y-1 p-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
-            // Hide billing unless user has subscription or is admin
-            if (item.name === "Billing" && !hasSubscription && userRole !== 'admin') {
-              return null;
-            }
             
             return (
               <Link
