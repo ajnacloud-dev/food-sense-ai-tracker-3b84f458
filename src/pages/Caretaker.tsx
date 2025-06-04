@@ -9,7 +9,7 @@ import CaretakerDashboard from "@/components/caretaker/CaretakerDashboard";
 
 const Caretaker = () => {
   const { user, loading: authLoading } = useAuth();
-  const { currentRole, isLoading: roleLoading, isPureParticipant } = useRole();
+  const { currentRole, isLoading: roleLoading, isPureParticipant, isCaretaker } = useRole();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,29 +18,36 @@ const Caretaker = () => {
       return;
     }
 
-    // If user is pure participant, redirect to participant dashboard
+    // If user is pure participant (no caretaker relationships), redirect to participant dashboard
     if (!roleLoading && isPureParticipant) {
       console.log('Caretaker page: Pure participant detected, redirecting to /dashboard');
       navigate("/dashboard", { replace: true });
       return;
     }
-  }, [user, authLoading, roleLoading, isPureParticipant, navigate]);
+
+    // If user is not a caretaker at all, redirect to dashboard
+    if (!roleLoading && !isCaretaker) {
+      console.log('Caretaker page: User is not a caretaker, redirecting to /dashboard');
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+  }, [user, authLoading, roleLoading, isPureParticipant, isCaretaker, navigate]);
 
   if (authLoading || roleLoading) {
     return (
       <RoleBasedLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p>Loading...</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+            <p className="text-gray-600 font-medium">Loading your caretaker dashboard...</p>
           </div>
         </div>
       </RoleBasedLayout>
     );
   }
 
-  if (!user) {
-    return null; // Will redirect to auth
+  if (!user || isPureParticipant || !isCaretaker) {
+    return null; // Will redirect via useEffect
   }
 
   return (

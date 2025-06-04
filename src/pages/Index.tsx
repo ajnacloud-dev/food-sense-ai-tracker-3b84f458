@@ -1,25 +1,32 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, Receipt, Dumbbell, TrendingUp, Zap, Shield, Users, BarChart3, Brain, Sparkles, ArrowRight, Loader2, LogIn, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRole } from "@/contexts/RoleContext";
 import { useEffect } from "react";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { isPureCaretaker, isLoading: roleLoading, currentRole } = useRole();
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users based on their role
   useEffect(() => {
-    if (!loading && user) {
-      navigate("/dashboard");
+    if (authLoading || roleLoading) return;
+    
+    if (user) {
+      if (isPureCaretaker) {
+        navigate("/caretaker");
+      } else {
+        navigate("/dashboard");
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, roleLoading, isPureCaretaker, navigate]);
 
-  // Show loading state while checking authentication
-  if (loading) {
+  // Show loading state while checking authentication and roles
+  if (authLoading || roleLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
         <div className="flex items-center space-x-2">
