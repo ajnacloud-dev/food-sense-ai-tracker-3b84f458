@@ -57,7 +57,7 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log('CaretakerDataContext: Fetching data for user:', user.id);
 
-      // Single optimized query with JOIN to get all relationship and user data
+      // First, get care relationships for this caretaker
       const { data: relationshipsData, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
@@ -66,12 +66,7 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
           caretaker_type,
           permission_level,
           status,
-          created_at,
-          users!care_relationships_user_id_fkey (
-            id,
-            full_name,
-            email
-          )
+          created_at
         `)
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
@@ -81,7 +76,7 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
         throw relationshipsError;
       }
 
-      console.log('CaretakerDataContext: Raw relationships data:', relationshipsData);
+      console.log('CaretakerDataContext: Relationships data:', relationshipsData);
 
       if (!relationshipsData || relationshipsData.length === 0) {
         console.log('CaretakerDataContext: No relationships found, user is not a caretaker');
@@ -94,9 +89,25 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setIsCaretaker(true);
 
-      // Process the participant data from the JOIN
+      // Get all unique user IDs from relationships
+      const userIds = relationshipsData.map(rel => rel.user_id);
+      
+      // Fetch user data separately
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (usersError) {
+        console.error('CaretakerDataContext: Error fetching users:', usersError);
+        throw usersError;
+      }
+
+      console.log('CaretakerDataContext: Users data:', usersData);
+
+      // Combine relationship and user data
       const participantList: Participant[] = relationshipsData.map(rel => {
-        const userData = rel.users as any;
+        const userData = usersData?.find(u => u.id === rel.user_id);
         
         console.log('CaretakerDataContext: Processing relationship:', {
           relationshipId: rel.id,
