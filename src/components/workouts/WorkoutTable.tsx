@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from 'date-fns';
@@ -41,19 +40,27 @@ interface Workout {
 
 interface WorkoutTableProps {
   participantId?: string;
+  workouts?: Workout[];
+  onDelete?: (id: string) => Promise<void>;
+  onView?: (id: string) => void;
 }
 
-export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [loading, setLoading] = useState(true);
+export const WorkoutTable = ({ 
+  participantId, 
+  workouts: propWorkouts,
+  onDelete,
+  onView 
+}: WorkoutTableProps) => {
+  const [workouts, setWorkouts] = useState<Workout[]>(propWorkouts || []);
+  const [loading, setLoading] = useState(!propWorkouts);
   const [filters, setFilters] = useState({
     date: undefined as DateRange | undefined,
     search: ''
   });
 
   const fetchWorkouts = async () => {
-    if (!participantId) {
-      console.log('WorkoutTable: No participantId provided');
+    if (!participantId || propWorkouts) {
+      console.log('WorkoutTable: No participantId provided or workouts already provided');
       setLoading(false);
       return;
     }
@@ -101,8 +108,17 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
   };
 
   useEffect(() => {
-    fetchWorkouts();
-  }, [participantId, filters]);
+    if (!propWorkouts) {
+      fetchWorkouts();
+    }
+  }, [participantId, filters, propWorkouts]);
+
+  useEffect(() => {
+    if (propWorkouts) {
+      setWorkouts(propWorkouts);
+      setLoading(false);
+    }
+  }, [propWorkouts]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters(prev => ({ ...prev, search: e.target.value }));
@@ -110,6 +126,22 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
 
   const handleDateChange = (date: DateRange | undefined) => {
     setFilters(prev => ({ ...prev, date: date }));
+  };
+
+  const handleView = (id: string) => {
+    if (onView) {
+      onView(id);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (onDelete) {
+      await onDelete(id);
+      // Refresh workouts if we're fetching our own data
+      if (!propWorkouts) {
+        fetchWorkouts();
+      }
+    }
   };
 
   return (
@@ -121,47 +153,50 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="search">Search</Label>
-            <Input 
-              type="search" 
-              id="search" 
-              placeholder="Search workouts..." 
-              value={filters.search}
-              onChange={handleFilterChange}
-            />
-          </div>
-          <div>
-            <Label>Date Range</Label>
-            <DatePicker
-              mode="range"
-              defaultMonth={filters.date?.from}
-              selected={filters.date}
-              onSelect={handleDateChange}
-              className="w-full"
-            >
-              <Button id="date" variant={"outline"} className="w-full justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {filters.date?.from ? (
-                  filters.date.to ? (
-                    `${format(filters.date.from, "MMM dd, yyyy")} - ${format(filters.date.to, "MMM dd, yyyy")}`
+        {!propWorkouts && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
+              <Input 
+                type="search" 
+                id="search" 
+                placeholder="Search workouts..." 
+                value={filters.search}
+                onChange={handleFilterChange}
+              />
+            </div>
+            <div>
+              <Label>Date Range</Label>
+              <DatePicker
+                mode="range"
+                defaultMonth={filters.date?.from}
+                selected={filters.date}
+                onSelect={handleDateChange}
+                className="w-full"
+              >
+                <Button id="date" variant={"outline"} className="w-full justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filters.date?.from ? (
+                    filters.date.to ? (
+                      `${format(filters.date.from, "MMM dd, yyyy")} - ${format(filters.date.to, "MMM dd, yyyy")}`
+                    ) : (
+                      format(filters.date.from, "MMM dd, yyyy")
+                    )
                   ) : (
-                    format(filters.date.from, "MMM dd, yyyy")
-                  )
-                ) : (
-                  <span>Pick a date</span>
-                )}
-              </Button>
-            </DatePicker>
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </DatePicker>
+            </div>
           </div>
-        </div>
+        )}
 
         <ScrollArea>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Exercises</TableHead>
                 <TableHead>Duration</TableHead>
@@ -171,16 +206,19 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">Loading workouts...</TableCell>
+                  <TableCell colSpan={6} className="text-center">Loading workouts...</TableCell>
                 </TableRow>
               ) : workouts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">No workouts found.</TableCell>
+                  <TableCell colSpan={6} className="text-center">No workouts found.</TableCell>
                 </TableRow>
               ) : (
                 workouts.map((workout) => (
                   <TableRow key={workout.id}>
                     <TableCell>{format(new Date(workout.created_at), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{workout.workout_type || 'Other'}</Badge>
+                    </TableCell>
                     <TableCell>{workout.description || workout.notes || 'No description'}</TableCell>
                     <TableCell>
                       <ScrollArea className="max-h-24">
@@ -201,9 +239,24 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
                     </TableCell>
                     <TableCell>{workout.duration ? `${workout.duration} min` : 'N/A'}</TableCell>
                     <TableCell className="text-right">
-                      <Link to={`/workouts/${workout.id}`}>
-                        <Button variant="outline" size="sm">View Details</Button>
-                      </Link>
+                      <div className="flex gap-2 justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleView(workout.id)}
+                        >
+                          View Details
+                        </Button>
+                        {onDelete && (
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDelete(workout.id)}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

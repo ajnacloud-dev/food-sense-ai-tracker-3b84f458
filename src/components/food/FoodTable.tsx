@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,11 +49,21 @@ interface FoodItem {
 
 interface FoodTableProps {
   participantId?: string;
+  entries?: FoodEntry[];
+  onView?: (id: string) => void;
+  onDelete?: (id: string) => Promise<void>;
+  getMealTypeFromEntry?: (entry: FoodEntry) => string;
 }
 
-export const FoodTable = ({ participantId }: FoodTableProps) => {
-  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+export const FoodTable = ({ 
+  participantId, 
+  entries: propEntries,
+  onView,
+  onDelete,
+  getMealTypeFromEntry 
+}: FoodTableProps) => {
+  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>(propEntries || []);
+  const [loading, setLoading] = useState(!propEntries);
   const [filters, setFilters] = useState<{
     date: DateRange | undefined;
     searchTerm: string;
@@ -64,8 +73,8 @@ export const FoodTable = ({ participantId }: FoodTableProps) => {
   });
 
   const fetchFoodEntries = async () => {
-    if (!participantId) {
-      console.log('FoodTable: No participantId provided');
+    if (!participantId || propEntries) {
+      console.log('FoodTable: No participantId provided or entries already provided');
       setLoading(false);
       return;
     }
@@ -115,8 +124,17 @@ export const FoodTable = ({ participantId }: FoodTableProps) => {
   };
 
   useEffect(() => {
-    fetchFoodEntries();
-  }, [participantId, filters]);
+    if (!propEntries) {
+      fetchFoodEntries();
+    }
+  }, [participantId, filters, propEntries]);
+
+  useEffect(() => {
+    if (propEntries) {
+      setFoodEntries(propEntries);
+      setLoading(false);
+    }
+  }, [propEntries]);
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);
@@ -142,6 +160,29 @@ export const FoodTable = ({ participantId }: FoodTableProps) => {
     return { totalCalories, totalProtein, totalCarbs, totalFat };
   };
 
+  const handleView = (id: string) => {
+    if (onView) {
+      onView(id);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (onDelete) {
+      await onDelete(id);
+      // Refresh entries if we're fetching our own data
+      if (!propEntries) {
+        fetchFoodEntries();
+      }
+    }
+  };
+
+  const getMealType = (entry: FoodEntry) => {
+    if (getMealTypeFromEntry) {
+      return getMealTypeFromEntry(entry);
+    }
+    return entry.meal_type || 'Unknown';
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading food entries...</div>;
   }
@@ -155,66 +196,68 @@ export const FoodTable = ({ participantId }: FoodTableProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="search">Search:</Label>
-            <Input
-              id="search"
-              placeholder="Search descriptions..."
-              value={filters.searchTerm}
-              onChange={(e) => handleFilterChange({ ...filters, searchTerm: e.target.value })}
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Label>Date Range:</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[300px] justify-start text-left font-normal",
-                    !filters.date?.from && "text-muted-foreground"
-                  )}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {filters.date?.from ? (
-                    filters.date.to ? (
-                      `${format(filters.date.from, "MMM dd, yyyy")} - ${format(filters.date.to, "MMM dd, yyyy")}`
+        {!propEntries && (
+          <div className="grid gap-4">
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="search">Search:</Label>
+              <Input
+                id="search"
+                placeholder="Search descriptions..."
+                value={filters.searchTerm}
+                onChange={(e) => handleFilterChange({ ...filters, searchTerm: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label>Date Range:</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[300px] justify-start text-left font-normal",
+                      !filters.date?.from && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {filters.date?.from ? (
+                      filters.date.to ? (
+                        `${format(filters.date.from, "MMM dd, yyyy")} - ${format(filters.date.to, "MMM dd, yyyy")}`
+                      ) : (
+                        format(filters.date.from, "MMM dd, yyyy")
+                      )
                     ) : (
-                      format(filters.date.from, "MMM dd, yyyy")
-                    )
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="center" side="bottom">
-                <CalendarComponent
-                  mode="range"
-                  defaultMonth={filters.date?.from}
-                  selected={filters.date}
-                  onSelect={(date) => handleFilterChange({ ...filters, date })}
-                  disabled={{
-                    before: new Date('2020-01-01'),
-                    after: new Date(),
-                  }}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center" side="bottom">
+                  <CalendarComponent
+                    mode="range"
+                    defaultMonth={filters.date?.from}
+                    selected={filters.date}
+                    onSelect={(date) => handleFilterChange({ ...filters, date })}
+                    disabled={{
+                      before: new Date('2020-01-01'),
+                      after: new Date(),
+                    }}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        </div>
+        )}
         <ScrollArea className="rounded-md border mt-4">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">Date</TableHead>
-                <TableHead>Food Items</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Meal Type</TableHead>
                 <TableHead>Calories</TableHead>
                 <TableHead>Protein</TableHead>
                 <TableHead>Carbs</TableHead>
                 <TableHead>Fat</TableHead>
-                <TableHead>Description</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -225,28 +268,33 @@ export const FoodTable = ({ participantId }: FoodTableProps) => {
                 return (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{format(new Date(entry.created_at), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{entry.description || 'N/A'}</TableCell>
                     <TableCell>
-                      {entry.food_items?.length > 0 ? (
-                        <ul className="list-disc pl-4">
-                          {entry.food_items.map((item) => (
-                            <li key={item.id}>
-                              {item.quantity || 1} {item.serving_size || 'serving'}(s) of {item.name}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="text-gray-500">No items</span>
-                      )}
+                      <Badge variant="outline">{getMealType(entry)}</Badge>
                     </TableCell>
                     <TableCell>{totalCalories.toFixed(0)}</TableCell>
                     <TableCell>{totalProtein.toFixed(0)}g</TableCell>
                     <TableCell>{totalCarbs.toFixed(0)}g</TableCell>
                     <TableCell>{totalFat.toFixed(0)}g</TableCell>
-                    <TableCell>{entry.description || 'N/A'}</TableCell>
                     <TableCell className="text-right">
-                      <Link to={`/food/${entry.id}`}>
-                        <Button variant="outline" size="sm">View Details</Button>
-                      </Link>
+                      <div className="flex gap-2 justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleView(entry.id)}
+                        >
+                          View Details
+                        </Button>
+                        {onDelete && (
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDelete(entry.id)}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

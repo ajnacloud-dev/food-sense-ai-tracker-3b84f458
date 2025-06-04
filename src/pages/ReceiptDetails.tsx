@@ -9,7 +9,7 @@ import { ArrowLeft, Edit, Save, X, Receipt, DollarSign, Store, CreditCard, Calen
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
-import { ReceiptAnalysisDebug } from "@/components/receipts/ReceiptAnalysisDebug";
+import ReceiptAnalysisDebug from "@/components/receipts/ReceiptAnalysisDebug";
 import { ReceiptItemCorrection } from "@/components/receipts/ReceiptItemCorrection";
 
 interface ReceiptEntry {

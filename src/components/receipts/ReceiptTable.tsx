@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar as CalendarDate } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,26 +21,38 @@ interface Receipt {
   image_url?: string;
   category?: string;
   user_id: string;
+  vendor?: string;
+  total_amount?: number;
+  receipt_date?: string;
 }
 
 interface ReceiptTableProps {
   participantId?: string;
+  receipts?: Receipt[];
+  onView?: (id: string) => void;
+  onDelete?: (id: string) => Promise<void>;
+  onRowClick?: (receiptId: string, event: React.MouseEvent) => void;
 }
 
-export const ReceiptTable = ({ participantId }: ReceiptTableProps) => {
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [loading, setLoading] = useState(true);
+export const ReceiptTable = ({ 
+  participantId, 
+  receipts: propReceipts,
+  onView,
+  onDelete,
+  onRowClick 
+}: ReceiptTableProps) => {
+  const [receipts, setReceipts] = useState<Receipt[]>(propReceipts || []);
+  const [loading, setLoading] = useState(!propReceipts);
   const [filters, setFilters] = useState({
     date: null as Date | null,
     category: ''
   });
-  const { toast } = useToast();
 
   const { user } = useAuth();
   const targetUserId = participantId || user?.id;
 
   const fetchReceipts = async () => {
-    if (!targetUserId) return;
+    if (!targetUserId || propReceipts) return;
 
     try {
       setLoading(true);
@@ -78,8 +91,17 @@ export const ReceiptTable = ({ participantId }: ReceiptTableProps) => {
   };
 
   useEffect(() => {
-    fetchReceipts();
-  }, [targetUserId, filters]);
+    if (!propReceipts) {
+      fetchReceipts();
+    }
+  }, [targetUserId, filters, propReceipts]);
+
+  useEffect(() => {
+    if (propReceipts) {
+      setReceipts(propReceipts);
+      setLoading(false);
+    }
+  }, [propReceipts]);
 
   const handleFilterChange = (field: string, value: any) => {
     setFilters(prevFilters => ({
@@ -105,6 +127,18 @@ export const ReceiptTable = ({ participantId }: ReceiptTableProps) => {
     }
   };
 
+  const handleView = (id: string) => {
+    if (onView) {
+      onView(id);
+    }
+  };
+
+  const handleRowClick = (receiptId: string, event: React.MouseEvent) => {
+    if (onRowClick) {
+      onRowClick(receiptId, event);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-48">Loading receipts...</div>;
   }
@@ -114,56 +148,58 @@ export const ReceiptTable = ({ participantId }: ReceiptTableProps) => {
       <CardHeader>
         <CardTitle>Receipts</CardTitle>
         <CardDescription>
-          View and manage your financial records.
+          View and manage financial records.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="date">Filter by Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {filters.date ? format(filters.date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarDate
-                    mode="single"
-                    selected={filters.date}
-                    onSelect={(date) => handleFilterChange('date', date)}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date("2020-01-01")
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+        {!propReceipts && (
+          <div className="grid gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="date">Filter by Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {filters.date ? format(filters.date, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarDate
+                      mode="single"
+                      selected={filters.date}
+                      onSelect={(date) => handleFilterChange('date', date)}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("2020-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <div>
-              <Label htmlFor="category">Filter by Category</Label>
-              <Input
-                type="text"
-                id="category"
-                placeholder="Category"
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-              />
-            </div>
+              <div>
+                <Label htmlFor="category">Filter by Category</Label>
+                <Input
+                  type="text"
+                  id="category"
+                  placeholder="Category"
+                  value={filters.category}
+                  onChange={(e) => handleFilterChange('category', e.target.value)}
+                />
+              </div>
 
-            <div>
-              <Button onClick={clearFilters} variant="secondary">
-                Clear Filters
-              </Button>
+              <div>
+                <Button onClick={clearFilters} variant="secondary">
+                  Clear Filters
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {receipts.length === 0 ? (
           <div className="text-center py-4">
@@ -175,23 +211,34 @@ export const ReceiptTable = ({ participantId }: ReceiptTableProps) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Amount</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {receipts.map((receipt) => (
-                  <TableRow key={receipt.id}>
-                    <TableCell>{formatDate(receipt.created_at)}</TableCell>
-                    <TableCell>{receipt.description || 'N/A'}</TableCell>
+                  <TableRow 
+                    key={receipt.id}
+                    onClick={(e) => handleRowClick && handleRowClick(receipt.id, e)}
+                    className={onRowClick ? "cursor-pointer hover:bg-gray-50" : ""}
+                  >
+                    <TableCell>{formatDate(receipt.receipt_date || receipt.created_at)}</TableCell>
+                    <TableCell>{receipt.vendor || 'N/A'}</TableCell>
+                    <TableCell>${(receipt.total_amount || 0).toFixed(2)}</TableCell>
                     <TableCell>{receipt.category || 'N/A'}</TableCell>
                     <TableCell className="text-right">
-                      <Link to={`/receipts/${receipt.id}`}>
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                      </Link>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleView(receipt.id);
+                        }}
+                      >
+                        View Details
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
