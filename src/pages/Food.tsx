@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Utensils } from "lucide-react";
@@ -28,6 +29,8 @@ interface FoodEntry {
   image_url: string;
   created_at: string;
   extracted_nutrients: any;
+  user_id: string;
+  food_items: any[];
 }
 
 const Food = () => {
@@ -169,7 +172,10 @@ const Food = () => {
       
       const { data: foodData, error: foodError } = await supabase
         .from('food_entries')
-        .select('*')
+        .select(`
+          *,
+          food_items (*)
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 

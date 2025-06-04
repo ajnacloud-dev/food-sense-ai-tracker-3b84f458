@@ -7,17 +7,42 @@ import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
 import FoodTable from "@/components/food/FoodTable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Utensils } from "lucide-react";
+import { ArrowLeft, Utensils, RefreshCw } from "lucide-react";
+
+interface FoodEntry {
+  id: string;
+  description: string;
+  calories: number;
+  total_protein: number;
+  total_carbohydrates: number;
+  total_fats: number;
+  total_fiber: number;
+  total_sodium: number;
+  meal_type: string;
+  image_url: string;
+  created_at: string;
+  extracted_nutrients: any;
+  user_id: string;
+  food_items: any[];
+}
 
 const CaretakerFood = () => {
   const navigate = useNavigate();
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>('');
   const [participantName, setParticipantName] = useState<string>('');
+  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     checkAccess();
   }, []);
+
+  useEffect(() => {
+    if (selectedParticipantId) {
+      fetchFoodEntries();
+    }
+  }, [selectedParticipantId]);
 
   const checkAccess = async () => {
     try {
@@ -59,6 +84,49 @@ const CaretakerFood = () => {
     }
   };
 
+  const fetchFoodEntries = async () => {
+    if (!selectedParticipantId) return;
+
+    try {
+      setRefreshing(true);
+      console.log('CaretakerFood: Fetching food entries for participant:', selectedParticipantId);
+      
+      const { data: foodData, error: foodError } = await supabase
+        .from('food_entries')
+        .select(`
+          *,
+          food_items (*)
+        `)
+        .eq('user_id', selectedParticipantId)
+        .order('created_at', { ascending: false });
+
+      if (foodError) {
+        console.error('CaretakerFood: Error fetching food entries:', foodError);
+        throw foodError;
+      }
+
+      console.log('CaretakerFood: Found food entries:', foodData?.length || 0);
+      setFoodEntries(foodData || []);
+    } catch (error) {
+      console.error('CaretakerFood: Error:', error);
+      toast.error("Failed to load food entries");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    await fetchFoodEntries();
+    toast.success("Food entries refreshed");
+  };
+
+  const getMealTypeFromEntry = (entry: FoodEntry) => {
+    return entry.extracted_nutrients?.meal_summary?.meal_type || 
+           entry.extracted_nutrients?.meal_type || 
+           entry.meal_type || 
+           'unknown';
+  };
+
   if (loading) {
     return (
       <RoleBasedLayout>
@@ -86,18 +154,33 @@ const CaretakerFood = () => {
             </h1>
             <p className="text-gray-600">Monitor participant's nutrition and food intake</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/caretaker')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/caretaker')}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </div>
         </div>
 
         {selectedParticipantId ? (
-          <FoodTable participantId={selectedParticipantId} />
+          <FoodTable 
+            entries={foodEntries}
+            onView={(id) => navigate(`/food/${id}`)}
+            getMealTypeFromEntry={getMealTypeFromEntry}
+          />
         ) : (
           <Card>
             <CardHeader>
