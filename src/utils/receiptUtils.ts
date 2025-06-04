@@ -8,6 +8,9 @@ interface ReceiptEntry {
   image_url: string;
   tags: string[];
   created_at: string;
+  user_id: string;
+  description?: string;
+  category?: string;
 }
 
 export const filterReceipts = (receipts: ReceiptEntry[], filters: any) => {
