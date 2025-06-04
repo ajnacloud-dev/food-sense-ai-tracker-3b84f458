@@ -5,9 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
 import FoodTable from "@/components/food/FoodTable";
+import PermissionStatusIndicator from "@/components/caretaker/PermissionStatusIndicator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Utensils, RefreshCw } from "lucide-react";
+import { useCaretakerData } from "@/contexts/CaretakerDataContext";
+import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 
 interface FoodEntry {
   id: string;
@@ -28,61 +31,19 @@ interface FoodEntry {
 
 const CaretakerFood = () => {
   const navigate = useNavigate();
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string>('');
-  const [participantName, setParticipantName] = useState<string>('');
+  const { selectedParticipantId, participantData, loading: contextLoading } = useCaretakerData();
+  const { hasPermission, missingPermissions, loading: permissionLoading } = usePermissionStatus(selectedParticipantId);
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    checkAccess();
-  }, []);
-
-  useEffect(() => {
-    if (selectedParticipantId) {
+    if (selectedParticipantId && hasPermission('food_entries')) {
       fetchFoodEntries();
-    }
-  }, [selectedParticipantId]);
-
-  const checkAccess = async () => {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        navigate("/auth");
-        return;
-      }
-
-      // Get first active participant
-      const { data: relationships } = await supabase
-        .from('care_relationships')
-        .select(`
-          user_id,
-          users!care_relationships_user_id_fkey (
-            full_name
-          )
-        `)
-        .eq('caretaker_id', user.id)
-        .eq('status', 'active')
-        .limit(1);
-
-      if (relationships && relationships.length > 0) {
-        const participantId = relationships[0].user_id;
-        const userData = relationships[0].users as any;
-        setSelectedParticipantId(participantId);
-        setParticipantName(userData?.full_name || 'Participant');
-      } else {
-        toast.error("No active participants found");
-        navigate("/caretaker");
-      }
-    } catch (error) {
-      console.error('Error checking access:', error);
-      toast.error("Failed to load participant data");
-      navigate("/caretaker");
-    } finally {
+    } else {
       setLoading(false);
     }
-  };
+  }, [selectedParticipantId, hasPermission]);
 
   const fetchFoodEntries = async () => {
     if (!selectedParticipantId) return;
@@ -102,7 +63,12 @@ const CaretakerFood = () => {
 
       if (foodError) {
         console.error('CaretakerFood: Error fetching food entries:', foodError);
-        throw foodError;
+        if (foodError.message.includes('policy')) {
+          toast.error('Access denied. Participant needs to grant permissions.');
+        } else {
+          throw foodError;
+        }
+        return;
       }
 
       console.log('CaretakerFood: Found food entries:', foodData?.length || 0);
@@ -112,6 +78,7 @@ const CaretakerFood = () => {
       toast.error("Failed to load food entries");
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -127,7 +94,7 @@ const CaretakerFood = () => {
            'unknown';
   };
 
-  if (loading) {
+  if (contextLoading || permissionLoading) {
     return (
       <RoleBasedLayout>
         <div className="flex items-center justify-center h-64">
@@ -140,30 +107,44 @@ const CaretakerFood = () => {
     );
   }
 
+  if (!selectedParticipantId || !participantData) {
+    return (
+      <RoleBasedLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>No Participant Selected</CardTitle>
+            <CardDescription>
+              Please select a participant from the sidebar to view their food entries.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </RoleBasedLayout>
+    );
+  }
+
   return (
-    <RoleBasedLayout 
-      selectedParticipantId={selectedParticipantId}
-      onParticipantChange={setSelectedParticipantId}
-    >
+    <RoleBasedLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
               <Utensils className="h-8 w-8 text-orange-600" />
-              Food Entries - {participantName}
+              Food Entries - {participantData.full_name}
             </h1>
             <p className="text-gray-600">Monitor participant's nutrition and food intake</p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            {hasPermission('food_entries') && (
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => navigate('/caretaker')}
@@ -175,21 +156,18 @@ const CaretakerFood = () => {
           </div>
         </div>
 
-        {selectedParticipantId ? (
+        {!hasPermission('food_entries') ? (
+          <PermissionStatusIndicator
+            hasPermissions={false}
+            participantName={participantData.full_name}
+            missingCategories={['food_entries']}
+          />
+        ) : (
           <FoodTable 
             entries={foodEntries}
             onView={(id) => navigate(`/food/${id}`)}
             getMealTypeFromEntry={getMealTypeFromEntry}
           />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>No Participant Selected</CardTitle>
-              <CardDescription>
-                Please select a participant from the sidebar to view their food entries.
-              </CardDescription>
-            </CardHeader>
-          </Card>
         )}
       </div>
     </RoleBasedLayout>

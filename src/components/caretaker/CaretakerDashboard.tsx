@@ -4,11 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Heart, TrendingUp, Bell } from "lucide-react";
+import { Users, Heart, TrendingUp, Bell, Shield } from "lucide-react";
 import ParticipantOverview from "./ParticipantOverview";
 import CareRelationshipManager from "./CareRelationshipManager";
 import InvitationCodeManager from "./InvitationCodeManager";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
+import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 
 const CaretakerDashboard = () => {
   const { 
@@ -153,55 +154,75 @@ const CaretakerDashboard = () => {
                       <TableHead>Permission</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Health Score</TableHead>
+                      <TableHead>Access Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{participant.full_name}</div>
-                            <div className="text-sm text-gray-500">{participant.email}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {participant.caretaker_type.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{participant.permission_level.replace('_', ' ')}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(participant.status)}`}>
-                            {participant.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-16 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${participant.health_score}%` }}
-                              />
+                    {participants.map((participant) => {
+                      const PermissionStatusCell = () => {
+                        const { hasPermission } = usePermissionStatus(participant.id);
+                        const hasAnyPermission = hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts');
+                        
+                        return (
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Shield className={`h-4 w-4 ${hasAnyPermission ? 'text-green-600' : 'text-amber-600'}`} />
+                              <Badge variant={hasAnyPermission ? 'default' : 'secondary'}>
+                                {hasAnyPermission ? 'Granted' : 'Pending'}
+                              </Badge>
                             </div>
-                            <span className="text-sm">{participant.health_score}%</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              console.log('CaretakerDashboard: View Details clicked for participant:', participant.id);
-                              setSelectedParticipantId(participant.id);
-                            }}
-                            disabled={participant.status !== 'active'}
-                          >
-                            View Details
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                        );
+                      };
+
+                      return (
+                        <TableRow key={participant.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{participant.full_name}</div>
+                              <div className="text-sm text-gray-500">{participant.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {participant.caretaker_type.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{participant.permission_level.replace('_', ' ')}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(participant.status)}`}>
+                              {participant.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-green-500 h-2 rounded-full" 
+                                  style={{ width: `${participant.health_score}%` }}
+                                />
+                              </div>
+                              <span className="text-sm">{participant.health_score}%</span>
+                            </div>
+                          </TableCell>
+                          <PermissionStatusCell />
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                console.log('CaretakerDashboard: View Details clicked for participant:', participant.id);
+                                setSelectedParticipantId(participant.id);
+                              }}
+                              disabled={participant.status !== 'active'}
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
