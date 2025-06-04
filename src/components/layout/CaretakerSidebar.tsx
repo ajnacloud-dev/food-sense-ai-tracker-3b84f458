@@ -49,44 +49,55 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
 
       console.log('CaretakerSidebar: Fetching participants for caretaker:', user.id);
 
-      const { data: relationships, error } = await supabase
+      // First, get the relationships
+      const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
-        .select(`
-          user_id,
-          status,
-          users!care_relationships_user_id_fkey (
-            id,
-            full_name,
-            email
-          )
-        `)
+        .select('user_id, status')
         .eq('caretaker_id', user.id)
         .eq('status', 'active');
 
-      if (error) {
-        console.error('CaretakerSidebar: Error fetching relationships:', error);
-        throw error;
+      if (relationshipsError) {
+        console.error('CaretakerSidebar: Error fetching relationships:', relationshipsError);
+        throw relationshipsError;
       }
 
-      console.log('CaretakerSidebar: Raw relationships data:', relationships);
+      console.log('CaretakerSidebar: Active relationships found:', relationships);
 
-      // Fixed data processing - properly handle the nested user data
-      const participantData: Participant[] = (relationships || []).map(rel => {
-        const userInfo = rel.users as { id: string; full_name: string | null; email: string | null };
-        
-        console.log('CaretakerSidebar: Processing participant:', {
-          user_id: rel.user_id,
-          userInfo: userInfo
-        });
+      if (!relationships || relationships.length === 0) {
+        console.log('CaretakerSidebar: No active relationships found');
+        setParticipants([]);
+        return;
+      }
+
+      // Get user IDs from relationships
+      const userIds = relationships.map(rel => rel.user_id);
+      console.log('CaretakerSidebar: User IDs to fetch:', userIds);
+
+      // Now fetch user details for those IDs
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (usersError) {
+        console.error('CaretakerSidebar: Error fetching users:', usersError);
+        throw usersError;
+      }
+
+      console.log('CaretakerSidebar: User details fetched:', users);
+
+      // Process the participant data
+      const participantData: Participant[] = (users || []).map(user => {
+        console.log('CaretakerSidebar: Processing user:', user);
         
         return {
-          id: rel.user_id,
-          full_name: userInfo?.full_name || userInfo?.email?.split('@')[0] || 'Unknown User',
-          email: userInfo?.email || 'No email available'
+          id: user.id,
+          full_name: user.full_name || user.email?.split('@')[0] || 'Unknown User',
+          email: user.email || 'No email available'
         };
       });
 
-      console.log('CaretakerSidebar: Final participants loaded:', participantData);
+      console.log('CaretakerSidebar: Final participants processed:', participantData);
       setParticipants(participantData);
       
       // Auto-select first participant if none selected
@@ -160,7 +171,10 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
         {participants.length > 0 ? (
           <Select
             value={selectedParticipantId || ''}
-            onValueChange={onParticipantChange}
+            onValueChange={(value) => {
+              console.log('CaretakerSidebar: Participant selected:', value);
+              onParticipantChange?.(value);
+            }}
           >
             <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder="Select participant..." />

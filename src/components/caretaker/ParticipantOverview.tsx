@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,18 +67,30 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      console.log('ParticipantOverview: Fetching data for participant:', participantId);
+
       // Fetch participant basic info
-      const { data: participant } = await supabase
+      const { data: participant, error: participantError } = await supabase
         .from('users')
         .select('id, full_name, email')
         .eq('id', participantId)
         .single();
 
-      if (!participant) {
+      if (participantError) {
+        console.error('ParticipantOverview: Error fetching participant:', participantError);
         toast.error('Participant not found');
         onBack();
         return;
       }
+
+      if (!participant) {
+        console.log('ParticipantOverview: No participant found with ID:', participantId);
+        toast.error('Participant not found');
+        onBack();
+        return;
+      }
+
+      console.log('ParticipantOverview: Participant found:', participant);
 
       // Fetch category permissions
       const { data: permissions } = await supabase
@@ -87,6 +98,8 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
         .select('category, is_granted')
         .eq('participant_id', participantId)
         .eq('caretaker_id', user.id);
+
+      console.log('ParticipantOverview: Permissions found:', permissions);
 
       const categoryAccess = {
         food_entries: false,
@@ -101,6 +114,8 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
           categoryAccess[permission.category as keyof typeof categoryAccess] = true;
         }
       });
+
+      console.log('ParticipantOverview: Category access determined:', categoryAccess);
 
       // Initialize stats and detailed captures
       let stats = {
@@ -119,6 +134,7 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
 
       // Fetch data only for categories with permission
       if (categoryAccess.food_entries) {
+        console.log('ParticipantOverview: Fetching food entries...');
         const { count: foodCount } = await supabase
           .from('food_entries')
           .select('*', { count: 'exact', head: true })
@@ -145,6 +161,7 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
       }
 
       if (categoryAccess.receipts) {
+        console.log('ParticipantOverview: Fetching receipts...');
         const { count: receiptsCount } = await supabase
           .from('receipts')
           .select('*', { count: 'exact', head: true })
@@ -169,6 +186,7 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
       }
 
       if (categoryAccess.workouts) {
+        console.log('ParticipantOverview: Fetching workouts...');
         const { count: workoutsCount } = await supabase
           .from('workouts')
           .select('*', { count: 'exact', head: true })
@@ -198,18 +216,21 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
 
-      setParticipantData({
+      const finalParticipantData = {
         id: participant.id,
-        full_name: participant.full_name || 'Unknown',
+        full_name: participant.full_name || participant.email?.split('@')[0] || 'Unknown User',
         email: participant.email,
         categoryAccess,
         stats,
         recentActivities,
         detailedCaptures
-      });
+      };
+
+      console.log('ParticipantOverview: Final participant data:', finalParticipantData);
+      setParticipantData(finalParticipantData);
 
     } catch (error) {
-      console.error('Error fetching participant data:', error);
+      console.error('ParticipantOverview: Error fetching participant data:', error);
       toast.error('Failed to load participant data');
     } finally {
       setLoading(false);

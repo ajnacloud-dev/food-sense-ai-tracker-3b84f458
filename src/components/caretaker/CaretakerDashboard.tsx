@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,22 +57,10 @@ const CaretakerDashboard = () => {
 
       console.log('CaretakerDashboard: Fetching care relationships for caretaker:', user.id);
 
+      // First, get the relationships
       const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
-        .select(`
-          id,
-          user_id,
-          caretaker_id,
-          caretaker_type,
-          permission_level,
-          status,
-          created_at,
-          users!care_relationships_user_id_fkey (
-            id,
-            full_name,
-            email
-          )
-        `)
+        .select('id, user_id, caretaker_type, permission_level, status, created_at')
         .eq('caretaker_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -80,7 +69,7 @@ const CaretakerDashboard = () => {
         throw relationshipsError;
       }
 
-      console.log('CaretakerDashboard: Raw relationships data:', relationships);
+      console.log('CaretakerDashboard: Relationships fetched:', relationships);
 
       if (!relationships || relationships.length === 0) {
         console.log('CaretakerDashboard: No relationships found');
@@ -94,10 +83,25 @@ const CaretakerDashboard = () => {
         return;
       }
 
-      // Fixed data processing - properly handle the nested user data
+      // Get user details for the participants
+      const userIds = relationships.map(rel => rel.user_id);
+      console.log('CaretakerDashboard: Fetching user details for IDs:', userIds);
+
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (usersError) {
+        console.error('CaretakerDashboard: Error fetching users:', usersError);
+        throw usersError;
+      }
+
+      console.log('CaretakerDashboard: User details fetched:', users);
+
+      // Combine relationship and user data
       const participantData: Participant[] = relationships.map(rel => {
-        // Access the nested user data correctly
-        const userInfo = rel.users as { id: string; full_name: string | null; email: string | null };
+        const userInfo = users?.find(u => u.id === rel.user_id);
         
         console.log('CaretakerDashboard: Processing relationship:', {
           relationshipId: rel.id,
@@ -118,7 +122,7 @@ const CaretakerDashboard = () => {
         };
       });
 
-      console.log('CaretakerDashboard: Final participant data:', participantData);
+      console.log('CaretakerDashboard: Final participant data processed:', participantData);
       setParticipants(participantData);
 
       // Ensure permissions for active participants
@@ -337,7 +341,10 @@ const CaretakerDashboard = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => setSelectedParticipant(participant.id)}
+                            onClick={() => {
+                              console.log('CaretakerDashboard: View Details clicked for participant:', participant.id);
+                              setSelectedParticipant(participant.id);
+                            }}
                             disabled={participant.status !== 'active'}
                           >
                             View Details
