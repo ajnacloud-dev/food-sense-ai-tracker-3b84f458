@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { format } from 'date-fns';
@@ -15,25 +16,26 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Calendar } from "lucide-react";
-import { DateRange } from "react-day-picker";
 import { Calendar as CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
 import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface Workout {
   id: string;
   created_at: string;
-  name: string;
+  description?: string;
   notes?: string;
   user_id: string;
+  workout_type?: string;
+  duration?: number;
+  calories_burned?: number;
   workout_exercises: {
     exercise_name: string;
-    sets: number;
-    reps: number;
-    weight: number;
+    sets?: number;
+    reps?: number;
+    weight?: number;
   }[];
 }
 
@@ -49,15 +51,16 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
     search: ''
   });
 
-  const { data: { user } } = useAuth();
-  const targetUserId = participantId || user?.id;
-
   const fetchWorkouts = async () => {
-    if (!targetUserId) return;
+    if (!participantId) {
+      console.log('WorkoutTable: No participantId provided');
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
-      console.log('WorkoutTable: Fetching workouts for user:', targetUserId);
+      console.log('WorkoutTable: Fetching workouts for participant:', participantId);
 
       let query = supabase
         .from('workouts')
@@ -65,7 +68,7 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
           *,
           workout_exercises (*)
         `)
-        .eq('user_id', targetUserId)
+        .eq('user_id', participantId)
         .order('created_at', { ascending: false });
 
       if (filters.date?.from) {
@@ -77,7 +80,7 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
         query = query.lte('created_at', toDate);
       }
       if (filters.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+        query = query.or(`description.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);
       }
 
       const { data, error } = await query;
@@ -99,7 +102,7 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
 
   useEffect(() => {
     fetchWorkouts();
-  }, [targetUserId, filters]);
+  }, [participantId, filters]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters(prev => ({ ...prev, search: e.target.value }));
@@ -114,7 +117,7 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
       <CardHeader>
         <CardTitle>Workouts</CardTitle>
         <CardDescription>
-          View and manage your workout logs.
+          View and manage workout logs.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -159,39 +162,44 @@ export const WorkoutTable = ({ participantId }: WorkoutTableProps) => {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead>Exercises</TableHead>
+                <TableHead>Duration</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">Loading workouts...</TableCell>
+                  <TableCell colSpan={5} className="text-center">Loading workouts...</TableCell>
                 </TableRow>
               ) : workouts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">No workouts found.</TableCell>
+                  <TableCell colSpan={5} className="text-center">No workouts found.</TableCell>
                 </TableRow>
               ) : (
                 workouts.map((workout) => (
                   <TableRow key={workout.id}>
                     <TableCell>{format(new Date(workout.created_at), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{workout.name}</TableCell>
+                    <TableCell>{workout.description || workout.notes || 'No description'}</TableCell>
                     <TableCell>
                       <ScrollArea className="max-h-24">
                         <div className="space-y-1">
-                          {workout.workout_exercises.map((exercise, index) => (
+                          {workout.workout_exercises?.map((exercise, index) => (
                             <div key={index} className="text-sm">
                               <Badge variant="secondary">{exercise.exercise_name}</Badge>
-                              <div className="text-xs text-gray-500">
-                                {exercise.sets} sets x {exercise.reps} reps at {exercise.weight} lbs
-                              </div>
+                              {exercise.sets && exercise.reps && (
+                                <div className="text-xs text-gray-500">
+                                  {exercise.sets} sets x {exercise.reps} reps
+                                  {exercise.weight && ` at ${exercise.weight} lbs`}
+                                </div>
+                              )}
                             </div>
-                          ))}
+                          )) || <span className="text-gray-500">No exercises</span>}
                         </div>
                       </ScrollArea>
                     </TableCell>
+                    <TableCell>{workout.duration ? `${workout.duration} min` : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Link to={`/workouts/${workout.id}`}>
                         <Button variant="outline" size="sm">View Details</Button>

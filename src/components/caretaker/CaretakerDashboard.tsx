@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, Heart, TrendingUp, Calendar, Plus, Bell } from "lucide-react";
+import { Users, Heart, TrendingUp, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ParticipantOverview from "./ParticipantOverview";
@@ -57,7 +57,6 @@ const CaretakerDashboard = () => {
 
       console.log('CaretakerDashboard: Fetching care relationships for caretaker:', user.id);
 
-      // Fetch care relationships with participant details using explicit join
       const { data: relationships, error: relationshipsError } = await supabase
         .from('care_relationships')
         .select(`
@@ -96,7 +95,6 @@ const CaretakerDashboard = () => {
         return;
       }
 
-      // Transform the data with detailed logging
       const participantData: Participant[] = relationships.map(rel => {
         const userData = rel.users as any;
         console.log('CaretakerDashboard: Processing relationship:', {
@@ -115,19 +113,17 @@ const CaretakerDashboard = () => {
           permission_level: rel.permission_level,
           status: rel.status,
           created_at: rel.created_at,
-          health_score: Math.floor(Math.random() * 40) + 60 // Mock health score for now
+          health_score: Math.floor(Math.random() * 40) + 60
         };
       });
 
       console.log('CaretakerDashboard: Final participant data:', participantData);
       setParticipants(participantData);
 
-      // Auto-create permissions for active relationships that don't have them
       for (const relationship of relationships.filter(rel => rel.status === 'active')) {
         await ensureParticipantPermissions(relationship.user_id, user.id);
       }
 
-      // Calculate stats
       const activeParticipants = participantData.filter(p => p.status === 'active').length;
       const pendingInvites = participantData.filter(p => p.status === 'pending').length;
 
@@ -135,10 +131,9 @@ const CaretakerDashboard = () => {
         totalParticipants: participantData.length,
         activeParticipants,
         pendingInvites,
-        todayActivities: Math.floor(Math.random() * 20) + 5 // Mock data
+        todayActivities: Math.floor(Math.random() * 20) + 5
       });
 
-      // If we have active participants but no selected one, select the first active one
       const firstActiveParticipant = participantData.find(p => p.status === 'active');
       if (firstActiveParticipant && !selectedParticipant) {
         console.log('CaretakerDashboard: Auto-selecting first active participant:', firstActiveParticipant.id);
@@ -157,7 +152,6 @@ const CaretakerDashboard = () => {
     try {
       console.log('Ensuring permissions for participant:', participantId, 'caretaker:', caretakerId);
       
-      // Use correct enum values that match the database
       const categories: Array<'food_entries' | 'receipts' | 'workouts'> = ['food_entries', 'receipts', 'workouts'];
       
       for (const category of categories) {
@@ -225,30 +219,6 @@ const CaretakerDashboard = () => {
           <p className="text-gray-600">Monitor and support your participants' health journey</p>
         </div>
       </div>
-
-      {/* Debug Information */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-blue-800">Debug Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-blue-700">
-            <p>Total participants found: {participants.length}</p>
-            <p>Participants with names: {participants.filter(p => p.full_name !== 'Name not available').length}</p>
-            <p>Active participants: {participants.filter(p => p.status === 'active').length}</p>
-            {participants.length > 0 && (
-              <div className="mt-2">
-                <p className="font-semibold">Participant details:</p>
-                {participants.map(p => (
-                  <div key={p.id} className="ml-2">
-                    - ID: {p.id}, Name: {p.full_name}, Email: {p.email}, Status: {p.status}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
