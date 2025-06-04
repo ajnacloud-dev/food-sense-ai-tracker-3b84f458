@@ -6,57 +6,12 @@ import { toast } from "sonner";
 import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, User } from "lucide-react";
+import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 
 const CaretakerInsights = () => {
   const navigate = useNavigate();
-  const [selectedParticipantId, setSelectedParticipantId] = useState<string>('');
-  const [participantName, setParticipantName] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAccess();
-  }, []);
-
-  const checkAccess = async () => {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error || !user) {
-        navigate("/auth");
-        return;
-      }
-
-      // Get first active participant
-      const { data: relationships } = await supabase
-        .from('care_relationships')
-        .select(`
-          user_id,
-          users!care_relationships_user_id_fkey (
-            full_name
-          )
-        `)
-        .eq('caretaker_id', user.id)
-        .eq('status', 'active')
-        .limit(1);
-
-      if (relationships && relationships.length > 0) {
-        const participantId = relationships[0].user_id;
-        const userData = relationships[0].users as any;
-        setSelectedParticipantId(participantId);
-        setParticipantName(userData?.full_name || 'Participant');
-      } else {
-        toast.error("No active participants found");
-        navigate("/caretaker");
-      }
-    } catch (error) {
-      console.error('Error checking access:', error);
-      toast.error("Failed to load participant data");
-      navigate("/caretaker");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { selectedParticipantId, participantData, loading } = useCaretakerData();
 
   if (loading) {
     return (
@@ -71,19 +26,34 @@ const CaretakerInsights = () => {
     );
   }
 
+  if (!selectedParticipantId || !participantData) {
+    return (
+      <RoleBasedLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>No Participant Selected</CardTitle>
+            <CardDescription>
+              Please select a participant from the sidebar to view their insights.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </RoleBasedLayout>
+    );
+  }
+
   return (
-    <RoleBasedLayout 
-      selectedParticipantId={selectedParticipantId}
-      onParticipantChange={setSelectedParticipantId}
-    >
+    <RoleBasedLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
               <BarChart3 className="h-8 w-8 text-green-600" />
-              Insights - {participantName}
+              Insights
             </h1>
-            <p className="text-gray-600">Analyze participant's health trends and patterns</p>
+            <div className="flex items-center gap-2 text-gray-600 mt-1">
+              <User className="h-4 w-4" />
+              <span>{participantData.full_name}</span>
+            </div>
           </div>
           <Button
             variant="outline"
@@ -99,7 +69,7 @@ const CaretakerInsights = () => {
           <CardHeader>
             <CardTitle>Health Analytics</CardTitle>
             <CardDescription>
-              Comprehensive insights for {participantName}
+              Comprehensive insights for {participantData.full_name}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -110,7 +80,7 @@ const CaretakerInsights = () => {
               </h3>
               <p className="text-gray-600 max-w-md mx-auto">
                 We're working on comprehensive health insights including nutrition trends, 
-                activity patterns, and personalized recommendations for {participantName}.
+                activity patterns, and personalized recommendations for {participantData.full_name}.
               </p>
             </div>
           </CardContent>

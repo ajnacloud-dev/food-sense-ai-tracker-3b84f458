@@ -42,6 +42,7 @@ const careItems = [
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
+  sidebar?: React.ReactNode;
 }
 
 const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
@@ -179,13 +180,13 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   );
 };
 
-const SidebarLayout = ({ children }: SidebarLayoutProps) => {
+const SidebarLayout = ({ children, sidebar }: SidebarLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-gray-50/40 md:block">
-        <SidebarContent />
+        {sidebar ? sidebar : <SidebarContent />}
       </div>
       
       <div className="flex flex-col">
@@ -198,7 +199,7 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col p-0">
-              <SidebarContent onItemClick={() => setSidebarOpen(false)} />
+              {sidebar ? sidebar : <SidebarContent onItemClick={() => setSidebarOpen(false)} />}
             </SheetContent>
           </Sheet>
         </header>
