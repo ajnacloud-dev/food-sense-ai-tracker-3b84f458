@@ -94,6 +94,11 @@ const CaretakerFood = () => {
            'unknown';
   };
 
+  const handleViewEntry = (id: string) => {
+    // Navigate to caretaker-specific food details route
+    navigate(`/caretaker/food/${id}`);
+  };
+
   if (contextLoading || permissionLoading) {
     return (
       <RoleBasedLayout>
@@ -165,7 +170,7 @@ const CaretakerFood = () => {
         ) : (
           <FoodTable 
             entries={foodEntries}
-            onView={(id) => navigate(`/food/${id}`)}
+            onView={handleViewEntry}
             getMealTypeFromEntry={getMealTypeFromEntry}
           />
         )}

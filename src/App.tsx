@@ -23,8 +23,11 @@ import Admin from "./pages/Admin";
 import AdminTestWorkflow from "./pages/AdminTestWorkflow";
 import Caretaker from "./pages/Caretaker";
 import CaretakerFood from "./pages/CaretakerFood";
+import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
 import CaretakerReceipts from "./pages/CaretakerReceipts";
+import CaretakerReceiptDetails from "./pages/CaretakerReceiptDetails";
 import CaretakerWorkouts from "./pages/CaretakerWorkouts";
+import CaretakerWorkoutDetails from "./pages/CaretakerWorkoutDetails";
 import CaretakerInsights from "./pages/CaretakerInsights";
 import InviteCaretakers from "./pages/InviteCaretakers";
 import Participant from "./pages/Participant";
@@ -61,8 +64,11 @@ const App = () => (
               <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
               <Route path="/caretaker" element={<Caretaker />} />
               <Route path="/caretaker/food" element={<CaretakerFood />} />
+              <Route path="/caretaker/food/:id" element={<CaretakerFoodDetails />} />
               <Route path="/caretaker/receipts" element={<CaretakerReceipts />} />
+              <Route path="/caretaker/receipts/:id" element={<CaretakerReceiptDetails />} />
               <Route path="/caretaker/workouts" element={<CaretakerWorkouts />} />
+              <Route path="/caretaker/workouts/:id" element={<CaretakerWorkoutDetails />} />
               <Route path="/caretaker/insights" element={<CaretakerInsights />} />
               <Route path="/invite-caretakers" element={<InviteCaretakers />} />
               <Route path="/participant" element={<Participant />} />
