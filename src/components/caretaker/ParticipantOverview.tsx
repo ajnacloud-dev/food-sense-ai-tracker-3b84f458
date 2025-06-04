@@ -1,612 +1,222 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Utensils, Receipt, Dumbbell, MessageSquare, Target, Lock, Check, X, Eye, Calendar } from "lucide-react";
+import { ArrowLeft, User, Activity, Calendar, Heart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import CommentsSection from "./CommentsSection";
-import DetailedCaptureView from "./DetailedCaptureView";
-import type { Database } from "@/integrations/supabase/types";
-
-type PermissionCategory = Database['public']['Enums']['permission_category'];
-
-interface ParticipantData {
-  id: string;
-  full_name: string;
-  email: string;
-  categoryAccess: {
-    food_entries: boolean;
-    receipts: boolean;
-    workouts: boolean;
-    goals: boolean;
-    health_metrics: boolean;
-  };
-  stats: {
-    foodEntries: number;
-    receipts: number;
-    workouts: number;
-    totalCalories: number;
-  };
-  recentActivities: Array<{
-    id: string;
-    type: 'food_entry' | 'workout' | 'receipt';
-    description: string;
-    date: string;
-    calories?: number;
-  }>;
-  detailedCaptures: {
-    foodEntries: any[];
-    workouts: any[];
-    receipts: any[];
-  };
-}
+import { useCaretakerData } from "@/contexts/CaretakerDataContext";
+import FoodTable from "@/components/food/FoodTable";
+import ReceiptTable from "@/components/receipts/ReceiptTable";
+import WorkoutTable from "@/components/workouts/WorkoutTable";
 
 interface ParticipantOverviewProps {
   participantId: string;
   onBack: () => void;
 }
 
+interface ParticipantStats {
+  foodEntries: number;
+  receipts: number;
+  workouts: number;
+  totalCalories: number;
+}
+
 const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps) => {
-  const [participantData, setParticipantData] = useState<ParticipantData | null>(null);
+  const { participantData } = useCaretakerData();
+  const [stats, setStats] = useState<ParticipantStats>({
+    foodEntries: 0,
+    receipts: 0,
+    workouts: 0,
+    totalCalories: 0
+  });
   const [loading, setLoading] = useState(true);
-  const [selectedCapture, setSelectedCapture] = useState<{
-    type: 'food_entry' | 'workout' | 'receipt';
-    id: string;
-  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchParticipantData();
+    if (participantId) {
+      fetchParticipantStats();
+    }
   }, [participantId]);
 
-  const fetchParticipantData = async () => {
+  const fetchParticipantStats = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      setError(null);
 
-      console.log('ParticipantOverview: Fetching data for participant:', participantId);
+      console.log('ParticipantOverview: Fetching stats for participant:', participantId);
 
-      // Fetch participant basic info
-      const { data: participant, error: participantError } = await supabase
-        .from('users')
-        .select('id, full_name, email')
-        .eq('id', participantId)
-        .single();
+      // Optimized parallel queries for stats
+      const [
+        { count: foodCount, error: foodError },
+        { count: receiptsCount, error: receiptsError },
+        { count: workoutsCount, error: workoutsError },
+        { data: foodEntries, error: caloriesError }
+      ] = await Promise.all([
+        supabase
+          .from('food_entries')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', participantId),
+        supabase
+          .from('receipts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', participantId),
+        supabase
+          .from('workouts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', participantId),
+        supabase
+          .from('food_entries')
+          .select('calories')
+          .eq('user_id', participantId)
+      ]);
 
-      if (participantError) {
-        console.error('ParticipantOverview: Error fetching participant:', participantError);
-        toast.error('Participant not found');
-        onBack();
-        return;
-      }
+      if (foodError) throw foodError;
+      if (receiptsError) throw receiptsError;
+      if (workoutsError) throw workoutsError;
+      if (caloriesError) throw caloriesError;
 
-      if (!participant) {
-        console.log('ParticipantOverview: No participant found with ID:', participantId);
-        toast.error('Participant not found');
-        onBack();
-        return;
-      }
+      const totalCalories = foodEntries?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
 
-      console.log('ParticipantOverview: Participant found:', participant);
-
-      // Fetch category permissions
-      const { data: permissions } = await supabase
-        .from('participant_permissions')
-        .select('category, is_granted')
-        .eq('participant_id', participantId)
-        .eq('caretaker_id', user.id);
-
-      console.log('ParticipantOverview: Permissions found:', permissions);
-
-      const categoryAccess = {
-        food_entries: false,
-        receipts: false,
-        workouts: false,
-        goals: false,
-        health_metrics: false
-      };
-
-      permissions?.forEach(permission => {
-        if (permission.is_granted) {
-          categoryAccess[permission.category as keyof typeof categoryAccess] = true;
-        }
+      setStats({
+        foodEntries: foodCount || 0,
+        receipts: receiptsCount || 0,
+        workouts: workoutsCount || 0,
+        totalCalories
       });
 
-      console.log('ParticipantOverview: Category access determined:', categoryAccess);
-
-      // Initialize stats and detailed captures
-      let stats = {
-        foodEntries: 0,
-        receipts: 0,
-        workouts: 0,
-        totalCalories: 0
-      };
-
-      let recentActivities: any[] = [];
-      let detailedCaptures = {
-        foodEntries: [],
-        workouts: [],
-        receipts: []
-      };
-
-      // Fetch data only for categories with permission
-      if (categoryAccess.food_entries) {
-        console.log('ParticipantOverview: Fetching food entries...');
-        const { count: foodCount } = await supabase
-          .from('food_entries')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', participantId);
-
-        const { data: foodEntries } = await supabase
-          .from('food_entries')
-          .select('*')
-          .eq('user_id', participantId)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        stats.foodEntries = foodCount || 0;
-        stats.totalCalories = foodEntries?.reduce((sum, entry) => sum + (entry.calories || 0), 0) || 0;
-        detailedCaptures.foodEntries = foodEntries || [];
-
-        recentActivities.push(...(foodEntries || []).slice(0, 5).map(entry => ({
-          id: entry.id,
-          type: 'food_entry' as const,
-          description: entry.description || 'Food entry',
-          date: entry.created_at,
-          calories: entry.calories
-        })));
-      }
-
-      if (categoryAccess.receipts) {
-        console.log('ParticipantOverview: Fetching receipts...');
-        const { count: receiptsCount } = await supabase
-          .from('receipts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', participantId);
-
-        const { data: receipts } = await supabase
-          .from('receipts')
-          .select('*')
-          .eq('user_id', participantId)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        stats.receipts = receiptsCount || 0;
-        detailedCaptures.receipts = receipts || [];
-
-        recentActivities.push(...(receipts || []).slice(0, 3).map(receipt => ({
-          id: receipt.id,
-          type: 'receipt' as const,
-          description: `Receipt from ${receipt.vendor || 'Unknown'}`,
-          date: receipt.created_at
-        })));
-      }
-
-      if (categoryAccess.workouts) {
-        console.log('ParticipantOverview: Fetching workouts...');
-        const { count: workoutsCount } = await supabase
-          .from('workouts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', participantId);
-
-        const { data: workouts } = await supabase
-          .from('workouts')
-          .select('*')
-          .eq('user_id', participantId)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        stats.workouts = workoutsCount || 0;
-        detailedCaptures.workouts = workouts || [];
-
-        recentActivities.push(...(workouts || []).slice(0, 3).map(workout => ({
-          id: workout.id,
-          type: 'workout' as const,
-          description: `${workout.workout_type || 'Unknown'} workout`,
-          date: workout.created_at,
-          calories: workout.calories_burned
-        })));
-      }
-
-      // Sort recent activities by date
-      recentActivities = recentActivities
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 10);
-
-      const finalParticipantData = {
-        id: participant.id,
-        full_name: participant.full_name || participant.email?.split('@')[0] || 'Unknown User',
-        email: participant.email,
-        categoryAccess,
-        stats,
-        recentActivities,
-        detailedCaptures
-      };
-
-      console.log('ParticipantOverview: Final participant data:', finalParticipantData);
-      setParticipantData(finalParticipantData);
+      console.log('ParticipantOverview: Stats fetched successfully:', {
+        foodEntries: foodCount,
+        receipts: receiptsCount,
+        workouts: workoutsCount,
+        totalCalories
+      });
 
     } catch (error) {
-      console.error('ParticipantOverview: Error fetching participant data:', error);
+      console.error('ParticipantOverview: Error fetching stats:', error);
+      setError('Failed to load participant data');
       toast.error('Failed to load participant data');
     } finally {
       setLoading(false);
     }
   };
 
-  const requestCategoryAccess = async (category: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('permission_requests')
-        .insert({
-          participant_id: participantId,
-          caretaker_id: user.id,
-          category: category as PermissionCategory,
-          message: `Requesting access to ${category.replace('_', ' ')} data`
-        });
-
-      if (error) throw error;
-
-      toast.success(`Access request sent for ${category.replace('_', ' ')}`);
-    } catch (error) {
-      console.error('Error requesting access:', error);
-      toast.error('Failed to send access request');
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'food_entries': return <Utensils className="h-4 w-4" />;
-      case 'receipts': return <Receipt className="h-4 w-4" />;
-      case 'workouts': return <Dumbbell className="h-4 w-4" />;
-      case 'goals': return <Target className="h-4 w-4" />;
-      case 'health_metrics': return <MessageSquare className="h-4 w-4" />;
-      default: return <Lock className="h-4 w-4" />;
-    }
-  };
-
-  const getCategoryLabel = (category: string) => {
-    return category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading participant data...</div>;
-  }
-
-  if (!participantData) {
-    return <div className="flex items-center justify-center h-64">Participant not found</div>;
-  }
-
-  if (selectedCapture) {
     return (
-      <DetailedCaptureView
-        participantId={participantId}
-        captureType={selectedCapture.type}
-        captureId={selectedCapture.id}
-        onBack={() => setSelectedCapture(null)}
-      />
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>Loading participant data...</p>
+        </div>
+      </div>
     );
   }
 
-  const categories = ['food_entries', 'receipts', 'workouts', 'goals', 'health_metrics'];
+  if (error || !participantData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error || 'Participant not found'}</p>
+          <Button onClick={onBack}>Back to Dashboard</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-4">
           <Button variant="outline" onClick={onBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Back to Dashboard
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{participantData.full_name}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <User className="h-8 w-8 text-blue-600" />
+              {participantData.full_name}
+            </h1>
             <p className="text-gray-600">{participantData.email}</p>
+            <div className="flex gap-2 mt-2">
+              <Badge variant="outline">{participantData.caretaker_type.replace('_', ' ')}</Badge>
+              <Badge variant={participantData.status === 'active' ? 'default' : 'secondary'}>
+                {participantData.status}
+              </Badge>
+            </div>
           </div>
         </div>
-        <Badge variant="outline" className="text-green-600 border-green-600">
-          Active Participant
-        </Badge>
       </div>
 
-      {/* Category Access Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Category Access</CardTitle>
-          <CardDescription>
-            Your access permissions for this participant's data
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {categories.map((category) => {
-              const hasAccess = participantData.categoryAccess[category as keyof typeof participantData.categoryAccess];
-              return (
-                <div key={category} className={`p-4 border rounded-lg ${hasAccess ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className={`${hasAccess ? 'text-green-600' : 'text-gray-400'}`}>
-                      {getCategoryIcon(category)}
-                    </div>
-                    {hasAccess ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <X className="h-4 w-4 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="text-sm font-medium">{getCategoryLabel(category)}</div>
-                  {!hasAccess && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="mt-2 w-full"
-                      onClick={() => requestCategoryAccess(category)}
-                    >
-                      Request Access
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats - Only show if has access */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {participantData.categoryAccess.food_entries && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Food Entries</CardTitle>
-              <Utensils className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{participantData.stats.foodEntries}</div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Food Entries</CardTitle>
+            <Activity className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.foodEntries}</div>
+          </CardContent>
+        </Card>
 
-        {participantData.categoryAccess.receipts && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Receipts</CardTitle>
-              <Receipt className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{participantData.stats.receipts}</div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Receipts</CardTitle>
+            <Calendar className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.receipts}</div>
+          </CardContent>
+        </Card>
 
-        {participantData.categoryAccess.workouts && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Workouts</CardTitle>
-              <Dumbbell className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{participantData.stats.workouts}</div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Workouts</CardTitle>
+            <Activity className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.workouts}</div>
+          </CardContent>
+        </Card>
 
-        {participantData.categoryAccess.food_entries && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calories</CardTitle>
-              <Target className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{participantData.stats.totalCalories.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Health Score</CardTitle>
+            <Heart className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{participantData.health_score}%</div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+              <div 
+                className="bg-green-500 h-2 rounded-full" 
+                style={{ width: `${participantData.health_score}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Detailed Tabs */}
-      <Tabs defaultValue="activities" className="space-y-4">
+      {/* Detailed Data Tabs */}
+      <Tabs defaultValue="food" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="activities">Recent Activities</TabsTrigger>
-          <TabsTrigger value="detailed">Detailed Data</TabsTrigger>
-          <TabsTrigger value="general-comments">General Discussion</TabsTrigger>
+          <TabsTrigger value="food">Food Entries</TabsTrigger>
+          <TabsTrigger value="receipts">Receipts</TabsTrigger>
+          <TabsTrigger value="workouts">Workouts</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="activities">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-              <CardDescription>
-                Latest activities from accessible categories
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {participantData.recentActivities.length > 0 ? (
-                <div className="space-y-4">
-                  {participantData.recentActivities.map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex items-center space-x-4">
-                        {activity.type === 'food_entry' && <Utensils className="h-4 w-4 text-green-600" />}
-                        {activity.type === 'workout' && <Dumbbell className="h-4 w-4 text-purple-600" />}
-                        {activity.type === 'receipt' && <Receipt className="h-4 w-4 text-blue-600" />}
-                        <div className="flex-1">
-                          <div className="font-medium">{activity.description}</div>
-                          <div className="text-sm text-gray-500 flex items-center gap-2">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(activity.date).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {activity.calories && (
-                          <Badge variant="outline">
-                            {activity.calories} cal
-                          </Badge>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedCapture({ type: activity.type, id: activity.id })}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Lock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No accessible activities or no data available.</p>
-                  <p className="text-sm">Request access to categories to see participant activities.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="food">
+          <FoodTable participantId={participantId} />
         </TabsContent>
 
-        <TabsContent value="detailed">
-          <div className="space-y-6">
-            {participantData.categoryAccess.food_entries && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Utensils className="h-5 w-5" />
-                    Food Entries
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Calories</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {participantData.detailedCaptures.foodEntries.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>{entry.description || 'No description'}</TableCell>
-                          <TableCell>{entry.calories || 0}</TableCell>
-                          <TableCell>{new Date(entry.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedCapture({ type: 'food_entry', id: entry.id })}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Details
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-
-            {participantData.categoryAccess.workouts && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Dumbbell className="h-5 w-5" />
-                    Workouts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>Calories Burned</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {participantData.detailedCaptures.workouts.map((workout) => (
-                        <TableRow key={workout.id}>
-                          <TableCell>{workout.workout_type || 'Unknown'}</TableCell>
-                          <TableCell>{workout.duration || 0} min</TableCell>
-                          <TableCell>{workout.calories_burned || 0}</TableCell>
-                          <TableCell>{new Date(workout.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedCapture({ type: 'workout', id: workout.id })}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Details
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-
-            {participantData.categoryAccess.receipts && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Receipt className="h-5 w-5" />
-                    Receipts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Total Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {participantData.detailedCaptures.receipts.map((receipt) => (
-                        <TableRow key={receipt.id}>
-                          <TableCell>{receipt.vendor || 'Unknown'}</TableCell>
-                          <TableCell>${receipt.total_amount || 0}</TableCell>
-                          <TableCell>{new Date(receipt.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedCapture({ type: 'receipt', id: receipt.id })}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View Details
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+        <TabsContent value="receipts">
+          <ReceiptTable participantId={participantId} />
         </TabsContent>
 
-        <TabsContent value="general-comments">
-          <CommentsSection 
-            participantId={participantId}
-            contentType="general"
-            isCaretaker={true}
-          />
+        <TabsContent value="workouts">
+          <WorkoutTable participantId={participantId} />
         </TabsContent>
       </Tabs>
     </div>

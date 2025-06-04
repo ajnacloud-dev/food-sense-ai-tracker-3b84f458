@@ -1,10 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/contexts/RoleContext";
+import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
 import ParticipantSidebar from "./ParticipantSidebar";
 import CaretakerSidebar from "./CaretakerSidebar";
 
@@ -34,12 +35,7 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
     // Pure caretaker: ALWAYS show caretaker sidebar
     if (isPureCaretaker) {
       console.log('RoleBasedLayout: Showing caretaker sidebar for pure caretaker');
-      return (
-        <CaretakerSidebar 
-          selectedParticipantId={selectedParticipantId}
-          onParticipantChange={onParticipantChange}
-        />
-      );
+      return <CaretakerSidebar />;
     }
     
     // Pure participant: ALWAYS show participant sidebar
@@ -54,12 +50,7 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
       
       if (isCaretakerPath || currentRole === 'caretaker') {
         console.log('RoleBasedLayout: Showing caretaker sidebar for dual role user in caretaker mode');
-        return (
-          <CaretakerSidebar 
-            selectedParticipantId={selectedParticipantId}
-            onParticipantChange={onParticipantChange}
-          />
-        );
+        return <CaretakerSidebar />;
       } else {
         console.log('RoleBasedLayout: Showing participant sidebar for dual role user in participant mode');
         return <ParticipantSidebar />;
@@ -76,13 +67,7 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
     
     // Pure caretaker: ALWAYS show caretaker sidebar
     if (isPureCaretaker) {
-      return (
-        <CaretakerSidebar 
-          selectedParticipantId={selectedParticipantId}
-          onParticipantChange={onParticipantChange}
-          onItemClick={() => setSidebarOpen(false)}
-        />
-      );
+      return <CaretakerSidebar onItemClick={() => setSidebarOpen(false)} />;
     }
     
     // Pure participant: ALWAYS show participant sidebar
@@ -95,13 +80,7 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
       const isCaretakerPath = path.startsWith('/caretaker');
       
       if (isCaretakerPath || currentRole === 'caretaker') {
-        return (
-          <CaretakerSidebar 
-            selectedParticipantId={selectedParticipantId}
-            onParticipantChange={onParticipantChange}
-            onItemClick={() => setSidebarOpen(false)}
-          />
-        );
+        return <CaretakerSidebar onItemClick={() => setSidebarOpen(false)} />;
       } else {
         return <ParticipantSidebar onItemClick={() => setSidebarOpen(false)} />;
       }
@@ -111,7 +90,11 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
     return <ParticipantSidebar onItemClick={() => setSidebarOpen(false)} />;
   };
 
-  return (
+  // Wrap caretaker layout with CaretakerDataProvider
+  const shouldUseCaretakerProvider = isPureCaretaker || 
+    (isDualRole && (window.location.pathname.startsWith('/caretaker') || currentRole === 'caretaker'));
+
+  const layoutContent = (
     <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
       <div className="hidden border-r bg-gray-50/40 md:block">
         {getCurrentSidebar()}
@@ -138,6 +121,16 @@ const RoleBasedLayout = ({ children, selectedParticipantId, onParticipantChange 
       </div>
     </div>
   );
+
+  if (shouldUseCaretakerProvider) {
+    return (
+      <CaretakerDataProvider>
+        {layoutContent}
+      </CaretakerDataProvider>
+    );
+  }
+
+  return layoutContent;
 };
 
 export default RoleBasedLayout;

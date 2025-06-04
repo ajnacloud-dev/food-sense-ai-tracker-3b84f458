@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,12 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/contexts/RoleContext";
-
-interface Participant {
-  id: string;
-  full_name: string;
-  email: string;
-}
+import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 
 interface CaretakerSidebarProps {
   selectedParticipantId?: string;
@@ -31,85 +25,18 @@ interface CaretakerSidebarProps {
   onItemClick?: () => void;
 }
 
-const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemClick }: CaretakerSidebarProps) => {
+const CaretakerSidebar = ({ onItemClick }: CaretakerSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isParticipant, isDualRole } = useRole();
-  const [participants, setParticipants] = useState<Participant[]>([]);
-
-  useEffect(() => {
-    fetchParticipants();
-  }, []);
-
-  const fetchParticipants = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      console.log('CaretakerSidebar: Fetching participants for caretaker:', user.id);
-
-      // First, get the relationships
-      const { data: relationships, error: relationshipsError } = await supabase
-        .from('care_relationships')
-        .select('user_id, status')
-        .eq('caretaker_id', user.id)
-        .eq('status', 'active');
-
-      if (relationshipsError) {
-        console.error('CaretakerSidebar: Error fetching relationships:', relationshipsError);
-        throw relationshipsError;
-      }
-
-      console.log('CaretakerSidebar: Active relationships found:', relationships);
-
-      if (!relationships || relationships.length === 0) {
-        console.log('CaretakerSidebar: No active relationships found');
-        setParticipants([]);
-        return;
-      }
-
-      // Get user IDs from relationships
-      const userIds = relationships.map(rel => rel.user_id);
-      console.log('CaretakerSidebar: User IDs to fetch:', userIds);
-
-      // Now fetch user details for those IDs
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('id, full_name, email')
-        .in('id', userIds);
-
-      if (usersError) {
-        console.error('CaretakerSidebar: Error fetching users:', usersError);
-        throw usersError;
-      }
-
-      console.log('CaretakerSidebar: User details fetched:', users);
-
-      // Process the participant data
-      const participantData: Participant[] = (users || []).map(user => {
-        console.log('CaretakerSidebar: Processing user:', user);
-        
-        return {
-          id: user.id,
-          full_name: user.full_name || user.email?.split('@')[0] || 'Unknown User',
-          email: user.email || 'No email available'
-        };
-      });
-
-      console.log('CaretakerSidebar: Final participants processed:', participantData);
-      setParticipants(participantData);
-      
-      // Auto-select first participant if none selected
-      if (participantData.length > 0 && !selectedParticipantId && onParticipantChange) {
-        console.log('CaretakerSidebar: Auto-selecting first participant:', participantData[0].id);
-        onParticipantChange(participantData[0].id);
-      }
-    } catch (error) {
-      console.error('CaretakerSidebar: Error fetching participants:', error);
-      toast.error('Failed to load participants');
-    }
-  };
+  const { isDualRole } = useRole();
+  const { 
+    participants, 
+    selectedParticipantId, 
+    setSelectedParticipantId, 
+    loading, 
+    error 
+  } = useCaretakerData();
 
   const handleSignOut = async () => {
     try {
@@ -168,12 +95,20 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
           Monitoring Participant:
         </label>
         
-        {participants.length > 0 ? (
+        {loading ? (
+          <div className="text-sm text-gray-500 p-2 border rounded animate-pulse">
+            Loading participants...
+          </div>
+        ) : error ? (
+          <div className="text-sm text-red-500 p-2 border rounded">
+            Error loading participants
+          </div>
+        ) : participants.length > 0 ? (
           <Select
             value={selectedParticipantId || ''}
             onValueChange={(value) => {
               console.log('CaretakerSidebar: Participant selected:', value);
-              onParticipantChange?.(value);
+              setSelectedParticipantId(value);
             }}
           >
             <SelectTrigger className="w-full min-w-0">

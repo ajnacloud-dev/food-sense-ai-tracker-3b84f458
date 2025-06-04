@@ -1,200 +1,24 @@
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, Heart, TrendingUp, Bell } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import ParticipantOverview from "./ParticipantOverview";
 import CareRelationshipManager from "./CareRelationshipManager";
 import InvitationCodeManager from "./InvitationCodeManager";
-
-interface Participant {
-  id: string;
-  full_name: string;
-  email: string;
-  caretaker_type: string;
-  permission_level: string;
-  status: string;
-  created_at: string;
-  last_activity?: string;
-  health_score?: number;
-}
-
-interface CaretakerStats {
-  totalParticipants: number;
-  activeParticipants: number;
-  pendingInvites: number;
-  todayActivities: number;
-}
+import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 
 const CaretakerDashboard = () => {
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [stats, setStats] = useState<CaretakerStats>({
-    totalParticipants: 0,
-    activeParticipants: 0,
-    pendingInvites: 0,
-    todayActivities: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchCaretakerData();
-  }, []);
-
-  const fetchCaretakerData = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('CaretakerDashboard: No authenticated user found');
-        return;
-      }
-
-      console.log('CaretakerDashboard: Fetching care relationships for caretaker:', user.id);
-
-      // First, get the relationships
-      const { data: relationships, error: relationshipsError } = await supabase
-        .from('care_relationships')
-        .select('id, user_id, caretaker_type, permission_level, status, created_at')
-        .eq('caretaker_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (relationshipsError) {
-        console.error('CaretakerDashboard: Error fetching relationships:', relationshipsError);
-        throw relationshipsError;
-      }
-
-      console.log('CaretakerDashboard: Relationships fetched:', relationships);
-
-      if (!relationships || relationships.length === 0) {
-        console.log('CaretakerDashboard: No relationships found');
-        setParticipants([]);
-        setStats({
-          totalParticipants: 0,
-          activeParticipants: 0,
-          pendingInvites: 0,
-          todayActivities: 0
-        });
-        return;
-      }
-
-      // Get user details for the participants
-      const userIds = relationships.map(rel => rel.user_id);
-      console.log('CaretakerDashboard: Fetching user details for IDs:', userIds);
-
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('id, full_name, email')
-        .in('id', userIds);
-
-      if (usersError) {
-        console.error('CaretakerDashboard: Error fetching users:', usersError);
-        throw usersError;
-      }
-
-      console.log('CaretakerDashboard: User details fetched:', users);
-
-      // Combine relationship and user data
-      const participantData: Participant[] = relationships.map(rel => {
-        const userInfo = users?.find(u => u.id === rel.user_id);
-        
-        console.log('CaretakerDashboard: Processing relationship:', {
-          relationshipId: rel.id,
-          user_id: rel.user_id,
-          userInfo: userInfo,
-          status: rel.status
-        });
-        
-        return {
-          id: rel.user_id,
-          full_name: userInfo?.full_name || userInfo?.email?.split('@')[0] || 'Unknown User',
-          email: userInfo?.email || 'No email available',
-          caretaker_type: rel.caretaker_type,
-          permission_level: rel.permission_level,
-          status: rel.status,
-          created_at: rel.created_at,
-          health_score: Math.floor(Math.random() * 40) + 60
-        };
-      });
-
-      console.log('CaretakerDashboard: Final participant data processed:', participantData);
-      setParticipants(participantData);
-
-      // Ensure permissions for active participants
-      for (const relationship of relationships.filter(rel => rel.status === 'active')) {
-        await ensureParticipantPermissions(relationship.user_id, user.id);
-      }
-
-      const activeParticipants = participantData.filter(p => p.status === 'active').length;
-      const pendingInvites = participantData.filter(p => p.status === 'pending').length;
-
-      setStats({
-        totalParticipants: participantData.length,
-        activeParticipants,
-        pendingInvites,
-        todayActivities: Math.floor(Math.random() * 20) + 5
-      });
-
-      // Auto-select first active participant
-      const firstActiveParticipant = participantData.find(p => p.status === 'active');
-      if (firstActiveParticipant && !selectedParticipant) {
-        console.log('CaretakerDashboard: Auto-selecting first active participant:', firstActiveParticipant.id);
-        setSelectedParticipant(firstActiveParticipant.id);
-      }
-
-    } catch (error) {
-      console.error('CaretakerDashboard: Error fetching caretaker data:', error);
-      toast.error('Failed to load caretaker dashboard');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const ensureParticipantPermissions = async (participantId: string, caretakerId: string) => {
-    try {
-      console.log('Ensuring permissions for participant:', participantId, 'caretaker:', caretakerId);
-      
-      const categories: Array<'food_entries' | 'receipts' | 'workouts'> = ['food_entries', 'receipts', 'workouts'];
-      
-      for (const category of categories) {
-        const { data: existingPermission } = await supabase
-          .from('participant_permissions')
-          .select('id')
-          .eq('participant_id', participantId)
-          .eq('caretaker_id', caretakerId)
-          .eq('category', category)
-          .single();
-
-        if (!existingPermission) {
-          console.log('Creating permission for category:', category);
-          const { error: insertError } = await supabase
-            .from('participant_permissions')
-            .insert({
-              participant_id: participantId,
-              caretaker_id: caretakerId,
-              category: category,
-              is_granted: true,
-              granted_at: new Date().toISOString()
-            });
-            
-          if (insertError) {
-            console.error('Error creating permission:', insertError);
-          } else {
-            console.log('Successfully created permission for category:', category);
-          }
-        } else {
-          console.log('Permission already exists for category:', category);
-        }
-      }
-    } catch (error) {
-      console.error('Error ensuring participant permissions:', error);
-    }
-  };
+  const { 
+    participants, 
+    selectedParticipantId, 
+    setSelectedParticipantId, 
+    loading, 
+    error,
+    refreshData 
+  } = useCaretakerData();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -205,15 +29,41 @@ const CaretakerDashboard = () => {
     }
   };
 
+  // Calculate stats from participants data
+  const stats = {
+    totalParticipants: participants.length,
+    activeParticipants: participants.filter(p => p.status === 'active').length,
+    pendingInvites: participants.filter(p => p.status === 'pending').length,
+    todayActivities: Math.floor(Math.random() * 20) + 5 // This could be calculated from actual data
+  };
+
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading caretaker dashboard...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p>Loading caretaker dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (selectedParticipant) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={refreshData}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedParticipantId) {
     return (
       <ParticipantOverview 
-        participantId={selectedParticipant} 
-        onBack={() => setSelectedParticipant(null)}
+        participantId={selectedParticipantId} 
+        onBack={() => setSelectedParticipantId(null)}
       />
     );
   }
@@ -303,7 +153,7 @@ const CaretakerDashboard = () => {
                       <TableHead>Permission</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Health Score</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -337,13 +187,13 @@ const CaretakerDashboard = () => {
                             <span className="text-sm">{participant.health_score}%</span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => {
                               console.log('CaretakerDashboard: View Details clicked for participant:', participant.id);
-                              setSelectedParticipant(participant.id);
+                              setSelectedParticipantId(participant.id);
                             }}
                             disabled={participant.status !== 'active'}
                           >
@@ -360,7 +210,7 @@ const CaretakerDashboard = () => {
         </TabsContent>
 
         <TabsContent value="relationships">
-          <CareRelationshipManager onRelationshipUpdated={fetchCaretakerData} />
+          <CareRelationshipManager onRelationshipUpdated={refreshData} />
         </TabsContent>
 
         <TabsContent value="invitations">
