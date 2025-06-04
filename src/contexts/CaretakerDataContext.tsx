@@ -73,6 +73,12 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (relationshipsError) {
         console.error('CaretakerDataContext: Error fetching relationships:', relationshipsError);
+        console.error('CaretakerDataContext: RLS Error Details:', {
+          message: relationshipsError.message,
+          details: relationshipsError.details,
+          hint: relationshipsError.hint,
+          code: relationshipsError.code
+        });
         throw relationshipsError;
       }
 
@@ -92,7 +98,9 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Get all unique user IDs from relationships
       const userIds = relationshipsData.map(rel => rel.user_id);
       
-      // Fetch user data separately
+      console.log('CaretakerDataContext: Fetching user data for IDs:', userIds);
+      
+      // Fetch user data separately with error handling
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, full_name, email')
@@ -100,12 +108,20 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (usersError) {
         console.error('CaretakerDataContext: Error fetching users:', usersError);
-        throw usersError;
+        console.error('CaretakerDataContext: Users RLS Error Details:', {
+          message: usersError.message,
+          details: usersError.details,
+          hint: usersError.hint,
+          code: usersError.code
+        });
+        
+        // Continue with fallback data instead of throwing
+        console.warn('CaretakerDataContext: Continuing with fallback user data');
       }
 
       console.log('CaretakerDataContext: Users data:', usersData);
 
-      // Combine relationship and user data
+      // Combine relationship and user data with better fallback handling
       const participantList: Participant[] = relationshipsData.map(rel => {
         const userData = usersData?.find(u => u.id === rel.user_id);
         
@@ -116,10 +132,18 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: rel.status
         });
         
+        // Provide better fallback values
+        const displayName = userData?.full_name || 
+                           userData?.email?.split('@')[0] || 
+                           `User ${rel.user_id.slice(0, 8)}`;
+        
+        const displayEmail = userData?.email || 
+                            'Email not accessible';
+        
         return {
           id: rel.user_id,
-          full_name: userData?.full_name || userData?.email?.split('@')[0] || 'Unknown User',
-          email: userData?.email || 'No email available',
+          full_name: displayName,
+          email: displayEmail,
           caretaker_type: rel.caretaker_type,
           permission_level: rel.permission_level,
           status: rel.status,
@@ -149,8 +173,15 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     } catch (error) {
       console.error('CaretakerDataContext: Error fetching data:', error);
-      setError('Failed to load caretaker data');
-      toast.error('Failed to load caretaker data');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load caretaker data';
+      setError(errorMessage);
+      
+      // Show a more helpful error message based on the error type
+      if (errorMessage.includes('policy')) {
+        toast.error('Access denied. Please check your permissions or contact support.');
+      } else {
+        toast.error('Failed to load caretaker data. Please try refreshing.');
+      }
     } finally {
       setLoading(false);
     }
@@ -163,12 +194,17 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
       const categories: Array<'food_entries' | 'receipts' | 'workouts'> = ['food_entries', 'receipts', 'workouts'];
       
       // Batch check existing permissions
-      const { data: existingPermissions } = await supabase
+      const { data: existingPermissions, error: permissionsError } = await supabase
         .from('participant_permissions')
         .select('category')
         .eq('participant_id', participantId)
         .eq('caretaker_id', caretakerId)
         .in('category', categories);
+
+      if (permissionsError) {
+        console.error('CaretakerDataContext: Error checking permissions:', permissionsError);
+        return;
+      }
 
       const existingCategories = existingPermissions?.map(p => p.category) || [];
       const missingCategories = categories.filter(cat => !existingCategories.includes(cat));
