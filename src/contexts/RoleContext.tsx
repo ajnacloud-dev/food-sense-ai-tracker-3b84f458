@@ -13,6 +13,10 @@ interface RoleContextType {
   refreshRoles: () => Promise<void>;
   switchRole: (role: 'participant' | 'caretaker') => void;
   canSwitchRoles: boolean;
+  isPureCaretaker: boolean;
+  isPureParticipant: boolean;
+  isDualRole: boolean;
+  hasSubscription: boolean;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -33,6 +37,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [primaryRole, setPrimaryRole] = useState<'participant' | 'caretaker' | null>(null);
   const [currentRole, setCurrentRole] = useState<'participant' | 'caretaker'>('participant');
   const [isLoading, setIsLoading] = useState(true);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   const checkRoles = async () => {
     if (!user) {
@@ -41,6 +46,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setHasCaretakerRelationships(false);
       setPrimaryRole(null);
       setCurrentRole('participant');
+      setHasSubscription(false);
       setIsLoading(false);
       return;
     }
@@ -48,7 +54,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
 
-      // Check if user is a participant (has their own data)
+      // Check if user has personal data (is a participant)
       const [
         { data: foodEntries },
         { data: receipts },
@@ -65,7 +71,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setIsParticipant(hasOwnData);
 
-      // Check if user is a caretaker (has relationships with other participants)
+      // Check if user is a caretaker (has active relationships)
       const { data: caretakerRelationships } = await supabase
         .from('care_relationships')
         .select('id')
@@ -76,11 +82,20 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsCaretaker(hasRelationships);
       setHasCaretakerRelationships(hasRelationships);
 
-      // Determine primary role based on data patterns
+      // Check subscription status
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_subscribed')
+        .eq('id', user.id)
+        .single();
+      
+      setHasSubscription(userData?.is_subscribed || false);
+
+      // Determine primary role
       let determinedPrimaryRole: 'participant' | 'caretaker' | null = null;
       
       if (hasOwnData && hasRelationships) {
-        // User has both roles - default to participant unless they have significantly more caretaker activity
+        // Dual role - default to participant
         determinedPrimaryRole = 'participant';
       } else if (hasOwnData) {
         determinedPrimaryRole = 'participant';
@@ -90,8 +105,11 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setPrimaryRole(determinedPrimaryRole);
       
-      // Set current role to primary role if not already set
-      if (determinedPrimaryRole && currentRole !== determinedPrimaryRole && !hasOwnData && !hasRelationships) {
+      // Set current role appropriately
+      if (determinedPrimaryRole && !hasOwnData && hasRelationships) {
+        // Pure caretaker - set to caretaker role
+        setCurrentRole('caretaker');
+      } else if (determinedPrimaryRole) {
         setCurrentRole(determinedPrimaryRole);
       }
 
@@ -117,6 +135,9 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const canSwitchRoles = isParticipant && isCaretaker;
+  const isPureCaretaker = isCaretaker && !isParticipant;
+  const isPureParticipant = isParticipant && !isCaretaker;
+  const isDualRole = isParticipant && isCaretaker;
 
   return (
     <RoleContext.Provider value={{
@@ -128,7 +149,11 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       refreshRoles,
       switchRole,
-      canSwitchRoles
+      canSwitchRoles,
+      isPureCaretaker,
+      isPureParticipant,
+      isDualRole,
+      hasSubscription
     }}>
       {children}
     </RoleContext.Provider>

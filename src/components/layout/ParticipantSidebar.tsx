@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Brain, 
   Camera, 
@@ -18,13 +17,13 @@ import {
   Users,
   Shield,
   Settings,
-  Heart,
-  ArrowLeftRight
+  Heart
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/contexts/RoleContext";
+import { RoleSwitcher } from "./RoleSwitcher";
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -33,7 +32,6 @@ const navigationItems = [
   { name: "Receipts", href: "/receipts", icon: FileText },
   { name: "Workouts", href: "/workouts", icon: Dumbbell },
   { name: "Insights", href: "/insights", icon: BarChart3 },
-  { name: "Billing", href: "/billing", icon: CreditCard },
 ];
 
 const careItems = [
@@ -52,9 +50,9 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
   const { 
     hasCaretakerRelationships, 
     isLoading: roleLoading, 
-    canSwitchRoles, 
-    currentRole, 
-    switchRole 
+    hasSubscription,
+    isPureCaretaker,
+    isDualRole
   } = useRole();
   const [userRole, setUserRole] = useState<string>('user');
 
@@ -89,15 +87,11 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
     }
   };
 
-  const handleRoleSwitch = (role: 'participant' | 'caretaker') => {
-    switchRole(role);
-    if (role === 'caretaker') {
-      navigate('/caretaker');
-    } else {
-      navigate('/dashboard');
-    }
-    onItemClick?.();
-  };
+  // If user is pure caretaker, redirect them
+  if (isPureCaretaker) {
+    navigate('/caretaker');
+    return null;
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -108,38 +102,18 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
         </Link>
       </div>
 
-      {/* Role Switcher */}
-      {canSwitchRoles && (
-        <div className="p-4 border-b">
-          <label className="text-sm font-medium text-gray-700 mb-2 block">
-            Current Role:
-          </label>
-          <Select value={currentRole} onValueChange={handleRoleSwitch}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="participant">
-                <div className="flex items-center gap-2">
-                  <Home className="h-4 w-4" />
-                  Participant
-                </div>
-              </SelectItem>
-              <SelectItem value="caretaker">
-                <div className="flex items-center gap-2">
-                  <Heart className="h-4 w-4" />
-                  Caretaker
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      {/* Role Switcher for dual role users */}
+      <RoleSwitcher onSwitch={onItemClick} />
       
       <ScrollArea className="flex-1">
         <div className="space-y-1 p-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            // Hide billing unless user has subscription or is admin
+            if (item.name === "Billing" && !hasSubscription && userRole !== 'admin') {
+              return null;
+            }
+            
             return (
               <Link
                 key={item.name}
@@ -154,6 +128,19 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
               </Link>
             );
           })}
+          
+          {hasSubscription && (
+            <Link
+              to="/billing"
+              onClick={onItemClick}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
+                location.pathname === "/billing" ? "bg-gray-100 text-gray-900" : ""
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Billing
+            </Link>
+          )}
           
           <Separator className="my-4" />
           
@@ -178,7 +165,7 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
               );
             })}
             
-            {!roleLoading && hasCaretakerRelationships && !canSwitchRoles && (
+            {!roleLoading && hasCaretakerRelationships && !isDualRole && (
               <Link
                 to="/caretaker"
                 onClick={onItemClick}

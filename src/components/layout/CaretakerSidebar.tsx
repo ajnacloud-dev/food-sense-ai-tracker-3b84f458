@@ -12,9 +12,8 @@ import {
   BarChart3, 
   LogOut, 
   Heart,
-  Users,
-  ToggleLeft,
-  User
+  User,
+  ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -37,7 +36,7 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isParticipant } = useRole();
+  const { isParticipant, isDualRole } = useRole();
   const [participants, setParticipants] = useState<Participant[]>([]);
 
   useEffect(() => {
@@ -113,7 +112,8 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
 
   const handleSwitchToParticipant = () => {
     navigate("/dashboard");
-    toast.success("Switched to participant view");
+    onItemClick?.();
+    toast.success("Switched to your health data view");
   };
 
   const navigationItems = [
@@ -133,12 +133,12 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
         </Link>
       </div>
 
-      {/* Role Switcher */}
-      {isParticipant && (
-        <div className="p-4 border-b bg-blue-50">
+      {/* Switch back to participant view for dual role users */}
+      {isDualRole && (
+        <div className="p-4 border-b bg-green-50">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-blue-700">Caretaker Mode</span>
-            <ToggleLeft className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-green-700">Caretaker Mode</span>
+            <Heart className="h-4 w-4 text-green-600" />
           </div>
           <Button
             variant="outline"
@@ -146,8 +146,8 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
             onClick={handleSwitchToParticipant}
             className="w-full text-xs"
           >
-            <User className="h-3 w-3 mr-1" />
-            Switch to My Data
+            <ArrowLeft className="h-3 w-3 mr-1" />
+            Back to My Health Data
           </Button>
         </div>
       )}
@@ -230,7 +230,12 @@ const CaretakerSidebar = ({ selectedParticipantId, onParticipantChange, onItemCl
         {user && (
           <div className="mb-4 px-3">
             <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-            <p className="text-xs text-green-600 font-medium">Caretaker</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              <p className="text-xs text-green-600 font-medium">Caretaker</p>
+              {isDualRole && (
+                <p className="text-xs text-blue-600 font-medium">• Participant</p>
+              )}
+            </div>
           </div>
         )}
         <Button
