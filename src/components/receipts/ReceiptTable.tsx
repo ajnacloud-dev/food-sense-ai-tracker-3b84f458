@@ -14,21 +14,23 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-interface Receipt {
+interface ReceiptEntry {
   id: string;
+  vendor: string;
+  receipt_date: string;
+  total_amount: number;
+  items: any;
+  image_url: string;
+  tags: string[];
   created_at: string;
-  description?: string;
-  image_url?: string;
-  category?: string;
   user_id: string;
-  vendor?: string;
-  total_amount?: number;
-  receipt_date?: string;
+  description?: string;
+  category?: string;
 }
 
 interface ReceiptTableProps {
   participantId?: string;
-  receipts?: Receipt[];
+  receipts?: ReceiptEntry[];
   onView?: (id: string) => void;
   onDelete?: (id: string) => Promise<void>;
   onRowClick?: (receiptId: string, event: React.MouseEvent) => void;
@@ -41,7 +43,7 @@ export const ReceiptTable = ({
   onDelete,
   onRowClick 
 }: ReceiptTableProps) => {
-  const [receipts, setReceipts] = useState<Receipt[]>(propReceipts || []);
+  const [receipts, setReceipts] = useState<ReceiptEntry[]>(propReceipts || []);
   const [loading, setLoading] = useState(!propReceipts);
   const [filters, setFilters] = useState({
     date: null as Date | null,
