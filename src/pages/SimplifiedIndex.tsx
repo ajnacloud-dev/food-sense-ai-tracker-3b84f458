@@ -44,10 +44,10 @@ const SimplifiedIndex = () => {
   // Show loading if auth or user type are still loading
   if (authLoading || (user && userTypeLoading)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading your personalized experience...</p>
           </CardContent>
         </Card>
@@ -58,10 +58,10 @@ const SimplifiedIndex = () => {
   // If user is logged in, they should be redirected via useEffect
   if (user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
             <p className="text-gray-600">Redirecting you to your dashboard...</p>
           </CardContent>
         </Card>
@@ -69,13 +69,13 @@ const SimplifiedIndex = () => {
     );
   }
 
-  // Medical-grade landing page design
+  // Updated consumer-friendly landing page design with green theme
   return (
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
               <Brain className="h-7 w-7 text-white" />
             </div>
             <h1 className="text-5xl font-bold text-gray-900">
@@ -83,15 +83,15 @@ const SimplifiedIndex = () => {
             </h1>
           </div>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Professional health monitoring platform for participants and healthcare providers. 
-            Secure, compliant, and designed for clinical excellence.
+            Your personal wellness companion for tracking nutrition, fitness, and health goals. 
+            Designed for individuals and their support teams to achieve better health together.
           </p>
           <Button 
             onClick={handleSignIn}
             size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg font-medium"
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-medium"
           >
-            Access Platform
+            Start Your Journey
           </Button>
         </div>
 
@@ -101,11 +101,11 @@ const SimplifiedIndex = () => {
               <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="h-8 w-8 text-green-600" />
               </div>
-              <CardTitle className="text-xl text-gray-900">For Participants</CardTitle>
+              <CardTitle className="text-xl text-gray-900">For Individuals</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <CardDescription className="text-center text-gray-600">
-                Track nutrition, exercise, and health metrics with professional-grade analysis and insights.
+                Track nutrition, exercise, and health metrics with intelligent insights and personalized recommendations.
               </CardDescription>
             </CardContent>
           </Card>
@@ -115,11 +115,11 @@ const SimplifiedIndex = () => {
               <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Heart className="h-8 w-8 text-blue-600" />
               </div>
-              <CardTitle className="text-xl text-gray-900">For Healthcare Providers</CardTitle>
+              <CardTitle className="text-xl text-gray-900">For Care Teams</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <CardDescription className="text-center text-gray-600">
-                Monitor patient progress with granular permissions and comprehensive health data oversight.
+                Support your loved ones with permission-based access to wellness data and progress monitoring.
               </CardDescription>
             </CardContent>
           </Card>
@@ -129,11 +129,11 @@ const SimplifiedIndex = () => {
               <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="h-8 w-8 text-purple-600" />
               </div>
-              <CardTitle className="text-xl text-gray-900">HIPAA Compliant</CardTitle>
+              <CardTitle className="text-xl text-gray-900">Privacy Focused</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               <CardDescription className="text-center text-gray-600">
-                Enterprise-grade security with granular permission controls and audit trails.
+                Your data stays secure with privacy-first design and granular permission controls you can trust.
               </CardDescription>
             </CardContent>
           </Card>
@@ -141,7 +141,7 @@ const SimplifiedIndex = () => {
 
         <div className="text-center mt-16">
           <p className="text-gray-500 text-sm">
-            Secure • Professional • Clinical-Grade Health Management
+            Secure • Private • Personal Wellness Management
           </p>
         </div>
       </div>
