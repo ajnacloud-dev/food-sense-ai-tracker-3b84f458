@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +13,7 @@ import PermissionStatusIndicator from "@/components/caretaker/PermissionStatusIn
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
 import { format } from 'date-fns';
+import { ImageModal } from "@/components/ui/image-modal";
 
 interface FoodEntry {
   id: string;
@@ -52,49 +52,59 @@ const CaretakerFoodDetailsContent = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (selectedParticipantId && hasPermission('food_entries') && id) {
-      fetchFoodEntry();
-    } else {
-      setLoading(false);
-    }
-  }, [selectedParticipantId, hasPermission, id]);
-
-  const fetchFoodEntry = async () => {
-    if (!selectedParticipantId || !id) return;
-
-    try {
-      setLoading(true);
-      console.log('CaretakerFoodDetails: Fetching food entry:', id, 'for participant:', selectedParticipantId);
-      
-      const { data: foodData, error } = await supabase
-        .from('food_entries')
-        .select(`
-          *,
-          food_items (*)
-        `)
-        .eq('id', id)
-        .eq('user_id', selectedParticipantId)
-        .single();
-
-      if (error) {
-        console.error('CaretakerFoodDetails: Error fetching food entry:', error);
-        if (error.message.includes('policy')) {
-          toast.error('Access denied. Participant needs to grant permissions.');
-        } else {
-          throw error;
-        }
+    const fetchFoodEntry = async () => {
+      if (!selectedParticipantId || !id) {
+        setLoading(false);
         return;
       }
 
-      console.log('CaretakerFoodDetails: Found food entry:', foodData);
-      setFoodEntry(foodData);
-    } catch (error) {
-      console.error('CaretakerFoodDetails: Error:', error);
-      toast.error("Failed to load food entry details");
-    } finally {
-      setLoading(false);
-    }
-  };
+      // Wait for permissions to load before checking them
+      if (permissionLoading) {
+        return;
+      }
+
+      // If we don't have permission, stop loading
+      if (!hasPermission('food_entries')) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log('CaretakerFoodDetails: Fetching food entry:', id, 'for participant:', selectedParticipantId);
+        
+        const { data: foodData, error } = await supabase
+          .from('food_entries')
+          .select(`
+            *,
+            food_items (*)
+          `)
+          .eq('id', id)
+          .eq('user_id', selectedParticipantId)
+          .single();
+
+        if (error) {
+          console.error('CaretakerFoodDetails: Error fetching food entry:', error);
+          if (error.message.includes('policy')) {
+            toast.error('Access denied. Participant needs to grant permissions.');
+          } else {
+            throw error;
+          }
+          return;
+        }
+
+        console.log('CaretakerFoodDetails: Found food entry:', foodData);
+        setFoodEntry(foodData);
+      } catch (error) {
+        console.error('CaretakerFoodDetails: Error:', error);
+        toast.error("Failed to load food entry details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFoodEntry();
+  }, [selectedParticipantId, id, permissionLoading]); // Removed hasPermission from dependencies
 
   const getMealType = (entry: FoodEntry) => {
     return entry.extracted_nutrients?.meal_summary?.meal_type || 
@@ -271,7 +281,7 @@ const CaretakerFoodDetailsContent = () => {
           {foodEntry.image_url && (
             <Card className="nw-card-modern lg:col-span-1">
               <CardContent className="p-6">
-                <img 
+                <ImageModal 
                   src={foodEntry.image_url} 
                   alt="Food entry" 
                   className="w-full rounded-lg aspect-square object-cover"
