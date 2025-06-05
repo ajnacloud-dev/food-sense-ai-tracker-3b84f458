@@ -6,7 +6,7 @@ import { useUserType } from "@/contexts/UserTypeContext";
 import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, Utensils, Dumbbell, BarChart3, Users, Settings } from "lucide-react";
+import { Camera, Utensils, Dumbbell, BarChart3, Users, Settings, Plus, Activity, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Dashboard = () => {
@@ -28,13 +28,11 @@ const Dashboard = () => {
       return;
     }
 
-    // Wait for user type loading to complete
     if (userTypeLoading) {
       console.log('Dashboard page: Still loading user type...');
       return;
     }
 
-    // If user is a caretaker, redirect to caretaker dashboard
     if (userType === 'caretaker') {
       console.log('Dashboard page: Caretaker detected, redirecting to /caretaker');
       navigate("/caretaker", { replace: true });
@@ -47,9 +45,9 @@ const Dashboard = () => {
   if (authLoading || userTypeLoading) {
     return (
       <SimpleRoleBasedLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="nw-page-container flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent mx-auto"></div>
+            <div className="nw-loading-spinner h-12 w-12 mx-auto"></div>
             <p className="text-gray-600 font-medium">Loading your dashboard...</p>
           </div>
         </div>
@@ -58,134 +56,178 @@ const Dashboard = () => {
   }
 
   if (!user || userType === 'caretaker') {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
     <SimpleRoleBasedLayout>
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Health Dashboard</h1>
-            <p className="text-gray-600 mt-2">Track your nutrition, fitness, and wellness journey</p>
+      <div className="nw-page-container">
+        <div className="nw-content-wrapper">
+          {/* Page Header */}
+          <div className="nw-page-header">
+            <div>
+              <h1 className="nw-page-title flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                  <Heart className="h-7 w-7 text-white" />
+                </div>
+                Health Dashboard
+              </h1>
+              <p className="nw-page-subtitle">Track your nutrition, fitness, and wellness journey</p>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
-            <Link to="/capture">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Quick Capture</CardTitle>
-                <Camera className="h-4 w-4 text-blue-600" />
+          {/* Quick Actions Grid */}
+          <div className="nw-stats-grid">
+            <Card className="nw-card-modern group hover:scale-105 nw-transition-slow cursor-pointer">
+              <Link to="/capture" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Quick Capture</CardTitle>
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 nw-transition-fast">
+                    <Camera className="h-5 w-5 text-blue-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600 mb-1">Scan</div>
+                  <p className="text-xs text-gray-600">Food & receipts</p>
+                </CardContent>
+              </Link>
+            </Card>
+
+            <Card className="nw-card-modern group hover:scale-105 nw-transition-slow cursor-pointer">
+              <Link to="/food" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Nutrition</CardTitle>
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 nw-transition-fast">
+                    <Utensils className="h-5 w-5 text-green-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600 mb-1">Food</div>
+                  <p className="text-xs text-gray-600">Track your meals</p>
+                </CardContent>
+              </Link>
+            </Card>
+
+            <Card className="nw-card-modern group hover:scale-105 nw-transition-slow cursor-pointer">
+              <Link to="/workouts" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Fitness</CardTitle>
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 nw-transition-fast">
+                    <Dumbbell className="h-5 w-5 text-purple-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600 mb-1">Exercise</div>
+                  <p className="text-xs text-gray-600">Log workouts</p>
+                </CardContent>
+              </Link>
+            </Card>
+
+            <Card className="nw-card-modern group hover:scale-105 nw-transition-slow cursor-pointer">
+              <Link to="/insights" className="block">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Analytics</CardTitle>
+                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 nw-transition-fast">
+                    <BarChart3 className="h-5 w-5 text-orange-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600 mb-1">Insights</div>
+                  <p className="text-xs text-gray-600">View progress</p>
+                </CardContent>
+              </Link>
+            </Card>
+          </div>
+
+          {/* Main Content Grid */}
+          <div className="nw-content-grid">
+            {/* Quick Actions Card */}
+            <Card className="nw-card-modern">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Activity className="h-5 w-5 text-blue-600" />
+                  </div>
+                  Quick Actions
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">Scan</div>
-                <p className="text-xs text-muted-foreground">
-                  Food & receipts
-                </p>
+              <CardContent className="space-y-3">
+                <Button asChild className="w-full justify-start h-12 nw-button-outline group">
+                  <Link to="/capture">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200 nw-transition-fast">
+                      <Camera className="h-4 w-4 text-blue-600" />
+                    </div>
+                    Capture Food or Receipt
+                  </Link>
+                </Button>
+                <Button asChild className="w-full justify-start h-12 nw-button-outline group">
+                  <Link to="/workouts">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-200 nw-transition-fast">
+                      <Dumbbell className="h-4 w-4 text-purple-600" />
+                    </div>
+                    Log Workout
+                  </Link>
+                </Button>
+                <Button asChild className="w-full justify-start h-12 nw-button-outline group">
+                  <Link to="/insights">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-orange-200 nw-transition-fast">
+                      <BarChart3 className="h-4 w-4 text-orange-600" />
+                    </div>
+                    View Health Insights
+                  </Link>
+                </Button>
               </CardContent>
-            </Link>
-          </Card>
+            </Card>
 
-          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
-            <Link to="/food">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Nutrition</CardTitle>
-                <Utensils className="h-4 w-4 text-green-600" />
+            {/* Care Team Card */}
+            <Card className="nw-card-modern">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Users className="h-5 w-5 text-green-600" />
+                  </div>
+                  Care Team
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">Food</div>
-                <p className="text-xs text-muted-foreground">
-                  Track your meals
+              <CardContent className="space-y-4">
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Manage your healthcare providers and share your health data securely with trusted professionals.
                 </p>
+                <div className="space-y-3">
+                  <Button asChild className="w-full justify-start h-12 nw-button-outline group">
+                    <Link to="/participant/invitations">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200 nw-transition-fast">
+                        <Plus className="h-4 w-4 text-green-600" />
+                      </div>
+                      Invite Healthcare Providers
+                    </Link>
+                  </Button>
+                  <Button asChild className="w-full justify-start h-12 nw-button-outline group">
+                    <Link to="/participant/permissions">
+                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center mr-3 group-hover:bg-gray-200 nw-transition-fast">
+                        <Settings className="h-4 w-4 text-gray-600" />
+                      </div>
+                      Manage Permissions
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
-            </Link>
-          </Card>
+            </Card>
+          </div>
 
-          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
-            <Link to="/workouts">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Fitness</CardTitle>
-                <Dumbbell className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">Exercise</div>
-                <p className="text-xs text-muted-foreground">
-                  Log workouts
+          {/* Welcome Message */}
+          <Card className="nw-card-clinical mt-8">
+            <CardContent className="p-6 md:p-8 text-center">
+              <div className="max-w-2xl mx-auto">
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  Welcome to Your Health Journey
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Track your nutrition, exercise, and health metrics with professional-grade tools. 
+                  Share your progress with trusted healthcare providers and get personalized insights 
+                  to achieve your wellness goals.
                 </p>
-              </CardContent>
-            </Link>
-          </Card>
-
-          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
-            <Link to="/insights">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Analytics</CardTitle>
-                <BarChart3 className="h-4 w-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">Insights</div>
-                <p className="text-xs text-muted-foreground">
-                  View progress
-                </p>
-              </CardContent>
-            </Link>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="h-5 w-5 text-blue-600" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link to="/capture">
-                  <Camera className="mr-2 h-4 w-4" />
-                  Capture Food or Receipt
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link to="/workouts">
-                  <Dumbbell className="mr-2 h-4 w-4" />
-                  Log Workout
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link to="/insights">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  View Health Insights
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-green-600" />
-                Care Team
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Manage your healthcare providers and share your health data securely.
-              </p>
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link to="/participant/invitations">
-                  <Users className="mr-2 h-4 w-4" />
-                  Invite Healthcare Providers
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start" variant="outline">
-                <Link to="/participant/permissions">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Manage Permissions
-                </Link>
-              </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

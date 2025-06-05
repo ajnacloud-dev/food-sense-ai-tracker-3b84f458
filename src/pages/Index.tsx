@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/contexts/RoleContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Heart, Shield, Users } from "lucide-react";
+import { Brain, Heart, Shield, Users, Stethoscope, Activity, FileText } from "lucide-react";
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
@@ -19,19 +19,16 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Don't redirect if still loading
     if (authLoading || roleLoading) {
       console.log('Index: Still loading auth or roles');
       return;
     }
 
-    // If not authenticated, stay on landing page
     if (!user) {
       console.log('Index: No user, staying on landing page');
       return;
     }
 
-    // Simplified routing logic - pure caretakers go to caretaker dashboard
     console.log('Index: Routing user with roles:', {
       isPureCaretaker,
       isPureParticipant,
@@ -52,105 +49,171 @@ const Index = () => {
     navigate("/auth");
   };
 
-  // Show loading if auth or roles are still loading
   if (authLoading || (user && roleLoading)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="nw-page-container flex items-center justify-center">
+        <Card className="nw-card-modern max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your personalized experience...</p>
+            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading your personalized experience...</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // If user is logged in, they should be redirected via useEffect
   if (user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="nw-page-container flex items-center justify-center">
+        <Card className="nw-card-modern max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Redirecting you to your dashboard...</p>
+            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Redirecting you to your dashboard...</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Medical-grade landing page design
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Brain className="h-7 w-7 text-white" />
+    <div className="nw-page-container">
+      <div className="nw-content-wrapper">
+        {/* Hero Section */}
+        <div className="text-center mb-16 nw-clinical-slide-in">
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
+              <Brain className="h-9 w-9 text-white" />
             </div>
-            <h1 className="text-5xl font-bold text-gray-900">
+            <h1 className="nw-page-title nw-text-medical">
               NutriWealth
             </h1>
           </div>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          
+          <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto nw-text-balance leading-relaxed">
             Professional health monitoring platform for participants and healthcare providers. 
             Secure, compliant, and designed for clinical excellence.
           </p>
+          
           <Button 
             onClick={handleSignIn}
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg font-medium"
+            className="nw-button-modern text-lg px-8 py-4 h-auto"
           >
             Access Platform
           </Button>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        {/* Features Grid */}
+        <div className="nw-feature-grid mb-16">
+          <Card className="nw-card-clinical nw-transition-slow hover:scale-105">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="h-8 w-8 text-green-600" />
+              <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <Users className="h-10 w-10 text-green-600" />
               </div>
               <CardTitle className="text-xl text-gray-900">For Participants</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <CardDescription className="text-center text-gray-600">
-                Track nutrition, exercise, and health metrics with professional-grade analysis and insights.
+            <CardContent className="pt-0 text-center">
+              <CardDescription className="text-gray-600 leading-relaxed">
+                Track nutrition, exercise, and health metrics with professional-grade analysis and personalized insights.
               </CardDescription>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card className="nw-card-clinical nw-transition-slow hover:scale-105">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Heart className="h-8 w-8 text-blue-600" />
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <Stethoscope className="h-10 w-10 text-blue-600" />
               </div>
               <CardTitle className="text-xl text-gray-900">For Healthcare Providers</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <CardDescription className="text-center text-gray-600">
+            <CardContent className="pt-0 text-center">
+              <CardDescription className="text-gray-600 leading-relaxed">
                 Monitor patient progress with granular permissions and comprehensive health data oversight.
               </CardDescription>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <Card className="nw-card-clinical nw-transition-slow hover:scale-105">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="h-8 w-8 text-purple-600" />
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                <Shield className="h-10 w-10 text-purple-600" />
               </div>
               <CardTitle className="text-xl text-gray-900">HIPAA Compliant</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <CardDescription className="text-center text-gray-600">
-                Enterprise-grade security with granular permission controls and audit trails.
+            <CardContent className="pt-0 text-center">
+              <CardDescription className="text-gray-600 leading-relaxed">
+                Enterprise-grade security with granular permission controls and comprehensive audit trails.
               </CardDescription>
             </CardContent>
           </Card>
         </div>
 
-        <div className="text-center mt-16">
+        {/* Key Features Section */}
+        <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 mb-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Comprehensive Health Platform
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Everything you need for professional health monitoring and patient care
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Activity className="h-8 w-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Real-time Monitoring</h3>
+              <p className="text-gray-600 text-sm">Live health data tracking and analysis</p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Heart className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Health Insights</h3>
+              <p className="text-gray-600 text-sm">AI-powered analysis and recommendations</p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-8 w-8 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Clinical Reports</h3>
+              <p className="text-gray-600 text-sm">Comprehensive health reports and analytics</p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure Access</h3>
+              <p className="text-gray-600 text-sm">HIPAA-compliant data protection</p>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="text-center">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-8 md:p-12 text-white">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Start Your Health Journey Today
+            </h2>
+            <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+              Join thousands of patients and healthcare providers using NutriWealth for better health outcomes
+            </p>
+            <Button 
+              onClick={handleSignIn}
+              variant="secondary"
+              className="bg-white text-blue-700 hover:bg-gray-100 text-lg px-8 py-4 h-auto font-semibold"
+            >
+              Get Started Now
+            </Button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-16 py-8 border-t border-gray-200">
           <p className="text-gray-500 text-sm">
             Secure • Professional • Clinical-Grade Health Management
           </p>

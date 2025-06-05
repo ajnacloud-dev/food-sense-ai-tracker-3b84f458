@@ -63,7 +63,7 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// NutriWealth brand colors
+				// Medical-Grade NutriWealth Brand Colors
 				nutriwealth: {
 					primary: 'hsl(var(--nutriwealth-primary))',
 					'primary-hover': 'hsl(var(--nutriwealth-primary-hover))',
@@ -72,7 +72,9 @@ export default {
 					accent: 'hsl(var(--nutriwealth-accent))',
 					'accent-hover': 'hsl(var(--nutriwealth-accent-hover))',
 					muted: 'hsl(var(--nutriwealth-muted))',
-					border: 'hsl(var(--nutriwealth-border))'
+					border: 'hsl(var(--nutriwealth-border))',
+					surface: 'hsl(var(--nutriwealth-surface))',
+					clinical: 'hsl(var(--nutriwealth-clinical))'
 				}
 			},
 			borderRadius: {
@@ -124,6 +126,26 @@ export default {
 				'pulse-slow': {
 					'0%, 100%': { opacity: '1' },
 					'50%': { opacity: '0.5' }
+				},
+				'medical-pulse': {
+					'0%, 100%': {
+						opacity: '1',
+						transform: 'scale(1)'
+					},
+					'50%': {
+						opacity: '0.8',
+						transform: 'scale(1.05)'
+					}
+				},
+				'clinical-slide-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(20px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
 				}
 			},
 			animation: {
@@ -132,7 +154,9 @@ export default {
 				'fade-in': 'fade-in 0.3s ease-out',
 				'scale-in': 'scale-in 0.2s ease-out',
 				'slide-in-right': 'slide-in-right 0.3s ease-out',
-				'pulse-slow': 'pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+				'pulse-slow': 'pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+				'medical-pulse': 'medical-pulse 2s ease-in-out infinite',
+				'clinical-slide-in': 'clinical-slide-in 0.4s ease-out'
 			},
 			spacing: {
 				'18': '4.5rem',
@@ -145,6 +169,9 @@ export default {
 			boxShadow: {
 				'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
 				'medium': '0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 30px -5px rgba(0, 0, 0, 0.05)',
+			},
+			fontFamily: {
+				sans: ['Inter', 'system-ui', 'sans-serif'],
 			}
 		}
 	},

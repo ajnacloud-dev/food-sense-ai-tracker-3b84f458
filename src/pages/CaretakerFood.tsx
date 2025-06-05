@@ -3,16 +3,16 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
+import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import ModernFoodTable from "@/components/caretaker/ModernFoodTable";
 import PermissionStatusIndicator from "@/components/caretaker/PermissionStatusIndicator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Utensils, RefreshCw, User, AlertCircle } from "lucide-react";
+import { ArrowLeft, Utensils, RefreshCw, User, AlertCircle, Stethoscope } from "lucide-react";
 import { CaretakerDataProvider, useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRole } from "@/contexts/RoleContext";
+import { useUserType } from "@/contexts/UserTypeContext";
 
 interface FoodEntry {
   id: string;
@@ -80,7 +80,6 @@ const CaretakerFoodContent = () => {
     }
   }, [selectedParticipantId, hasPermission]);
 
-  // Only fetch when we have both participant and permission
   useEffect(() => {
     if (selectedParticipantId && hasPermission('food_entries')) {
       fetchFoodEntries();
@@ -107,11 +106,11 @@ const CaretakerFoodContent = () => {
 
   if (contextLoading || permissionLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="nw-page-container flex items-center justify-center">
+        <Card className="nw-card-modern max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading participant food entries...</p>
+            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading participant food entries...</p>
           </CardContent>
         </Card>
       </div>
@@ -120,40 +119,44 @@ const CaretakerFoodContent = () => {
 
   if (!selectedParticipantId || !participantData) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <Card className="max-w-2xl mx-auto mt-12">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="h-8 w-8 text-blue-600" />
-            </div>
-            <CardTitle className="text-2xl">No Participant Selected</CardTitle>
-            <CardDescription className="text-lg">
-              Please select a participant from the sidebar to view their food entries.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => navigate('/caretaker')} className="bg-blue-600 hover:bg-blue-700">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="nw-page-container">
+        <div className="nw-content-wrapper">
+          <Card className="nw-card-modern max-w-2xl mx-auto mt-12">
+            <CardHeader className="text-center">
+              <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <User className="h-10 w-10 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl">No Participant Selected</CardTitle>
+              <CardDescription className="text-lg">
+                Please select a participant from the sidebar to view their food entries.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button onClick={() => navigate('/caretaker')} className="nw-button-modern">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+    <div className="nw-page-container">
+      <div className="nw-content-wrapper">
+        {/* Page Header */}
+        <div className="nw-page-header">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
-              <Utensils className="h-10 w-10 text-blue-600" />
+            <h1 className="nw-page-title flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
+                <Utensils className="h-7 w-7 text-white" />
+              </div>
               Food Monitoring
             </h1>
             <div className="flex items-center gap-2 text-gray-600 mt-2">
-              <User className="h-4 w-4" />
+              <Stethoscope className="h-4 w-4" />
               <span className="font-medium">{participantData.full_name}</span>
               <span className="text-gray-400">•</span>
               <span>Track nutrition and eating patterns</span>
@@ -165,28 +168,28 @@ const CaretakerFoodContent = () => {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex items-center gap-2 bg-white"
+                className="nw-button-outline"
               >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
             )}
             <Button
               variant="outline"
               onClick={() => navigate('/caretaker')}
-              className="flex items-center gap-2 bg-white"
+              className="nw-button-outline"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
           </div>
         </div>
 
         {!hasPermission('food_entries') ? (
-          <Card className="bg-white shadow-sm border">
+          <Card className="nw-card-modern">
             <CardHeader className="text-center">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-8 w-8 text-amber-600" />
+              <div className="w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="h-10 w-10 text-amber-600" />
               </div>
               <CardTitle className="text-2xl text-gray-900">Access Permission Required</CardTitle>
               <CardDescription className="text-lg">
@@ -216,7 +219,7 @@ const CaretakerFoodContent = () => {
 
 const CaretakerFood = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isCaretaker, isLoading: roleLoading } = useRole();
+  const { userType, isLoading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -225,37 +228,37 @@ const CaretakerFood = () => {
       return;
     }
 
-    if (!roleLoading && !isCaretaker) {
+    if (!userTypeLoading && userType !== 'caretaker') {
       console.log('CaretakerFood: User is not a caretaker, redirecting to /dashboard');
       navigate("/dashboard", { replace: true });
       return;
     }
-  }, [user, authLoading, roleLoading, isCaretaker, navigate]);
+  }, [user, authLoading, userTypeLoading, userType, navigate]);
 
-  if (authLoading || roleLoading) {
+  if (authLoading || userTypeLoading) {
     return (
-      <RoleBasedLayout>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <Card className="max-w-md">
+      <SimpleRoleBasedLayout>
+        <div className="nw-page-container flex items-center justify-center">
+          <Card className="nw-card-modern max-w-md">
             <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading participant food entries...</p>
+              <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+              <p className="text-gray-600 font-medium">Loading participant food entries...</p>
             </CardContent>
           </Card>
         </div>
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     );
   }
 
-  if (!user || !isCaretaker) {
-    return null; // Will redirect via useEffect
+  if (!user || userType !== 'caretaker') {
+    return null;
   }
 
   return (
     <CaretakerDataProvider>
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <CaretakerFoodContent />
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     </CaretakerDataProvider>
   );
 };
