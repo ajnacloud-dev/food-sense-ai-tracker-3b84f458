@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/contexts/RoleContext";
 import { RoleSwitcher } from "./RoleSwitcher";
+import { Badge } from "@/components/ui/badge";
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -100,10 +101,11 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-        <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-          <Brain className="h-6 w-6 text-blue-600" />
+    <div className="flex h-full flex-col bg-white border-r border-gray-200">
+      {/* Header */}
+      <div className="flex h-14 items-center border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-green-600 to-green-700">
+        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white">
+          <Brain className="h-6 w-6" />
           <span>NutriWealth</span>
         </Link>
       </div>
@@ -111,22 +113,23 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
       {/* Role Switcher for dual role users only */}
       {isDualRole && <RoleSwitcher onSwitch={onItemClick} />}
       
-      <ScrollArea className="flex-1">
-        <div className="space-y-1 p-2">
+      <ScrollArea className="flex-1 px-3 py-4">
+        <div className="space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.href;
             
             return (
               <Link
                 key={item.name}
                 to={item.href}
                 onClick={onItemClick}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
-                  location.pathname === item.href ? "bg-gray-100 text-gray-900" : ""
-                }`}
+                className={`nw-sidebar-nav-item ${
+                  isActive ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
+                } nw-transition-smooth`}
               >
                 <Icon className="h-4 w-4" />
-                {item.name}
+                <span className="font-medium">{item.name}</span>
               </Link>
             );
           })}
@@ -135,55 +138,60 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
             <Link
               to="/billing"
               onClick={onItemClick}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
-                location.pathname === "/billing" ? "bg-gray-100 text-gray-900" : ""
-              }`}
+              className={`nw-sidebar-nav-item ${
+                location.pathname === "/billing" ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
+              } nw-transition-smooth`}
             >
               <CreditCard className="h-4 w-4" />
-              Billing
+              <span className="font-medium">Billing</span>
             </Link>
           )}
           
-          <Separator className="my-4" />
+          <div className="nw-divider" />
           
           <div className="px-3 py-2">
-            <h3 className="mb-2 text-sm font-medium text-gray-500 uppercase tracking-wide">
+            <h3 className="mb-3 text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
               Care Management
             </h3>
-            {careItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={onItemClick}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
-                    location.pathname === item.href ? "bg-gray-100 text-gray-900" : ""
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
-              );
-            })}
+            <div className="space-y-1">
+              {careItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={onItemClick}
+                    className={`nw-sidebar-nav-item ${
+                      isActive ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
+                    } nw-transition-smooth`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           {userRole === 'admin' && (
             <>
-              <Separator className="my-4" />
+              <div className="nw-divider" />
               <div className="px-3 py-2">
-                <h3 className="mb-2 text-sm font-medium text-gray-500 uppercase tracking-wide">
+                <h3 className="mb-3 text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                  <div className="w-1 h-1 bg-red-400 rounded-full"></div>
                   Administration
                 </h3>
                 <Link
                   to="/admin"
                   onClick={onItemClick}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
-                    location.pathname === "/admin" ? "bg-gray-100 text-gray-900" : ""
-                  }`}
+                  className={`nw-sidebar-nav-item ${
+                    location.pathname === "/admin" ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
+                  } nw-transition-smooth`}
                 >
                   <Shield className="h-4 w-4" />
-                  Admin Dashboard
+                  <span className="font-medium">Admin Dashboard</span>
                 </Link>
               </div>
             </>
@@ -191,28 +199,42 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
         </div>
       </ScrollArea>
 
-      <div className="border-t p-4">
+      {/* User info & Sign out */}
+      <div className="border-t border-gray-200 p-4 bg-gray-50">
         {user && (
-          <div className="mb-4 px-3">
-            <p className="text-sm font-medium text-gray-900">{user.email}</p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              <p className="text-xs text-blue-600 font-medium">Participant</p>
+          <div className="mb-4 p-3 bg-white rounded-lg nw-shadow-soft">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="nw-avatar w-8 h-8 bg-green-100 text-green-700 text-sm">
+                {user.email?.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <Badge className="nw-role-badge-participant text-2xs">
+                Participant
+              </Badge>
               {userRole === 'admin' && (
-                <p className="text-xs text-red-600 font-medium">• Administrator</p>
+                <Badge className="nw-role-badge-admin text-2xs">
+                  Administrator
+                </Badge>
               )}
               {isDualRole && (
-                <p className="text-xs text-green-600 font-medium">• Caretaker</p>
+                <Badge className="nw-role-badge-caretaker text-2xs">
+                  Caretaker
+                </Badge>
               )}
             </div>
           </div>
         )}
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3"
+          className="w-full justify-start gap-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 nw-transition-smooth"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />
-          Sign Out
+          <span className="font-medium">Sign Out</span>
         </Button>
       </div>
     </div>

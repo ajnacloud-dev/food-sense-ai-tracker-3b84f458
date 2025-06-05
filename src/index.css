@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,20 +36,23 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* NutriWealth Brand Colors */
+    --nutriwealth-primary: 210 100% 50%;
+    --nutriwealth-primary-hover: 210 100% 45%;
+    --nutriwealth-secondary: 142 71% 45%;
+    --nutriwealth-secondary-hover: 142 71% 40%;
+    --nutriwealth-accent: 38 92% 50%;
+    --nutriwealth-accent-hover: 38 92% 45%;
+    --nutriwealth-muted: 220 14% 96%;
+    --nutriwealth-border: 220 13% 91%;
   }
 
   .dark {
@@ -97,5 +101,188 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* NutriWealth Design System Components */
+  .nw-card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .nw-card-header {
+    @apply p-6 pb-4;
+  }
+
+  .nw-card-content {
+    @apply p-6 pt-0;
+  }
+
+  .nw-button-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+
+  .nw-button-secondary {
+    @apply bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
+  }
+
+  .nw-button-outline {
+    @apply border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+
+  .nw-input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200;
+  }
+
+  .nw-badge-success {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800;
+  }
+
+  .nw-badge-warning {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800;
+  }
+
+  .nw-badge-error {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800;
+  }
+
+  .nw-badge-info {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800;
+  }
+
+  .nw-sidebar-nav-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200;
+  }
+
+  .nw-sidebar-nav-item-active {
+    @apply bg-blue-50 text-blue-700 border-r-2 border-blue-600;
+  }
+
+  .nw-sidebar-nav-item-inactive {
+    @apply text-gray-700 hover:text-gray-900 hover:bg-gray-100;
+  }
+
+  .nw-sidebar-nav-item-disabled {
+    @apply text-gray-300 cursor-not-allowed;
+  }
+
+  .nw-page-header {
+    @apply flex items-center justify-between mb-8;
+  }
+
+  .nw-page-title {
+    @apply text-3xl font-bold text-gray-900;
+  }
+
+  .nw-page-subtitle {
+    @apply text-gray-600 mt-1;
+  }
+
+  .nw-section-header {
+    @apply text-xl font-semibold text-gray-900 mb-4;
+  }
+
+  .nw-stats-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8;
+  }
+
+  .nw-content-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+  }
+
+  .nw-permission-card {
+    @apply border rounded-lg p-4 transition-colors duration-200;
+  }
+
+  .nw-permission-card-granted {
+    @apply bg-green-50 border-green-200;
+  }
+
+  .nw-permission-card-denied {
+    @apply bg-gray-50 border-gray-200;
+  }
+
+  .nw-role-badge-participant {
+    @apply bg-green-100 text-green-800 border-green-200;
+  }
+
+  .nw-role-badge-caretaker {
+    @apply bg-blue-100 text-blue-800 border-blue-200;
+  }
+
+  .nw-role-badge-admin {
+    @apply bg-red-100 text-red-800 border-red-200;
+  }
+
+  .nw-status-indicator {
+    @apply inline-flex items-center gap-1.5 text-sm font-medium;
+  }
+
+  .nw-status-active {
+    @apply text-green-700;
+  }
+
+  .nw-status-inactive {
+    @apply text-gray-500;
+  }
+
+  .nw-status-pending {
+    @apply text-yellow-700;
+  }
+
+  .nw-loading-spinner {
+    @apply animate-spin rounded-full border-2 border-gray-300 border-t-blue-600;
+  }
+
+  .nw-transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  .nw-shadow-soft {
+    @apply shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .nw-focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+
+  .nw-text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent;
+  }
+
+  .nw-divider {
+    @apply border-t border-gray-200 my-6;
+  }
+
+  .nw-avatar {
+    @apply inline-flex items-center justify-center rounded-full bg-gray-100 text-gray-600 font-medium;
+  }
+
+  .nw-tooltip {
+    @apply bg-gray-900 text-white text-xs rounded px-2 py-1;
+  }
+}
+
+@layer utilities {
+  .nw-scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  .nw-hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .nw-hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nw-glass {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);
+  }
+
+  .nw-text-balance {
+    text-wrap: balance;
   }
 }

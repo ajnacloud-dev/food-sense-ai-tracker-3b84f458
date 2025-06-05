@@ -11,7 +11,6 @@ import {
   BarChart3, 
   LogOut, 
   Stethoscope,
-  ArrowLeft,
   User
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,12 +47,6 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
     }
   };
 
-  const handleSwitchToParticipant = () => {
-    navigate("/dashboard");
-    onItemClick?.();
-    toast.success("Switched to your health data view");
-  };
-
   const navigationItems = [
     { name: "Dashboard", href: "/caretaker", icon: Stethoscope },
     { name: "Nutrition", href: "/caretaker/food", icon: Utensils },
@@ -65,48 +58,30 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
   return (
     <div className="flex h-full flex-col bg-white border-r border-gray-200">
       {/* Header */}
-      <div className="flex h-14 items-center border-b border-gray-200 px-4 lg:h-[60px] lg:px-6">
-        <Link to="/caretaker" className="flex items-center gap-2 font-semibold">
-          <Brain className="h-6 w-6 text-blue-600" />
-          <span className="text-gray-900">NutriWealth</span>
+      <div className="flex h-14 items-center border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-blue-600 to-blue-700">
+        <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white">
+          <Brain className="h-6 w-6" />
+          <span>NutriWealth</span>
         </Link>
       </div>
 
       {/* Role Switcher for dual-role users */}
       <RoleSwitcher onSwitch={onItemClick} />
 
-      {/* Current mode indicator for dual role users */}
-      {isDualRole && (
-        <div className="px-4 py-3 border-b border-gray-200 bg-blue-50">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-800">Healthcare Provider Mode</span>
-            <Stethoscope className="h-4 w-4 text-blue-600" />
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSwitchToParticipant}
-            className="w-full mt-2 text-xs h-8 text-blue-700 hover:text-blue-800 hover:bg-blue-100"
-          >
-            <ArrowLeft className="h-3 w-3 mr-1" />
-            Back to My Health Data
-          </Button>
-        </div>
-      )}
-
       {/* Patient Selector */}
       <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <label className="text-sm font-medium text-gray-700 mb-2 block">
-          Active Patient:
+        <label className="text-sm font-semibold text-gray-800 mb-3 block flex items-center gap-2">
+          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+          Active Patient
         </label>
         
         {loading ? (
-          <div className="text-sm text-gray-500 p-3 border border-gray-200 rounded-md bg-white animate-pulse">
-            Loading patients...
+          <div className="nw-card p-3 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
           </div>
         ) : error ? (
-          <div className="text-sm text-red-600 p-3 border border-red-200 rounded-md bg-red-50">
-            Error loading patients
+          <div className="nw-card border-red-200 bg-red-50 p-3">
+            <span className="text-sm text-red-600 font-medium">Error loading patients</span>
           </div>
         ) : participants.length > 0 ? (
           <Select
@@ -116,17 +91,15 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
               setSelectedParticipantId(value);
             }}
           >
-            <SelectTrigger className="w-full bg-white border-gray-200">
+            <SelectTrigger className="nw-input h-12 bg-white border-gray-300 shadow-sm">
               <SelectValue placeholder="Select patient..." />
             </SelectTrigger>
-            <SelectContent className="w-full">
+            <SelectContent className="w-full bg-white border border-gray-200 shadow-lg rounded-lg">
               {participants.map((participant) => (
-                <SelectItem key={participant.id} value={participant.id}>
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-medium text-blue-700">
-                        {participant.full_name.split(' ').map(n => n[0]).join('')}
-                      </span>
+                <SelectItem key={participant.id} value={participant.id} className="hover:bg-gray-50">
+                  <div className="flex items-center gap-3 min-w-0 flex-1 py-2">
+                    <div className="nw-avatar w-8 h-8 bg-blue-100 text-blue-700 text-xs flex-shrink-0">
+                      {participant.full_name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-gray-900 truncate">{participant.full_name}</div>
@@ -138,20 +111,20 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
             </SelectContent>
           </Select>
         ) : (
-          <div className="text-sm text-gray-500 p-3 border border-gray-200 rounded-md bg-white">
-            No patients found
+          <div className="nw-card p-3 border-gray-200">
+            <span className="text-sm text-gray-500">No patients available</span>
           </div>
         )}
         
         {/* Status info */}
-        <div className="mt-2 text-xs text-gray-500">
+        <div className="mt-3 flex items-center justify-between text-xs">
           {participants.length > 0 ? (
-            <div className="flex items-center gap-1">
+            <div className="nw-status-indicator nw-status-active">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span>{participants.length} patient(s) available</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
+            <div className="nw-status-indicator nw-status-inactive">
               <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
               <span>No active patients</span>
             </div>
@@ -160,10 +133,11 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
       </div>
       
       {/* Navigation */}
-      <ScrollArea className="flex-1 px-2 py-2">
-        <div className="space-y-1">
+      <ScrollArea className="flex-1 px-3 py-4">
+        <div className="space-y-2">
           {navigationItems.map((item) => {
             const Icon = item.icon;
+            const isActive = location.pathname === item.href;
             const isDisabled = item.href !== '/caretaker' && !selectedParticipantId;
             
             return (
@@ -178,16 +152,16 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
                   }
                   onItemClick?.();
                 }}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all text-sm ${
+                className={`nw-sidebar-nav-item ${
                   isDisabled 
-                    ? "text-gray-300 cursor-not-allowed" 
-                    : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                } ${
-                  location.pathname === item.href ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600" : ""
-                }`}
+                    ? 'nw-sidebar-nav-item-disabled' 
+                    : isActive
+                    ? 'nw-sidebar-nav-item-active'
+                    : 'nw-sidebar-nav-item-inactive'
+                } nw-transition-smooth`}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
-                <span>{item.name}</span>
+                <span className="font-medium">{item.name}</span>
               </Link>
             );
           })}
@@ -197,17 +171,21 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
       {/* User info & Sign out */}
       <div className="border-t border-gray-200 p-4 bg-gray-50">
         {user && (
-          <div className="mb-4 px-3">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="h-4 w-4 text-gray-500" />
-              <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+          <div className="mb-4 p-3 bg-white rounded-lg nw-shadow-soft">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="nw-avatar w-8 h-8 bg-blue-100 text-blue-700 text-sm">
+                {user.email?.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+              </div>
             </div>
             <div className="flex flex-wrap gap-1">
-              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+              <Badge className="nw-role-badge-caretaker text-2xs">
                 Healthcare Provider
               </Badge>
               {isDualRole && (
-                <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 border-green-200">
+                <Badge className="nw-role-badge-participant text-2xs">
                   Participant
                 </Badge>
               )}
@@ -216,11 +194,11 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
         )}
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+          className="w-full justify-start gap-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 nw-transition-smooth"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />
-          Sign Out
+          <span className="font-medium">Sign Out</span>
         </Button>
       </div>
     </div>
