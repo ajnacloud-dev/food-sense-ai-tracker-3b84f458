@@ -111,7 +111,10 @@ const Receipts = () => {
     return (
       <SidebarLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading receipts...</div>
+          <div className="text-center">
+            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading receipts...</p>
+          </div>
         </div>
       </SidebarLayout>
     );
@@ -119,19 +122,25 @@ const Receipts = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="space-y-6 nw-clinical-slide-in">
+        {/* Enhanced Header */}
+        <div className="nw-page-header">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Receipts</h1>
-            <p className="text-gray-600">Track your expenses and spending patterns</p>
+            <h1 className="nw-page-title flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-md">
+                <Receipt className="h-6 w-6 text-white" />
+              </div>
+              <span className="nw-text-gradient">Receipts</span>
+            </h1>
+            <p className="nw-page-subtitle">Track your expenses and spending patterns with intelligent insights</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex border rounded-lg p-1">
+          <div className="flex items-center gap-3">
+            <div className="flex border border-green-200 rounded-xl p-1 bg-white shadow-sm">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-8"
+                className={`h-9 px-4 ${viewMode === 'grid' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-green-50 text-gray-600'} transition-all duration-200`}
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>
@@ -139,12 +148,15 @@ const Receipts = () => {
                 variant={viewMode === 'table' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('table')}
-                className="h-8"
+                className={`h-9 px-4 ${viewMode === 'table' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-green-50 text-gray-600'} transition-all duration-200`}
               >
                 <List className="h-4 w-4" />
               </Button>
             </div>
-            <Button onClick={() => navigate("/capture")} className="flex items-center gap-2">
+            <Button 
+              onClick={() => navigate("/capture")} 
+              className="nw-button-primary flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
               <Plus className="h-4 w-4" />
               Add Receipt
             </Button>
@@ -154,7 +166,7 @@ const Receipts = () => {
         {/* Enhanced Stats Cards */}
         <ReceiptStatsCards receipts={receipts} />
 
-        {/* Filters */}
+        {/* Enhanced Filters */}
         <ReceiptFilters 
           onFiltersChange={handleFiltersChange}
           vendors={uniqueVendors}
@@ -162,36 +174,46 @@ const Receipts = () => {
           filteredCount={processedReceipts.length}
         />
 
-        {/* Receipts Display */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Receipt History</CardTitle>
-            <CardDescription>Your processed receipts and expense tracking</CardDescription>
+        {/* Enhanced Receipts Display */}
+        <Card className="nw-card-modern">
+          <CardHeader className="border-b border-green-100/50 bg-gradient-to-r from-green-50/50 to-white">
+            <CardTitle className="flex items-center gap-2 text-xl text-green-700">
+              <Receipt className="h-5 w-5" />
+              Receipt History
+            </CardTitle>
+            <CardDescription className="text-sm text-gray-600">
+              Your processed receipts and expense tracking with AI-powered insights
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             {processedReceipts.length === 0 ? (
-              <div className="text-center py-8">
-                <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Receipt className="h-10 w-10 text-green-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
                   {receipts.length === 0 ? "No receipts yet" : "No receipts match your filters"}
                 </h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
                   {receipts.length === 0 
-                    ? "Start tracking your expenses by adding your first receipt"
-                    : "Try adjusting your filters or search terms"
+                    ? "Start tracking your expenses by adding your first receipt with our smart AI analysis"
+                    : "Try adjusting your filters or search terms to find what you're looking for"
                   }
                 </p>
                 {receipts.length === 0 && (
-                  <Button onClick={() => navigate("/capture")}>
+                  <Button 
+                    onClick={() => navigate("/capture")}
+                    className="nw-button-primary"
+                  >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add Receipt
+                    Add Your First Receipt
                   </Button>
                 )}
               </div>
             ) : (
               <>
                 {viewMode === 'grid' ? (
-                  <div className="grid gap-4">
+                  <div className="grid gap-6">
                     {processedReceipts.map((receipt) => (
                       <ReceiptCard
                         key={receipt.id}
@@ -202,12 +224,14 @@ const Receipts = () => {
                     ))}
                   </div>
                 ) : (
-                  <ReceiptTable
-                    receipts={processedReceipts}
-                    onView={(id) => navigate(`/receipts/${id}`)}
-                    onDelete={deleteReceipt}
-                    onRowClick={handleRowClick}
-                  />
+                  <div className="nw-table-modern">
+                    <ReceiptTable
+                      receipts={processedReceipts}
+                      onView={(id) => navigate(`/receipts/${id}`)}
+                      onDelete={deleteReceipt}
+                      onRowClick={handleRowClick}
+                    />
+                  </div>
                 )}
               </>
             )}
