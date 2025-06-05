@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dumbbell, Clock, Flame, Plus, Trash2, Activity, Eye } from "lucide-react";
+import { Dumbbell, Clock, Flame, Plus, Trash2, Activity, Eye, LayoutGrid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ const Workouts = () => {
   const isMobile = useIsMobile();
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [stats, setStats] = useState({
     totalWorkouts: 0,
     totalDuration: 0,
@@ -105,100 +106,155 @@ const Workouts = () => {
     return (
       <SidebarLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading workouts...</div>
+          <div className="text-center">
+            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading workouts...</p>
+          </div>
         </div>
       </SidebarLayout>
     );
   }
 
-  const recentWorkouts = workouts.slice(0, 5);
-  const allWorkouts = workouts;
-
   return (
     <SidebarLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="space-y-6 nw-clinical-slide-in">
+        {/* Enhanced Header */}
+        <div className="nw-page-header">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Workouts</h1>
-            <p className="text-gray-600">Track your fitness progress and activity</p>
+            <h1 className="nw-page-title flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center shadow-md">
+                <Dumbbell className="h-6 w-6 text-white" />
+              </div>
+              <span className="nw-text-gradient">Workouts</span>
+            </h1>
+            <p className="nw-page-subtitle">Track your fitness progress and activity with detailed analytics</p>
           </div>
-          <Button onClick={() => navigate("/capture")} className="flex items-center gap-2 w-full sm:w-auto">
-            <Plus className="h-4 w-4" />
-            Add Workout
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex border border-purple-200 rounded-xl p-1 bg-white shadow-sm">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-9 px-4 ${viewMode === 'grid' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'hover:bg-purple-50 text-gray-600'} transition-all duration-200`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-9 px-4 ${viewMode === 'table' ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'hover:bg-purple-50 text-gray-600'} transition-all duration-200`}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button 
+              onClick={() => navigate("/capture")} 
+              className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <Plus className="h-4 w-4" />
+              Add Workout
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Enhanced Stats Cards */}
         <WorkoutStatsCards stats={stats} />
 
-        {/* Workouts Content */}
-        <Tabs defaultValue="recent" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="recent">Recent Workouts</TabsTrigger>
-            <TabsTrigger value="all">All Workouts</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="recent" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest 5 workouts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {recentWorkouts.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No workouts yet</h3>
-                    <p className="text-gray-600 mb-4">Start tracking your fitness by adding your first workout</p>
-                    <Button onClick={() => navigate("/capture")}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Workout
-                    </Button>
+        {/* Enhanced Workouts Display */}
+        <Card className="nw-card-modern">
+          <CardHeader className="border-b border-purple-100/50 bg-gradient-to-r from-purple-50/50 to-white">
+            <CardTitle className="flex items-center gap-2 text-xl text-purple-700">
+              <Dumbbell className="h-5 w-5" />
+              Workout History
+            </CardTitle>
+            <CardDescription className="text-sm text-gray-600">
+              Your complete fitness tracking with exercise analytics
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            {workouts.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Dumbbell className="h-10 w-10 text-purple-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">No workouts yet</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  Start tracking your fitness by adding your first workout with detailed exercise logging
+                </p>
+                <Button 
+                  onClick={() => navigate("/capture")}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Your First Workout
+                </Button>
+              </div>
+            ) : (
+              <>
+                {viewMode === 'grid' ? (
+                  <div className="space-y-4">
+                    {workouts.map((workout) => (
+                      <div key={workout.id} className="p-4 border border-purple-200 rounded-lg hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-purple-50/30">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                              <Dumbbell className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{workout.workout_type}</h3>
+                              <p className="text-sm text-gray-600">{new Date(workout.created_at).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/workouts/${workout.id}`)}
+                              className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteWorkout(workout.id)}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div className="text-center p-2 bg-white rounded-lg border border-purple-100">
+                            <div className="font-semibold text-purple-600">{workout.duration || 0}</div>
+                            <div className="text-gray-600">Minutes</div>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded-lg border border-purple-100">
+                            <div className="font-semibold text-orange-600">{workout.calories_burned || 0}</div>
+                            <div className="text-gray-600">Calories</div>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded-lg border border-purple-100">
+                            <div className="font-semibold text-blue-600">{workout.workout_exercises?.length || 0}</div>
+                            <div className="text-gray-600">Exercises</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <>
-                    {isMobile ? (
-                      <WorkoutCards workouts={recentWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
-                    ) : (
-                      <WorkoutTable workouts={recentWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="all" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Workouts</CardTitle>
-                <CardDescription>Complete workout history</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {allWorkouts.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Dumbbell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No workouts yet</h3>
-                    <p className="text-gray-600 mb-4">Start tracking your fitness by adding your first workout</p>
-                    <Button onClick={() => navigate("/capture")}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Workout
-                    </Button>
+                  <div className="nw-table-modern">
+                    <WorkoutTable 
+                      workouts={workouts} 
+                      onDelete={deleteWorkout} 
+                      onView={(id) => navigate(`/workouts/${id}`)} 
+                    />
                   </div>
-                ) : (
-                  <>
-                    {isMobile ? (
-                      <WorkoutCards workouts={allWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
-                    ) : (
-                      <WorkoutTable workouts={allWorkouts} onDelete={deleteWorkout} onView={(id) => navigate(`/workouts/${id}`)} />
-                    )}
-                  </>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
       <FloatingCaptureButton />
     </SidebarLayout>

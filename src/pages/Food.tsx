@@ -1,7 +1,6 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Utensils } from "lucide-react";
+import { Plus, RefreshCw, Utensils, LayoutGrid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,6 +14,7 @@ import { FoodCard } from "@/components/food/FoodCard";
 import { CompactStatsHeader } from "@/components/food/CompactStatsHeader";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface FoodEntry {
   id: string;
@@ -40,6 +40,7 @@ const Food = () => {
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [selectedMealType, setSelectedMealType] = useState('all');
   const [selectedDietType, setSelectedDietType] = useState('all');
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -219,7 +220,10 @@ const Food = () => {
     return (
       <SidebarLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading food entries...</div>
+          <div className="text-center">
+            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading food entries...</p>
+          </div>
         </div>
       </SidebarLayout>
     );
@@ -227,36 +231,57 @@ const Food = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-4 lg:space-y-6">
-        {/* Responsive Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="space-y-6 nw-clinical-slide-in">
+        {/* Enhanced Header */}
+        <div className="nw-page-header">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">Food Analysis</h1>
-            <p className="text-sm text-gray-600 sm:text-base">Track your nutrition and dietary intake</p>
+            <h1 className="nw-page-title flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-md">
+                <Utensils className="h-6 w-6 text-white" />
+              </div>
+              <span className="nw-text-gradient">Food Analysis</span>
+            </h1>
+            <p className="nw-page-subtitle">Track your nutrition and dietary intake with intelligent insights</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex border border-green-200 rounded-xl p-1 bg-white shadow-sm">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={`h-9 px-4 ${viewMode === 'grid' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-green-50 text-gray-600'} transition-all duration-200`}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('table')}
+                className={`h-9 px-4 ${viewMode === 'table' ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-green-50 text-gray-600'} transition-all duration-200`}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
             <Button 
               variant="outline" 
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2"
-              size={isMobile ? "sm" : "default"}
+              className="flex items-center gap-2 shadow-sm hover:shadow-md nw-transition-fast"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              {!isMobile && <span>Refresh</span>}
+              Refresh
             </Button>
             <Button 
               onClick={() => navigate("/capture")} 
-              className="flex items-center gap-2"
-              size={isMobile ? "sm" : "default"}
+              className="nw-button-primary flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <Plus className="h-4 w-4" />
-              <span>{isMobile ? "Add" : "Add Food Entry"}</span>
+              Add Food Entry
             </Button>
           </div>
         </div>
 
-        {/* Responsive Stats Display */}
+        {/* Enhanced Stats Display */}
         {isMobile ? (
           <CompactStatsHeader
             totalEntries={stats.totalEntries}
@@ -277,62 +302,88 @@ const Food = () => {
           />
         )}
 
-        {/* Filter Button */}
-        <div className={`${isMobile ? 'w-full' : 'flex justify-end'}`}>
-          <div className={isMobile ? 'w-full' : ''}>
-            <CompactFilterButton
-              selectedMealType={selectedMealType}
-              onMealTypeChange={setSelectedMealType}
-              mealTypeCounts={mealTypeCounts}
-              selectedDietType={selectedDietType}
-              onDietTypeChange={setSelectedDietType}
-              dietTypeCounts={dietTypeCounts}
-              startDate={startDate}
-              endDate={endDate}
-              onDateRangeChange={(start, end) => {
-                setStartDate(start);
-                setEndDate(end);
-              }}
-            />
-          </div>
+        {/* Enhanced Filter Button */}
+        <div className="flex justify-end">
+          <CompactFilterButton
+            selectedMealType={selectedMealType}
+            onMealTypeChange={setSelectedMealType}
+            mealTypeCounts={mealTypeCounts}
+            selectedDietType={selectedDietType}
+            onDietTypeChange={setSelectedDietType}
+            dietTypeCounts={dietTypeCounts}
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+          />
         </div>
 
-        {/* Responsive Food Entries Display */}
-        {filteredEntries.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <Utensils className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No food entries found</h3>
-            <p className="text-gray-600 mb-4 max-w-md mx-auto">
-              {foodEntries.length === 0 ? 
-                'Start tracking your nutrition by adding your first food entry' :
-                'Try adjusting your filters or add more food entries'
-              }
-            </p>
-            <Button onClick={() => navigate("/capture")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Food Entry
-            </Button>
-          </div>
-        ) : isMobile ? (
-          <div className="space-y-3">
-            {filteredEntries.map((entry) => (
-              <FoodCard
-                key={entry.id}
-                entry={entry}
-                onView={(id) => navigate(`/food/${id}`)}
-                onDelete={deleteFoodEntry}
-                getMealTypeFromEntry={getMealTypeFromEntry}
-              />
-            ))}
-          </div>
-        ) : (
-          <FoodTable
-            entries={filteredEntries}
-            onView={(id) => navigate(`/food/${id}`)}
-            onDelete={deleteFoodEntry}
-            getMealTypeFromEntry={getMealTypeFromEntry}
-          />
-        )}
+        {/* Enhanced Food Entries Display */}
+        <Card className="nw-card-modern">
+          <CardHeader className="border-b border-green-100/50 bg-gradient-to-r from-green-50/50 to-white">
+            <CardTitle className="flex items-center gap-2 text-xl text-green-700">
+              <Utensils className="h-5 w-5" />
+              Food History
+            </CardTitle>
+            <CardDescription className="text-sm text-gray-600">
+              Your analyzed food entries with nutritional insights
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            {filteredEntries.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Utensils className="h-10 w-10 text-green-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {foodEntries.length === 0 ? "No food entries yet" : "No food entries match your filters"}
+                </h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  {foodEntries.length === 0 
+                    ? "Start tracking your nutrition by adding your first food entry with smart AI analysis"
+                    : "Try adjusting your filters or search terms to find what you're looking for"
+                  }
+                </p>
+                {foodEntries.length === 0 && (
+                  <Button 
+                    onClick={() => navigate("/capture")}
+                    className="nw-button-primary"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Food Entry
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                {viewMode === 'grid' ? (
+                  <div className="space-y-4">
+                    {filteredEntries.map((entry) => (
+                      <FoodCard
+                        key={entry.id}
+                        entry={entry}
+                        onView={(id) => navigate(`/food/${id}`)}
+                        onDelete={deleteFoodEntry}
+                        getMealTypeFromEntry={getMealTypeFromEntry}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="nw-table-modern">
+                    <FoodTable
+                      entries={filteredEntries}
+                      onView={(id) => navigate(`/food/${id}`)}
+                      onDelete={deleteFoodEntry}
+                      getMealTypeFromEntry={getMealTypeFromEntry}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
       <FloatingCaptureButton />
     </SidebarLayout>
