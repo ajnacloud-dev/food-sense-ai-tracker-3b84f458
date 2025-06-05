@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +7,8 @@ import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Utensils, Calendar, User, AlertCircle, Stethoscope } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Utensils, Calendar, User, AlertCircle, Stethoscope, Flame, Clock, Apple, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 import { CaretakerDataProvider, useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 import PermissionStatusIndicator from "@/components/caretaker/PermissionStatusIndicator";
@@ -14,6 +16,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
 import { format } from 'date-fns';
 import { ImageModal } from "@/components/ui/image-modal";
+import { HealthImpact } from "@/components/food/HealthImpact";
+import CommentsSection from "@/components/caretaker/CommentsSection";
 
 interface FoodEntry {
   id: string;
@@ -25,6 +29,9 @@ interface FoodEntry {
   total_fiber: number;
   total_sodium: number;
   meal_type: string;
+  meal_time: string;
+  meal_date: string;
+  confidence_score: number;
   image_url: string;
   created_at: string;
   extracted_nutrients: any;
@@ -50,6 +57,8 @@ const CaretakerFoodDetailsContent = () => {
   const { hasPermission, loading: permissionLoading } = usePermissionStatus(selectedParticipantId);
   const [foodEntry, setFoodEntry] = useState<FoodEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAllItems, setShowAllItems] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
 
   useEffect(() => {
     const fetchFoodEntry = async () => {
@@ -104,13 +113,81 @@ const CaretakerFoodDetailsContent = () => {
     };
 
     fetchFoodEntry();
-  }, [selectedParticipantId, id, permissionLoading]); // Removed hasPermission from dependencies
+  }, [selectedParticipantId, id, permissionLoading]);
+
+  const fetchCommentCount = async () => {
+    if (!selectedParticipantId || !id) return;
+
+    try {
+      const { count, error } = await supabase
+        .from('participant_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('participant_id', selectedParticipantId)
+        .eq('content_type', 'food_entry')
+        .eq('content_id', id);
+
+      if (error) throw error;
+      setCommentCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching comment count:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedParticipantId && id) {
+      fetchCommentCount();
+    }
+  }, [selectedParticipantId, id]);
+
+  const getCaloriesFromData = (entry: FoodEntry) => {
+    return entry.calories || 
+           entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories || 
+           entry.extracted_nutrients?.calories || 0;
+  };
+
+  const getNutritionFromData = (entry: FoodEntry) => {
+    const extracted = entry.extracted_nutrients;
+    const totalNutrition = extracted?.meal_summary?.total_nutrition;
+    
+    return {
+      calories: getCaloriesFromData(entry),
+      proteins: entry.total_protein || totalNutrition?.proteins || 0,
+      carbohydrates: entry.total_carbohydrates || totalNutrition?.carbohydrates || 0,
+      fats: entry.total_fats || totalNutrition?.fats || 0,
+      fiber: entry.total_fiber || totalNutrition?.fiber || 0,
+      sodium: entry.total_sodium || totalNutrition?.sodium || 0,
+    };
+  };
+
+  const getDishNames = (entry: FoodEntry) => {
+    return entry.extracted_nutrients?.meal_summary?.dish_names || 
+           entry.extracted_nutrients?.dish_names || [];
+  };
+
+  const getFoodItems = (entry: FoodEntry) => {
+    return entry.extracted_nutrients?.food_items || [];
+  };
 
   const getMealType = (entry: FoodEntry) => {
     return entry.extracted_nutrients?.meal_summary?.meal_type || 
            entry.extracted_nutrients?.meal_type || 
            entry.meal_type || 
            'unknown';
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (contextLoading || permissionLoading || loading) {
@@ -247,153 +324,235 @@ const CaretakerFoodDetailsContent = () => {
     );
   }
 
+  const nutrition = getNutritionFromData(foodEntry);
+  const dishNames = getDishNames(foodEntry);
+  const foodItems = getFoodItems(foodEntry);
+  const visibleItems = showAllItems ? foodItems : foodItems.slice(0, 4);
+
   return (
-    <div className="nw-page-container">
-      <div className="nw-content-wrapper">
-        {/* Page Header */}
-        <div className="nw-page-header">
-          <div>
-            <h1 className="nw-page-title flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                <Utensils className="h-7 w-7 text-white" />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-4">
+              <Button variant="outline" size="sm" onClick={() => navigate("/caretaker/food")}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Utensils className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">
+                    {getMealType(foodEntry)} - {participantData.full_name}
+                  </h1>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <span className="flex items-center">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {formatDate(foodEntry.created_at)}
+                    </span>
+                    <span className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {formatTime(foodEntry.created_at)}
+                    </span>
+                    <span className="flex items-center font-semibold text-orange-600">
+                      <Flame className="h-3 w-3 mr-1" />
+                      {nutrition.calories} cal
+                    </span>
+                    {foodEntry.confidence_score && (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                        {Math.round(foodEntry.confidence_score * 100)}% confident
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
-              Food Entry Details
-            </h1>
-            <div className="flex items-center gap-2 text-gray-600 mt-2">
-              <Stethoscope className="h-4 w-4" />
-              <span className="font-medium">{participantData.full_name}</span>
-              <span className="text-gray-400">•</span>
-              <span>{format(new Date(foodEntry.created_at), 'MMM dd, yyyy - h:mm a')}</span>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/caretaker/food')}
-            className="nw-button-outline"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Food Entries
-          </Button>
         </div>
+      </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Food Image */}
-          {foodEntry.image_url && (
-            <Card className="nw-card-modern lg:col-span-1">
-              <CardContent className="p-6">
-                <ImageModal 
-                  src={foodEntry.image_url} 
-                  alt="Food entry" 
-                  className="w-full rounded-lg aspect-square object-cover"
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Main Details */}
-          <Card className={`nw-card-modern ${foodEntry.image_url ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  {format(new Date(foodEntry.created_at), 'MMMM dd, yyyy - h:mm a')}
-                </CardTitle>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                  {getMealType(foodEntry)}
-                </Badge>
-              </div>
-              <CardDescription className="text-base">
-                {foodEntry.description || 'No description available'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Nutrition Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="nw-stat-card">
-                  <div className="text-2xl font-bold text-orange-600">{foodEntry.calories || 0}</div>
-                  <div className="text-sm text-gray-500">Calories</div>
-                </div>
-                <div className="nw-stat-card">
-                  <div className="text-2xl font-bold text-blue-600">{foodEntry.total_protein?.toFixed(1) || 0}g</div>
-                  <div className="text-sm text-gray-500">Protein</div>
-                </div>
-                <div className="nw-stat-card">
-                  <div className="text-2xl font-bold text-green-600">{foodEntry.total_carbohydrates?.toFixed(1) || 0}g</div>
-                  <div className="text-sm text-gray-500">Carbs</div>
-                </div>
-                <div className="nw-stat-card">
-                  <div className="text-2xl font-bold text-purple-600">{foodEntry.total_fats?.toFixed(1) || 0}g</div>
-                  <div className="text-sm text-gray-500">Fat</div>
-                </div>
-              </div>
-              
-              {(foodEntry.total_fiber || foodEntry.total_sodium) && (
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                  {foodEntry.total_fiber && (
-                    <div className="nw-stat-card">
-                      <div className="text-lg font-semibold">{foodEntry.total_fiber.toFixed(1)}g</div>
-                      <div className="text-sm text-gray-500">Fiber</div>
-                    </div>
-                  )}
-                  {foodEntry.total_sodium && (
-                    <div className="nw-stat-card">
-                      <div className="text-lg font-semibold">{foodEntry.total_sodium.toFixed(1)}mg</div>
-                      <div className="text-sm text-gray-500">Sodium</div>
-                    </div>
-                  )}
-                </div>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Left Sidebar */}
+          <div className="lg:col-span-2">
+            <div className="space-y-4">
+              {/* Food Image */}
+              {foodEntry.image_url && (
+                <Card>
+                  <CardContent className="p-4">
+                    <ImageModal
+                      src={foodEntry.image_url}
+                      alt="Food"
+                      className="w-full h-64"
+                    />
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Food Items */}
-          {foodEntry.food_items && foodEntry.food_items.length > 0 && (
-            <Card className="nw-card-modern lg:col-span-3">
-              <CardHeader>
-                <CardTitle>Food Items</CardTitle>
-                <CardDescription>
-                  Individual items identified in this meal
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {foodEntry.food_items.map((item) => (
-                    <div key={item.id} className="nw-card-clinical p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold">{item.name}</h4>
-                        {item.serving_size && (
-                          <Badge variant="secondary">{item.serving_size}</Badge>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {item.calories && (
-                          <div>
-                            <span className="text-gray-500">Calories:</span> {item.calories}
-                          </div>
-                        )}
-                        {item.proteins && (
-                          <div>
-                            <span className="text-gray-500">Protein:</span> {item.proteins}g
-                          </div>
-                        )}
-                        {item.carbohydrates && (
-                          <div>
-                            <span className="text-gray-500">Carbs:</span> {item.carbohydrates}g
-                          </div>
-                        )}
-                        {item.fats && (
-                          <div>
-                            <span className="text-gray-500">Fat:</span> {item.fats}g
-                          </div>
-                        )}
-                      </div>
+              {/* Nutrition Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Nutrition Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="bg-orange-50 p-3 rounded-lg">
+                      <div className="text-xl font-bold text-orange-600">{nutrition.calories}</div>
+                      <div className="text-xs text-gray-600">Calories</div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="text-xl font-bold text-blue-600">{nutrition.proteins}g</div>
+                      <div className="text-xs text-gray-600">Protein</div>
+                    </div>
+                    <div className="bg-yellow-50 p-3 rounded-lg">
+                      <div className="text-xl font-bold text-yellow-600">{nutrition.carbohydrates}g</div>
+                      <div className="text-xs text-gray-600">Carbs</div>
+                    </div>
+                    <div className="bg-purple-50 p-3 rounded-lg">
+                      <div className="text-xl font-bold text-purple-600">{nutrition.fats}g</div>
+                      <div className="text-xs text-gray-600">Fat</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Right Content */}
+          <div className="lg:col-span-3">
+            <Tabs defaultValue="meal-analysis" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="meal-analysis">Meal Analysis</TabsTrigger>
+                <TabsTrigger value="health-impact">Health Impact</TabsTrigger>
+                <TabsTrigger value="comments" className="relative">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Comments
+                  {commentCount > 0 && (
+                    <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 text-xs flex items-center justify-center">
+                      {commentCount}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="meal-analysis" className="space-y-6">
+                {/* Dishes */}
+                {dishNames.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Apple className="h-5 w-5 text-green-600" />
+                        Identified Dishes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {dishNames.map((dish: string, index: number) => (
+                          <Badge key={index} variant="secondary" className="bg-green-50 text-green-700">
+                            {dish}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Description */}
+                {foodEntry.description && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Description</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-700">{foodEntry.description}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Food Items */}
+                {foodItems.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Individual Items ({foodItems.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {visibleItems.map((item: any, index: number) => (
+                          <div key={index} className="border rounded-lg p-3 bg-white">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h4 className="font-medium text-sm">{item.name}</h4>
+                                <p className="text-xs text-gray-600">{item.serving_size}</p>
+                              </div>
+                              <div className="flex gap-1">
+                                {item.flags?.vegetarian && <Badge variant="outline" className="text-green-600 text-xs">Veg</Badge>}
+                                {item.flags?.contains_allergens && <Badge variant="destructive" className="text-xs">Allergens</Badge>}
+                              </div>
+                            </div>
+                            
+                            {item.nutrition_values && (
+                              <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className="font-medium">{item.nutrition_values.calories || 0}</div>
+                                  <div className="text-gray-500">cal</div>
+                                </div>
+                                <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className="font-medium">{item.nutrition_values.proteins || 0}g</div>
+                                  <div className="text-gray-500">protein</div>
+                                </div>
+                                <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className="font-medium">{item.nutrition_values.carbohydrates || 0}g</div>
+                                  <div className="text-gray-500">carbs</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        
+                        {foodItems.length > 4 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAllItems(!showAllItems)}
+                            className="w-full"
+                          >
+                            {showAllItems ? (
+                              <>
+                                <ChevronUp className="h-4 w-4 mr-2" />
+                                Show Less
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Show {foodItems.length - 4} More Items
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="health-impact">
+                <HealthImpact extractedNutrients={foodEntry.extracted_nutrients} />
+              </TabsContent>
+
+              <TabsContent value="comments">
+                <CommentsSection
+                  participantId={selectedParticipantId || ''}
+                  contentType="food_entry"
+                  contentId={id}
+                  isCaretaker={true}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
     </div>
