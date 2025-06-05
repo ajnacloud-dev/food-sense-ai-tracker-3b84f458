@@ -9,7 +9,7 @@ import { ArrowLeft, Plus, Copy, Mail, QrCode, Calendar, Users } from "lucide-rea
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
+import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import { formatDistanceToNow } from "date-fns";
 import PermissionSelector, { PermissionCategory } from "@/components/invitations/PermissionSelector";
 
@@ -163,7 +163,7 @@ const ParticipantInvitations = () => {
   };
 
   return (
-    <RoleBasedLayout>
+    <SimpleRoleBasedLayout>
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
           <Button variant="outline" onClick={() => navigate('/participant')}>
@@ -349,7 +349,7 @@ const ParticipantInvitations = () => {
           </CardContent>
         </Card>
       </div>
-    </RoleBasedLayout>
+    </SimpleRoleBasedLayout>
   );
 };
 

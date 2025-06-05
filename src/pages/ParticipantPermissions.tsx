@@ -4,17 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
+import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import PermissionManager from "@/components/participant/PermissionManager";
 
 const ParticipantPermissions = () => {
   const navigate = useNavigate();
 
   return (
-    <RoleBasedLayout>
+    <SimpleRoleBasedLayout>
       <div className="space-y-6">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => navigate('/participant')}>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -36,7 +36,7 @@ const ParticipantPermissions = () => {
           </CardContent>
         </Card>
       </div>
-    </RoleBasedLayout>
+    </SimpleRoleBasedLayout>
   );
 };
 
