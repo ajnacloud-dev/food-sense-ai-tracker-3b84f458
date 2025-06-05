@@ -1,228 +1,163 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Camera, Receipt, Dumbbell, TrendingUp, Zap, Shield, Users, BarChart3, Brain, Sparkles, ArrowRight, Loader2, LogIn, UserPlus } from "lucide-react";
+
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRole } from "@/contexts/RoleContext";
-import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Brain, Heart, Shield, Users } from "lucide-react";
 
 const Index = () => {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { isPureCaretaker, isLoading: roleLoading, currentRole, primaryRole } = useRole();
+  const { 
+    currentRole, 
+    isPureCaretaker, 
+    isPureParticipant, 
+    isDualRole, 
+    isLoading: roleLoading 
+  } = useRole();
+  const navigate = useNavigate();
 
-  // Redirect authenticated users based on their role
   useEffect(() => {
-    // Wait for both auth and role loading to complete
+    // Don't redirect if still loading
     if (authLoading || roleLoading) {
-      console.log('Index: Still loading...', { authLoading, roleLoading });
+      console.log('Index: Still loading auth or roles');
       return;
     }
-    
-    if (user) {
-      console.log('Index: User authenticated, determining route...', {
-        isPureCaretaker,
-        currentRole,
-        primaryRole
-      });
-      
-      // Route pure caretakers directly to caretaker dashboard
-      if (isPureCaretaker) {
-        console.log('Index: Routing pure caretaker to /caretaker');
-        navigate("/caretaker", { replace: true });
-      } else {
-        // Route all other users (participants, dual-role) to dashboard
-        console.log('Index: Routing to /dashboard');
-        navigate("/dashboard", { replace: true });
-      }
-    }
-  }, [user, authLoading, roleLoading, isPureCaretaker, navigate, currentRole, primaryRole]);
 
-  // Show loading state while checking authentication and roles
-  if (authLoading || roleLoading) {
+    // If not authenticated, stay on index
+    if (!user) {
+      console.log('Index: No user, staying on landing page');
+      return;
+    }
+
+    // Route based on user type with detailed logging
+    console.log('Index: Routing user with roles:', {
+      isPureCaretaker,
+      isPureParticipant,
+      isDualRole,
+      currentRole
+    });
+
+    if (isPureCaretaker) {
+      console.log('Index: Routing pure caretaker to /caretaker');
+      navigate("/caretaker", { replace: true });
+    } else if (isPureParticipant || isDualRole) {
+      console.log('Index: Routing participant/dual role to /dashboard');
+      navigate("/dashboard", { replace: true });
+    } else {
+      console.log('Index: No clear role detected, defaulting to /dashboard');
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, authLoading, roleLoading, isPureCaretaker, isPureParticipant, isDualRole, navigate]);
+
+  const handleSignIn = () => {
+    navigate("/auth");
+  };
+
+  // Show loading if auth or roles are still loading
+  if (authLoading || (user && roleLoading)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="text-lg text-gray-600">Loading...</span>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your personalized experience...</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // Only show landing page to unauthenticated users
+  // If user is logged in, they should be redirected via useEffect
   if (user) {
-    return null; // Will redirect via useEffect
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Redirecting you to your dashboard...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  const features = [
-    {
-      icon: Camera,
-      title: "AI Food Analysis",
-      description: "Upload food photos for instant nutrition breakdown and calorie counting",
-      color: "text-green-600"
-    },
-    {
-      icon: Receipt,
-      title: "Smart Receipt Scanning",
-      description: "Extract and categorize grocery expenses with AI-powered receipt analysis",
-      color: "text-blue-600"
-    },
-    {
-      icon: Dumbbell,
-      title: "Workout Tracking",
-      description: "Log workouts and get AI insights on your fitness progress",
-      color: "text-purple-600"
-    },
-    {
-      icon: TrendingUp,
-      title: "Health Insights",
-      description: "Get personalized recommendations based on your data patterns",
-      color: "text-orange-600"
-    }
-  ];
-
-  const benefits = [
-    { icon: Zap, text: "2 free AI analyses daily" },
-    { icon: Shield, text: "Secure data protection" },
-    { icon: Users, text: "Multi-user support" },
-    { icon: BarChart3, text: "Advanced analytics" }
-  ];
-
+  // Landing page for non-authenticated users
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Brain className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">NutriWealth</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <Brain className="h-7 w-7 text-white" />
+            </div>
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              NutriWealth
+            </h1>
           </div>
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" onClick={() => navigate("/auth")} className="flex items-center gap-2">
-              <LogIn className="h-4 w-4" />
-              Sign In
-            </Button>
-            <Button onClick={() => navigate("/auth")} className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Sign Up Free
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <Badge className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-200">
-            <Sparkles className="w-4 h-4 mr-1" />
-            AI-Powered Health Tracking
-          </Badge>
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Transform Your Health with
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-green-600"> AI Intelligence</span>
-          </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Upload food photos, receipts, and workout logs. Get instant AI analysis, track nutrition, monitor spending, and unlock personalized health insights.
+            Comprehensive health tracking and caretaker support platform. Monitor nutrition, exercise, and wellness with intelligent insights.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" onClick={() => navigate("/auth")} className="text-lg px-8 py-3">
-              <UserPlus className="mr-2 h-5 w-5" />
-              Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-3">
-              Watch Demo
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Powerful AI Features</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Everything you need to take control of your health and nutrition in one intelligent platform
-          </p>
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feature, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <feature.icon className={`h-12 w-12 ${feature.color} mb-4`} />
-                <CardTitle className="text-lg">{feature.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{feature.description}</CardDescription>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="bg-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                Why Choose NutriWealth?
-              </h2>
-              <div className="space-y-4">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <benefit.icon className="h-6 w-6 text-green-600" />
-                    <span className="text-lg text-gray-700">{benefit.text}</span>
-                  </div>
-                ))}
-              </div>
-              <Button size="lg" className="mt-8" onClick={() => navigate("/auth")}>
-                Get Started Today
-              </Button>
-            </div>
-            <div className="bg-gradient-to-br from-blue-100 to-green-100 rounded-2xl p-8">
-              <div className="bg-white rounded-lg p-6 shadow-lg">
-                <h3 className="font-semibold text-gray-900 mb-4">Free Trial Includes:</h3>
-                <ul className="space-y-2 text-gray-600">
-                  <li>✓ 2 AI analyses per day</li>
-                  <li>✓ Food nutrition tracking</li>
-                  <li>✓ Receipt expense analysis</li>
-                  <li>✓ Workout logging</li>
-                  <li>✓ Basic insights dashboard</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-green-600 py-16 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Health?</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join thousands of users who are already tracking their health with AI
-          </p>
-          <Button size="lg" variant="secondary" onClick={() => navigate("/auth")} className="flex items-center gap-2 mx-auto">
-            <UserPlus className="h-5 w-5" />
-            Start Your Free Trial
+          <Button 
+            onClick={handleSignIn}
+            size="lg"
+            className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-8 py-3 text-lg"
+          >
+            Get Started
           </Button>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center space-x-2 mb-8">
-            <Brain className="h-8 w-8" />
-            <span className="text-2xl font-bold">NutriWealth</span>
-          </div>
-          <div className="text-center text-gray-400">
-            <p>&copy; 2024 NutriWealth. All rights reserved.</p>
-          </div>
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+              <CardTitle className="text-xl">For Participants</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-center text-gray-600">
+                Track your daily nutrition, exercise, and health metrics with AI-powered insights and recommendations.
+              </CardDescription>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Heart className="h-8 w-8 text-purple-600" />
+              </div>
+              <CardTitle className="text-xl">For Caretakers</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-center text-gray-600">
+                Monitor and support your loved ones' health journey with comprehensive oversight and care management tools.
+              </CardDescription>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-green-600" />
+              </div>
+              <CardTitle className="text-xl">Privacy First</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-center text-gray-600">
+                Granular permission controls ensure your health data is shared only with those you trust, when you choose.
+              </CardDescription>
+            </CardContent>
+          </Card>
         </div>
-      </footer>
+
+        <div className="text-center mt-16">
+          <p className="text-gray-500 text-sm">
+            Secure • Private • Intelligent Health Management
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

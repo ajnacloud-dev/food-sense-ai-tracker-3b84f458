@@ -41,6 +41,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkRoles = async () => {
     if (!user) {
+      console.log('RoleContext: No user, resetting role state');
       setIsParticipant(false);
       setIsCaretaker(false);
       setHasCaretakerRelationships(false);
@@ -53,26 +54,38 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       setIsLoading(true);
-      console.log('RoleContext: Checking roles for user:', user.id);
+      console.log('RoleContext: Checking roles for user:', user.email, user.id);
 
-      // Check caretaker relationships first (more deterministic)
+      // Check caretaker relationships with more detailed logging
       const { data: caretakerRelationships, error: caretakerError } = await supabase
         .from('care_relationships')
-        .select('id, status')
-        .eq('caretaker_id', user.id)
-        .eq('status', 'active');
+        .select('id, status, user_id')
+        .eq('caretaker_id', user.id);
+
+      console.log('RoleContext: Caretaker relationships query result:', {
+        data: caretakerRelationships,
+        error: caretakerError,
+        user_id: user.id
+      });
 
       if (caretakerError) {
         console.error('RoleContext: Error checking caretaker relationships:', caretakerError);
       }
 
-      const hasRelationships = caretakerRelationships && caretakerRelationships.length > 0;
-      console.log('RoleContext: Has caretaker relationships:', hasRelationships, caretakerRelationships);
+      // Filter for active relationships only
+      const activeRelationships = caretakerRelationships?.filter(rel => rel.status === 'active') || [];
+      const hasRelationships = activeRelationships.length > 0;
+      
+      console.log('RoleContext: Active caretaker relationships:', {
+        total: caretakerRelationships?.length || 0,
+        active: activeRelationships.length,
+        hasRelationships
+      });
       
       setIsCaretaker(hasRelationships);
       setHasCaretakerRelationships(hasRelationships);
 
-      // Check if user has personal data (is a participant)
+      // Check if user has personal data (is a participant) - be more thorough
       const [
         { data: foodEntries, error: foodError },
         { data: receipts, error: receiptError },
@@ -91,7 +104,13 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         (receipts && receipts.length > 0) || 
                         (workouts && workouts.length > 0);
       
-      console.log('RoleContext: Has own data (participant):', hasOwnData);
+      console.log('RoleContext: Personal data check:', {
+        foodEntries: foodEntries?.length || 0,
+        receipts: receipts?.length || 0,
+        workouts: workouts?.length || 0,
+        hasOwnData
+      });
+      
       setIsParticipant(hasOwnData);
 
       // Check subscription status
@@ -107,7 +126,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setHasSubscription(userData?.is_subscribed || false);
 
-      // Determine primary role with clear priority
+      // Determine roles with clear priority and detailed logging
       let determinedPrimaryRole: 'participant' | 'caretaker' | null = null;
       let determinedCurrentRole: 'participant' | 'caretaker' = 'participant';
       
@@ -115,7 +134,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Pure caretaker
         determinedPrimaryRole = 'caretaker';
         determinedCurrentRole = 'caretaker';
-        console.log('RoleContext: Determined as pure caretaker');
+        console.log('RoleContext: Determined as PURE CARETAKER');
       } else if (hasOwnData && !hasRelationships) {
         // Pure participant
         determinedPrimaryRole = 'participant';
@@ -136,7 +155,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPrimaryRole(determinedPrimaryRole);
       setCurrentRole(determinedCurrentRole);
 
-      console.log('RoleContext: Final role state:', {
+      console.log('RoleContext: Final role state for', user.email, ':', {
         isParticipant: hasOwnData,
         isCaretaker: hasRelationships,
         primaryRole: determinedPrimaryRole,

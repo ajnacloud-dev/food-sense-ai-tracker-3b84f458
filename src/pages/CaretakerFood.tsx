@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -39,16 +39,12 @@ const CaretakerFoodContent = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (selectedParticipantId && hasPermission('food_entries')) {
-      fetchFoodEntries();
-    } else {
+  const fetchFoodEntries = useCallback(async () => {
+    if (!selectedParticipantId || !hasPermission('food_entries')) {
+      console.log('CaretakerFood: Cannot fetch - no participant or no permission');
       setLoading(false);
+      return;
     }
-  }, [selectedParticipantId, hasPermission]);
-
-  const fetchFoodEntries = async () => {
-    if (!selectedParticipantId) return;
 
     try {
       setRefreshing(true);
@@ -82,7 +78,16 @@ const CaretakerFoodContent = () => {
       setRefreshing(false);
       setLoading(false);
     }
-  };
+  }, [selectedParticipantId, hasPermission]);
+
+  // Only fetch when we have both participant and permission
+  useEffect(() => {
+    if (selectedParticipantId && hasPermission('food_entries')) {
+      fetchFoodEntries();
+    } else {
+      setLoading(false);
+    }
+  }, [selectedParticipantId, hasPermission, fetchFoodEntries]);
 
   const handleRefresh = async () => {
     await fetchFoodEntries();
@@ -102,10 +107,10 @@ const CaretakerFoodContent = () => {
 
   if (contextLoading || permissionLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading participant food entries...</p>
           </CardContent>
         </Card>
@@ -115,11 +120,11 @@ const CaretakerFoodContent = () => {
 
   if (!selectedParticipantId || !participantData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 p-6">
+      <div className="min-h-screen bg-gray-50 p-6">
         <Card className="max-w-2xl mx-auto mt-12">
           <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <User className="h-8 w-8 text-orange-600" />
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <User className="h-8 w-8 text-blue-600" />
             </div>
             <CardTitle className="text-2xl">No Participant Selected</CardTitle>
             <CardDescription className="text-lg">
@@ -127,7 +132,7 @@ const CaretakerFoodContent = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-            <Button onClick={() => navigate('/caretaker')} className="bg-gradient-to-r from-orange-500 to-red-500">
+            <Button onClick={() => navigate('/caretaker')} className="bg-blue-600 hover:bg-blue-700">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
@@ -138,13 +143,13 @@ const CaretakerFoodContent = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent flex items-center gap-3">
-              <Utensils className="h-10 w-10 text-orange-600" />
+            <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+              <Utensils className="h-10 w-10 text-blue-600" />
               Food Monitoring
             </h1>
             <div className="flex items-center gap-2 text-gray-600 mt-2">
@@ -178,7 +183,7 @@ const CaretakerFoodContent = () => {
         </div>
 
         {!hasPermission('food_entries') ? (
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+          <Card className="bg-white shadow-sm border">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="h-8 w-8 text-amber-600" />
@@ -230,10 +235,10 @@ const CaretakerFood = () => {
   if (authLoading || roleLoading) {
     return (
       <RoleBasedLayout>
-        <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <Card className="max-w-md">
             <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading participant food entries...</p>
             </CardContent>
           </Card>

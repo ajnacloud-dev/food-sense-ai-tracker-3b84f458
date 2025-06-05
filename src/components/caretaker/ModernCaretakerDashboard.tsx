@@ -1,16 +1,26 @@
 
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { Users, Heart, TrendingUp, Bell, Shield, Activity, Calendar, Utensils, FileText, Dumbbell, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { usePermissionStatus } from "@/hooks/usePermissionStatus";
-import { useNavigate } from "react-router-dom";
-import CareRelationshipManager from "./CareRelationshipManager";
-import InvitationCodeManager from "./InvitationCodeManager";
+import PermissionStatusIndicator from "./PermissionStatusIndicator";
+import { 
+  Heart, 
+  Utensils, 
+  FileText, 
+  Dumbbell, 
+  BarChart3, 
+  Clock,
+  Users,
+  Shield,
+  TrendingUp,
+  Activity,
+  CheckCircle,
+  AlertCircle
+} from "lucide-react";
 
 const ModernCaretakerDashboard = () => {
   const navigate = useNavigate();
@@ -20,74 +30,78 @@ const ModernCaretakerDashboard = () => {
     setSelectedParticipantId, 
     participantData,
     loading, 
-    error,
-    refreshData 
+    error 
   } = useCaretakerData();
-
-  const { hasPermission } = usePermissionStatus(selectedParticipantId);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-emerald-500';
-      case 'pending': return 'bg-amber-500';
-      case 'inactive': return 'bg-gray-400';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-
-  // Calculate stats
-  const stats = {
-    totalParticipants: participants.length,
-    activeParticipants: participants.filter(p => p.status === 'active').length,
-    pendingInvites: participants.filter(p => p.status === 'pending').length,
-    avgHealthScore: Math.round(participants.reduce((acc, p) => acc + p.health_score, 0) / participants.length) || 0
-  };
+  
+  const { hasPermission, missingPermissions } = usePermissionStatus(selectedParticipantId);
 
   const quickActions = [
     {
       title: "Food Entries",
-      description: "Monitor nutrition intake",
+      description: "Monitor daily nutrition and meals",
       icon: Utensils,
-      color: "from-orange-400 to-orange-600",
-      route: "/caretaker/food",
+      href: "/caretaker/food",
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
       permission: "food_entries"
     },
     {
-      title: "Receipts", 
-      description: "Track purchases",
+      title: "Receipts",
+      description: "Track spending and purchases",
       icon: FileText,
-      color: "from-blue-400 to-blue-600",
-      route: "/caretaker/receipts",
+      href: "/caretaker/receipts",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
       permission: "receipts"
     },
     {
       title: "Workouts",
-      description: "View fitness activities", 
+      description: "Review exercise and activity",
       icon: Dumbbell,
-      color: "from-purple-400 to-purple-600",
-      route: "/caretaker/workouts",
+      href: "/caretaker/workouts",
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+      borderColor: "border-purple-200",
       permission: "workouts"
     },
     {
-      title: "Health Insights",
-      description: "View analytics & trends",
-      icon: TrendingUp,
-      color: "from-green-400 to-green-600",
-      route: "/caretaker/insights",
+      title: "Insights",
+      description: "View analytics and trends",
+      icon: BarChart3,
+      href: "/caretaker/insights",
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
       permission: null
     }
   ];
 
+  const handleActionClick = (href: string, permission: string | null) => {
+    if (!selectedParticipantId) {
+      return;
+    }
+    if (permission && !hasPermission(permission as any)) {
+      return;
+    }
+    navigate(href);
+  };
+
+  const handleSelectParticipant = (participantId: string) => {
+    setSelectedParticipantId(participantId);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-          <p className="text-gray-600 font-medium">Loading your caretaker dashboard...</p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+              <p className="text-gray-600 font-medium">Loading your caretaker dashboard...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -95,292 +109,268 @@ const ModernCaretakerDashboard = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bell className="h-8 w-8 text-red-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
-            <p className="text-red-600 mb-6">{error}</p>
-            <Button onClick={refreshData} className="w-full">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className="max-w-2xl mx-auto mt-12 border-red-200">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="h-8 w-8 text-red-600" />
+              </div>
+              <CardTitle className="text-2xl text-red-800">Error Loading Dashboard</CardTitle>
+              <CardDescription className="text-red-600">
+                {error}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 rounded-2xl p-8 text-white">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold">
-              Welcome back, Caretaker! 👋
-            </h1>
-            <p className="text-blue-100 text-lg">
-              Monitor and support your participants' health journey with comprehensive insights
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="space-y-8 p-6">
+        {/* Header */}
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Heart className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">Caretaker Dashboard</h1>
+              <p className="text-gray-600 mt-1">Monitor and support your participants' health journey</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4 mt-6 lg:mt-0">
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-              <Activity className="h-4 w-4 mr-2" />
-              {participants.length} Participants
-            </Badge>
-            <Button 
-              onClick={refreshData} 
-              variant="outline" 
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
-            >
-              Refresh Data
-            </Button>
+        </div>
+
+        <div className="max-w-7xl mx-auto grid gap-8 lg:grid-cols-3">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Participant Selection */}
+            {!selectedParticipantId && participants.length > 0 && (
+              <Card className="bg-white shadow-sm">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <Users className="h-5 w-5 text-blue-600" />
+                    <CardTitle>Select a Participant</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Choose a participant to monitor their health data and activities.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3">
+                    {participants.map((participant) => (
+                      <div
+                        key={participant.id}
+                        onClick={() => handleSelectParticipant(participant.id)}
+                        className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{participant.full_name}</h3>
+                            <p className="text-sm text-gray-600">{participant.email}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {participant.caretaker_type.replace('_', ' ')}
+                              </Badge>
+                              <Badge 
+                                variant={participant.status === 'active' ? 'default' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {participant.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {participant.health_score && (
+                              <div className="text-2xl font-bold text-green-600">
+                                {participant.health_score}%
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-500">Health Score</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Selected Participant Overview */}
+            {selectedParticipantId && participantData && (
+              <Card className="bg-white shadow-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="font-semibold text-blue-600">
+                          {participantData.full_name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl">{participantData.full_name}</CardTitle>
+                        <CardDescription>{participantData.email}</CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Shield className={`h-4 w-4 ${
+                        hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts') 
+                          ? 'text-green-500' : 'text-amber-500'
+                      }`} />
+                      <Badge variant={
+                        hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts')
+                          ? 'default' : 'secondary'
+                      }>
+                        {hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts') 
+                          ? 'Access Granted' : 'Limited Access'}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {participantData.health_score || 'N/A'}%
+                      </div>
+                      <p className="text-sm text-gray-600">Health Score</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">
+                        <Activity className="h-6 w-6 mx-auto" />
+                      </div>
+                      <p className="text-sm text-gray-600">Active Monitoring</p>
+                    </div>
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">
+                        <Clock className="h-6 w-6 mx-auto" />
+                      </div>
+                      <p className="text-sm text-gray-600">Real-time Updates</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Quick Actions */}
+            {selectedParticipantId && (
+              <Card className="bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Quick Actions
+                  </CardTitle>
+                  <CardDescription>
+                    Access participant data and monitoring tools
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {quickActions.map((action) => {
+                      const Icon = action.icon;
+                      const canAccess = !action.permission || hasPermission(action.permission as any);
+                      
+                      return (
+                        <Button
+                          key={action.title}
+                          variant="outline"
+                          onClick={() => handleActionClick(action.href, action.permission)}
+                          disabled={!canAccess}
+                          className={`h-auto p-6 text-left justify-start border-2 ${
+                            canAccess 
+                              ? `${action.borderColor} hover:${action.bgColor}` 
+                              : 'border-gray-200 opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <div className="flex items-start gap-4 w-full">
+                            <div className={`p-3 rounded-lg ${canAccess ? action.bgColor : 'bg-gray-100'}`}>
+                              <Icon className={`h-6 w-6 ${canAccess ? action.color : 'text-gray-400'}`} />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900 mb-1">{action.title}</h3>
+                              <p className="text-sm text-gray-600 mb-2">{action.description}</p>
+                              {!canAccess && action.permission && (
+                                <Badge variant="outline" className="text-xs border-amber-200 text-amber-600">
+                                  Permission Required
+                                </Badge>
+                              )}
+                              {canAccess && (
+                                <Badge variant="outline" className="text-xs border-green-200 text-green-600">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Available
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Permission Status */}
+            {selectedParticipantId && participantData && (
+              <PermissionStatusIndicator
+                hasPermissions={hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts')}
+                participantName={participantData.full_name}
+                missingCategories={missingPermissions}
+              />
+            )}
+
+            {/* No Participants Message */}
+            {participants.length === 0 && (
+              <Card className="bg-white shadow-sm">
+                <CardHeader className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-blue-600" />
+                  </div>
+                  <CardTitle>No Participants</CardTitle>
+                  <CardDescription>
+                    You don't have any participants to monitor yet. Participants need to invite you as their caretaker.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <p className="text-sm text-gray-600 mb-4">
+                    To get started, ask a participant to send you an invitation code.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Activity (placeholder) */}
+            {selectedParticipantId && (
+              <Card className="bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-600">System monitoring active</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-gray-600">Permissions up to date</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      <span className="text-gray-600">Ready for monitoring</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-700 text-sm font-medium mb-1">Total Participants</p>
-                <p className="text-3xl font-bold text-blue-900">{stats.totalParticipants}</p>
-                <p className="text-xs text-blue-600 mt-1">Under your care</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 hover:shadow-lg transition-all duration-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-emerald-700 text-sm font-medium mb-1">Active Members</p>
-                <p className="text-3xl font-bold text-emerald-900">{stats.activeParticipants}</p>
-                <p className="text-xs text-emerald-600 mt-1">Actively engaged</p>
-              </div>
-              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
-                <Heart className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 hover:shadow-lg transition-all duration-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-amber-700 text-sm font-medium mb-1">Pending Invites</p>
-                <p className="text-3xl font-bold text-amber-900">{stats.pendingInvites}</p>
-                <p className="text-xs text-amber-600 mt-1">Awaiting response</p>
-              </div>
-              <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
-                <Bell className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-700 text-sm font-medium mb-1">Avg Health Score</p>
-                <p className="text-3xl font-bold text-purple-900">{stats.avgHealthScore}%</p>
-                <p className="text-xs text-purple-600 mt-1">Overall wellness</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Participant Selector */}
-      {participants.length > 0 && (
-        <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-lg">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-                <Users className="h-5 w-5 text-white" />
-              </div>
-              Select Participant to Monitor
-            </CardTitle>
-            <CardDescription className="text-base">
-              Choose a participant to view their detailed health data and insights
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {participants.map((participant) => {
-                const isSelected = selectedParticipantId === participant.id;
-                const ParticipantPermissionStatus = () => {
-                  const { hasPermission: hasAnyPermission } = usePermissionStatus(participant.id);
-                  const hasAccess = hasAnyPermission('food_entries') || hasAnyPermission('receipts') || hasAnyPermission('workouts');
-                  
-                  return (
-                    <div className="flex items-center gap-2">
-                      <Shield className={`h-4 w-4 ${hasAccess ? 'text-emerald-500' : 'text-amber-500'}`} />
-                      <Badge variant={hasAccess ? 'default' : 'secondary'} className="text-xs">
-                        {hasAccess ? 'Access Granted' : 'Pending Access'}
-                      </Badge>
-                    </div>
-                  );
-                };
-
-                return (
-                  <Card 
-                    key={participant.id}
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${
-                      isSelected 
-                        ? 'ring-2 ring-blue-500 bg-blue-50 shadow-lg' 
-                        : 'hover:bg-gray-50 border-gray-200'
-                    }`}
-                    onClick={() => setSelectedParticipantId(participant.id)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <Avatar className="h-14 w-14 border-2 border-white shadow-md">
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold text-lg">
-                            {getInitials(participant.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 text-lg truncate">{participant.full_name}</h3>
-                          <p className="text-sm text-gray-600 truncate mb-2">{participant.email}</p>
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className={`w-3 h-3 rounded-full ${getStatusColor(participant.status)}`} />
-                            <span className="text-sm font-medium text-gray-700 capitalize">{participant.status}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-700">Health Score</span>
-                            <span className="text-sm font-bold text-gray-900">{participant.health_score}%</span>
-                          </div>
-                          <Progress value={participant.health_score} className="h-2" />
-                        </div>
-                        
-                        <ParticipantPermissionStatus />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Actions */}
-      {selectedParticipantId && participantData && (
-        <Card className="shadow-lg border-0">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-lg">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                <Activity className="h-5 w-5 text-white" />
-              </div>
-              Monitor {participantData.full_name}
-            </CardTitle>
-            <CardDescription className="text-base">
-              Quick access to {participantData.full_name}'s health data and monitoring tools
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                const canAccess = !action.permission || hasPermission(action.permission as any);
-                
-                return (
-                  <Card 
-                    key={action.title}
-                    className={`cursor-pointer transition-all duration-200 border-0 hover:shadow-lg hover:-translate-y-1 ${
-                      canAccess ? 'hover:scale-105' : 'opacity-60 cursor-not-allowed'
-                    }`}
-                    onClick={() => canAccess && navigate(action.route)}
-                  >
-                    <CardContent className="p-6 text-center">
-                      <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center mx-auto mb-4 shadow-lg`}>
-                        <Icon className="h-8 w-8 text-white" />
-                      </div>
-                      <h3 className="font-bold text-gray-900 text-lg mb-2">{action.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{action.description}</p>
-                      {!canAccess && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Shield className="h-3 w-3 mr-1" />
-                          Access Required
-                        </Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Management Tabs */}
-      <Card className="shadow-lg border-0">
-        <CardContent className="p-0">
-          <Tabs defaultValue="relationships" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-gray-100 m-6 mb-0">
-              <TabsTrigger value="relationships" className="text-sm font-medium">
-                Manage Relationships
-              </TabsTrigger>
-              <TabsTrigger value="invitations" className="text-sm font-medium">
-                Invitation Codes
-              </TabsTrigger>
-            </TabsList>
-
-            <div className="p-6">
-              <TabsContent value="relationships" className="mt-0">
-                <CareRelationshipManager onRelationshipUpdated={refreshData} />
-              </TabsContent>
-
-              <TabsContent value="invitations" className="mt-0">
-                <InvitationCodeManager />
-              </TabsContent>
-            </div>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Empty State */}
-      {participants.length === 0 && (
-        <Card className="shadow-lg border-0">
-          <CardContent className="p-12 text-center">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Users className="h-12 w-12 text-blue-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">No Participants Yet</h3>
-            <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
-              Get started by inviting participants to join your care network or connect using an invitation code.
-            </p>
-            <div className="flex gap-4 justify-center">
-              <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-medium">
-                <Plus className="h-4 w-4 mr-2" />
-                Send Invitation
-              </Button>
-              <Button variant="outline" className="font-medium">
-                Join with Code
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
