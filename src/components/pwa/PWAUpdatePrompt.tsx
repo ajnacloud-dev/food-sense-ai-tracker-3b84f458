@@ -3,34 +3,47 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, X } from 'lucide-react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const PWAUpdatePrompt = () => {
   const [showReload, setShowReload] = useState(false);
-  
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(r) {
-      console.log('SW Registered: ' + r);
-    },
-    onRegisterError(error) {
-      console.log('SW registration error', error);
-    },
-  });
+  const [updateServiceWorker, setUpdateServiceWorker] = useState<(() => void) | null>(null);
 
   useEffect(() => {
-    setShowReload(needRefresh);
-  }, [needRefresh]);
+    // Dynamically import the PWA register hook to avoid build errors
+    const loadPWARegister = async () => {
+      try {
+        const { useRegisterSW } = await import('virtual:pwa-register/react');
+        
+        const {
+          needRefresh: [needRefresh, setNeedRefresh],
+          updateServiceWorker: updateSW,
+        } = useRegisterSW({
+          onRegistered(r) {
+            console.log('SW Registered: ' + r);
+          },
+          onRegisterError(error) {
+            console.log('SW registration error', error);
+          },
+        });
+
+        setShowReload(needRefresh);
+        setUpdateServiceWorker(() => updateSW);
+      } catch (error) {
+        console.log('PWA register not available:', error);
+      }
+    };
+
+    loadPWARegister();
+  }, []);
 
   const handleUpdate = () => {
-    updateServiceWorker(true);
+    if (updateServiceWorker) {
+      updateServiceWorker(true);
+    }
   };
 
   const handleDismiss = () => {
     setShowReload(false);
-    setNeedRefresh(false);
   };
 
   if (!showReload) {
