@@ -88,6 +88,7 @@ export type Database = {
           invited_by: string | null
           notes: string | null
           permission_level: Database["public"]["Enums"]["permission_level"]
+          relationship_type: string | null
           status: Database["public"]["Enums"]["relationship_status"]
           updated_at: string
           user_id: string
@@ -102,6 +103,7 @@ export type Database = {
           invited_by?: string | null
           notes?: string | null
           permission_level?: Database["public"]["Enums"]["permission_level"]
+          relationship_type?: string | null
           status?: Database["public"]["Enums"]["relationship_status"]
           updated_at?: string
           user_id: string
@@ -116,6 +118,7 @@ export type Database = {
           invited_by?: string | null
           notes?: string | null
           permission_level?: Database["public"]["Enums"]["permission_level"]
+          relationship_type?: string | null
           status?: Database["public"]["Enums"]["relationship_status"]
           updated_at?: string
           user_id?: string
@@ -901,6 +904,7 @@ export type Database = {
           subscription_id: string | null
           trial_used_today: number | null
           updated_at: string | null
+          user_type: string | null
         }
         Insert: {
           created_at?: string | null
@@ -912,6 +916,7 @@ export type Database = {
           subscription_id?: string | null
           trial_used_today?: number | null
           updated_at?: string | null
+          user_type?: string | null
         }
         Update: {
           created_at?: string | null
@@ -923,6 +928,7 @@ export type Database = {
           subscription_id?: string | null
           trial_used_today?: number | null
           updated_at?: string | null
+          user_type?: string | null
         }
         Relationships: []
       }

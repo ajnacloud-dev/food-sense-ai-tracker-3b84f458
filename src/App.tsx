@@ -5,9 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { RoleProvider } from "@/contexts/RoleContext";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
+import { UserTypeProvider } from "@/contexts/UserTypeContext";
+import SimplifiedIndex from "./pages/SimplifiedIndex";
+import SimplifiedAuth from "./pages/SimplifiedAuth";
 import Join from "./pages/Join";
 import Dashboard from "./pages/Dashboard";
 import Capture from "./pages/Capture";
@@ -21,7 +21,7 @@ import Insights from "./pages/Insights";
 import Billing from "./pages/Billing";
 import Admin from "./pages/Admin";
 import AdminTestWorkflow from "./pages/AdminTestWorkflow";
-import Caretaker from "./pages/Caretaker";
+import SimplifiedCaretaker from "./pages/SimplifiedCaretaker";
 import CaretakerFood from "./pages/CaretakerFood";
 import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
 import CaretakerReceipts from "./pages/CaretakerReceipts";
@@ -41,14 +41,14 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <RoleProvider>
+      <UserTypeProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<SimplifiedIndex />} />
+              <Route path="/auth" element={<SimplifiedAuth />} />
               <Route path="/join" element={<Join />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/capture" element={<Capture />} />
@@ -62,7 +62,7 @@ const App = () => (
               <Route path="/billing" element={<Billing />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
-              <Route path="/caretaker" element={<Caretaker />} />
+              <Route path="/caretaker" element={<SimplifiedCaretaker />} />
               <Route path="/caretaker/food" element={<CaretakerFood />} />
               <Route path="/caretaker/food/:id" element={<CaretakerFoodDetails />} />
               <Route path="/caretaker/receipts" element={<CaretakerReceipts />} />
@@ -80,7 +80,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </RoleProvider>
+      </UserTypeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
