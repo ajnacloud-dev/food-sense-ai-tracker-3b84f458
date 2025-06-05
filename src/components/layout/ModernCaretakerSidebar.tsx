@@ -16,9 +16,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRole } from "@/contexts/RoleContext";
+import { useUserType } from "@/contexts/UserTypeContext";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
-import { RoleSwitcher } from "./RoleSwitcher";
 import { Badge } from "@/components/ui/badge";
 
 interface ModernCaretakerSidebarProps {
@@ -29,7 +28,7 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isDualRole } = useRole();
+  const { userType } = useUserType();
   const { 
     participants, 
     selectedParticipantId, 
@@ -64,9 +63,6 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
           <span>NutriWealth</span>
         </Link>
       </div>
-
-      {/* Role Switcher for dual-role users */}
-      <RoleSwitcher onSwitch={onItemClick} />
 
       {/* Patient Selector */}
       <div className="p-4 border-b border-gray-200 bg-gray-50">
@@ -184,11 +180,6 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
               <Badge className="nw-role-badge-caretaker text-2xs">
                 Healthcare Provider
               </Badge>
-              {isDualRole && (
-                <Badge className="nw-role-badge-participant text-2xs">
-                  Participant
-                </Badge>
-              )}
             </div>
           </div>
         )}
