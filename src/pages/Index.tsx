@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Brain, Heart, Shield, Users, Stethoscope, Activity, FileText } from "lucide-react";
+import { Brain, Heart, Shield, Users, UserCheck, Activity, BarChart3 } from "lucide-react";
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
@@ -78,15 +78,15 @@ const Index = () => {
           </div>
           
           <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto nw-text-balance leading-relaxed">
-            Professional health monitoring platform for participants and healthcare providers. 
-            Secure, compliant, and designed for clinical excellence.
+            Your personal wellness companion for tracking nutrition, fitness, and health goals. 
+            Designed for individuals and their support teams to achieve better health together.
           </p>
           
           <Button 
             onClick={handleSignIn}
             className="nw-button-modern text-lg px-8 py-4 h-auto"
           >
-            Access Platform
+            Start Your Journey
           </Button>
         </div>
 
@@ -97,11 +97,11 @@ const Index = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <Users className="h-10 w-10 text-green-600" />
               </div>
-              <CardTitle className="text-xl text-gray-900">For Participants</CardTitle>
+              <CardTitle className="text-xl text-gray-900">For Individuals</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 text-center">
               <CardDescription className="text-gray-600 leading-relaxed">
-                Track nutrition, exercise, and health metrics with professional-grade analysis and personalized insights.
+                Track your nutrition, exercise, and wellness metrics with intelligent insights and personalized recommendations.
               </CardDescription>
             </CardContent>
           </Card>
@@ -109,13 +109,13 @@ const Index = () => {
           <Card className="nw-card-clinical nw-transition-slow hover:scale-105">
             <CardHeader className="text-center pb-4">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                <Stethoscope className="h-10 w-10 text-blue-600" />
+                <UserCheck className="h-10 w-10 text-blue-600" />
               </div>
-              <CardTitle className="text-xl text-gray-900">For Healthcare Providers</CardTitle>
+              <CardTitle className="text-xl text-gray-900">For Care Teams</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 text-center">
               <CardDescription className="text-gray-600 leading-relaxed">
-                Monitor patient progress with granular permissions and comprehensive health data oversight.
+                Support your loved ones with permission-based access to wellness data and progress monitoring.
               </CardDescription>
             </CardContent>
           </Card>
@@ -125,11 +125,11 @@ const Index = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
                 <Shield className="h-10 w-10 text-purple-600" />
               </div>
-              <CardTitle className="text-xl text-gray-900">HIPAA Compliant</CardTitle>
+              <CardTitle className="text-xl text-gray-900">Privacy Focused</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 text-center">
               <CardDescription className="text-gray-600 leading-relaxed">
-                Enterprise-grade security with granular permission controls and comprehensive audit trails.
+                Your data stays secure with privacy-first design and granular permission controls you can trust.
               </CardDescription>
             </CardContent>
           </Card>
@@ -139,10 +139,10 @@ const Index = () => {
         <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100 mb-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Comprehensive Health Platform
+              Everything You Need for Wellness
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Everything you need for professional health monitoring and patient care
+              Comprehensive tools to help you track, understand, and improve your health journey
             </p>
           </div>
 
@@ -151,32 +151,32 @@ const Index = () => {
               <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <Activity className="h-8 w-8 text-blue-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Real-time Monitoring</h3>
-              <p className="text-gray-600 text-sm">Live health data tracking and analysis</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Real-time Tracking</h3>
+              <p className="text-gray-600 text-sm">Live wellness data monitoring and insights</p>
             </div>
 
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <Heart className="h-8 w-8 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Health Insights</h3>
-              <p className="text-gray-600 text-sm">AI-powered analysis and recommendations</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Smart Insights</h3>
+              <p className="text-gray-600 text-sm">AI-powered analysis and personalized tips</p>
             </div>
 
             <div className="text-center">
               <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-8 w-8 text-purple-600" />
+                <BarChart3 className="h-8 w-8 text-purple-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Clinical Reports</h3>
-              <p className="text-gray-600 text-sm">Comprehensive health reports and analytics</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Health Reports</h3>
+              <p className="text-gray-600 text-sm">Comprehensive wellness reports and analytics</p>
             </div>
 
             <div className="text-center">
               <div className="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <Shield className="h-8 w-8 text-orange-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure Access</h3>
-              <p className="text-gray-600 text-sm">HIPAA-compliant data protection</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure & Private</h3>
+              <p className="text-gray-600 text-sm">Bank-level security for your personal data</p>
             </div>
           </div>
         </div>
@@ -185,17 +185,17 @@ const Index = () => {
         <div className="text-center">
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-8 md:p-12 text-white">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Start Your Health Journey Today
+              Ready to Transform Your Wellness?
             </h2>
             <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-              Join thousands of patients and healthcare providers using NutriWealth for better health outcomes
+              Join thousands of people using NutriWealth to achieve their health and fitness goals
             </p>
             <Button 
               onClick={handleSignIn}
               variant="secondary"
               className="bg-white text-blue-700 hover:bg-gray-100 text-lg px-8 py-4 h-auto font-semibold"
             >
-              Get Started Now
+              Get Started Today
             </Button>
           </div>
         </div>
@@ -203,7 +203,7 @@ const Index = () => {
         {/* Footer */}
         <div className="text-center mt-16 py-8 border-t border-gray-200">
           <p className="text-gray-500 text-sm">
-            Secure • Professional • Clinical-Grade Health Management
+            Secure • Private • Personal Wellness Management
           </p>
         </div>
       </div>
