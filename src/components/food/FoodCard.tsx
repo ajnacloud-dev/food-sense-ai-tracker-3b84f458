@@ -2,7 +2,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Trash2, Flame, Calendar } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Eye, Trash2, Flame, Calendar, Utensils } from "lucide-react";
 import { calculateDetailedDietaryBreakdown, getDietaryDisplayBadges } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
@@ -43,6 +44,35 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
     return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'weekday';
   };
 
+  const getCaloriesFromEntry = (entry: FoodEntry) => {
+    // Try extracted_nutrients first
+    const extractedCalories = entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories || 
+                             entry.extracted_nutrients?.calories;
+    if (extractedCalories) return extractedCalories;
+    
+    // Fallback to direct field
+    return entry.calories || 0;
+  };
+
+  const getNutritionFromEntry = (entry: FoodEntry) => {
+    // Try extracted_nutrients first
+    const extractedNutrition = entry.extracted_nutrients?.meal_summary?.total_nutrition;
+    if (extractedNutrition) {
+      return {
+        protein: extractedNutrition.proteins || 0,
+        carbohydrates: extractedNutrition.carbohydrates || 0,
+        fats: extractedNutrition.fats || 0,
+      };
+    }
+    
+    // Fallback to direct fields
+    return {
+      protein: entry.total_protein || 0,
+      carbohydrates: entry.total_carbohydrates || 0,
+      fats: entry.total_fats || 0,
+    };
+  };
+
   const renderDietaryBreakdown = (entry: FoodEntry) => {
     const breakdown = calculateDetailedDietaryBreakdown(entry);
     const badges = getDietaryDisplayBadges(breakdown);
@@ -69,6 +99,8 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
 
   const mealType = getMealTypeFromEntry(entry);
   const dayType = getDayType(entry.created_at);
+  const calories = getCaloriesFromEntry(entry);
+  const nutrition = getNutritionFromEntry(entry);
 
   return (
     <Card 
@@ -78,15 +110,16 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row">
           {/* Image Section */}
-          {entry.image_url && (
-            <div className="w-full sm:w-24 h-32 sm:h-24 flex-shrink-0">
-              <img
-                src={entry.image_url}
-                alt="Food"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
+          <div className="w-full sm:w-24 h-32 sm:h-24 flex-shrink-0">
+            <Avatar className="w-full h-full rounded-none">
+              {entry.image_url && (
+                <AvatarImage src={entry.image_url} alt="Food" className="object-cover" />
+              )}
+              <AvatarFallback className="rounded-none bg-orange-100">
+                <Utensils className="h-8 w-8 text-orange-600" />
+              </AvatarFallback>
+            </Avatar>
+          </div>
           
           {/* Content Section */}
           <div className="flex-1 p-3 sm:p-4">
@@ -120,22 +153,22 @@ export const FoodCard = ({ entry, onView, onDelete, getMealTypeFromEntry }: Food
                 <div className="flex flex-wrap gap-2 text-sm">
                   <div className="flex items-center gap-1">
                     <Flame className="h-3 w-3 text-orange-500" />
-                    <span className="font-medium">{entry.calories || 0}</span>
+                    <span className="font-medium">{Math.round(calories)}</span>
                     <span className="text-gray-500">cal</span>
                   </div>
-                  {entry.total_protein > 0 && (
+                  {nutrition.protein > 0 && (
                     <div className="text-gray-600">
-                      P: {entry.total_protein}g
+                      P: {Math.round(nutrition.protein)}g
                     </div>
                   )}
-                  {entry.total_carbohydrates > 0 && (
+                  {nutrition.carbohydrates > 0 && (
                     <div className="text-gray-600">
-                      C: {entry.total_carbohydrates}g
+                      C: {Math.round(nutrition.carbohydrates)}g
                     </div>
                   )}
-                  {entry.total_fats > 0 && (
+                  {nutrition.fats > 0 && (
                     <div className="text-gray-600">
-                      F: {entry.total_fats}g
+                      F: {Math.round(nutrition.fats)}g
                     </div>
                   )}
                 </div>

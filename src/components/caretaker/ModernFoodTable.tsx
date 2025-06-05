@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, Search, Filter, TrendingUp, Utensils, Clock } from "lucide-react";
 import { format } from 'date-fns';
@@ -20,6 +20,7 @@ interface FoodEntry {
   total_fats?: number;
   calories?: number;
   image_url?: string;
+  extracted_nutrients?: any;
   food_items: FoodItem[];
 }
 
@@ -59,11 +60,25 @@ const ModernFoodTable = ({
   }, [entries, searchTerm, getMealTypeFromEntry]);
 
   const calculateTotals = (entry: FoodEntry) => {
+    // First try to get nutrition from extracted_nutrients
+    const extractedNutrition = entry.extracted_nutrients?.meal_summary?.total_nutrition;
+    
+    if (extractedNutrition) {
+      return {
+        totalCalories: extractedNutrition.calories || 0,
+        totalProtein: extractedNutrition.proteins || 0,
+        totalCarbs: extractedNutrition.carbohydrates || 0,
+        totalFat: extractedNutrition.fats || 0,
+      };
+    }
+
+    // Fallback to direct columns
     let totalCalories = entry.calories || 0;
     let totalProtein = entry.total_protein || 0;
     let totalCarbs = entry.total_carbohydrates || 0;
     let totalFat = entry.total_fats || 0;
 
+    // If still no data, calculate from food items
     if (!totalCalories && entry.food_items?.length > 0) {
       entry.food_items.forEach(item => {
         const quantity = item.quantity || 1;
@@ -190,14 +205,14 @@ const ModernFoodTable = ({
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4 flex-1">
-                          {entry.image_url && (
-                            <Avatar className="h-16 w-16 rounded-lg">
-                              <img src={entry.image_url} alt="Food" className="object-cover" />
-                              <AvatarFallback className="rounded-lg bg-orange-100">
-                                <Utensils className="h-6 w-6 text-orange-600" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
+                          <Avatar className="h-16 w-16 rounded-lg">
+                            {entry.image_url && (
+                              <AvatarImage src={entry.image_url} alt="Food" className="object-cover" />
+                            )}
+                            <AvatarFallback className="rounded-lg bg-orange-100">
+                              <Utensils className="h-6 w-6 text-orange-600" />
+                            </AvatarFallback>
+                          </Avatar>
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-2">

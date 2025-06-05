@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -14,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Calendar } from "lucide-react";
+import { Calendar, Utensils } from "lucide-react";
 import { format } from 'date-fns';
 import { DateRange } from "react-day-picker";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
@@ -33,6 +35,8 @@ interface FoodEntry {
   total_carbohydrates?: number;
   total_fats?: number;
   calories?: number;
+  image_url?: string;
+  extracted_nutrients?: any;
   food_items: FoodItem[];
 }
 
@@ -141,12 +145,25 @@ export const FoodTable = ({
   };
 
   const calculateTotals = (entry: FoodEntry) => {
+    // First try to get nutrition from extracted_nutrients
+    const extractedNutrition = entry.extracted_nutrients?.meal_summary?.total_nutrition;
+    
+    if (extractedNutrition) {
+      return {
+        totalCalories: extractedNutrition.calories || 0,
+        totalProtein: extractedNutrition.proteins || 0,
+        totalCarbs: extractedNutrition.carbohydrates || 0,
+        totalFat: extractedNutrition.fats || 0,
+      };
+    }
+
+    // Fallback to direct columns
     let totalCalories = entry.calories || 0;
     let totalProtein = entry.total_protein || 0;
     let totalCarbs = entry.total_carbohydrates || 0;
     let totalFat = entry.total_fats || 0;
-  
-    // If no totals in entry, calculate from food items
+
+    // If still no data, calculate from food items
     if (!totalCalories && entry.food_items?.length > 0) {
       entry.food_items.forEach(item => {
         const quantity = item.quantity || 1;
@@ -156,7 +173,7 @@ export const FoodTable = ({
         totalFat += (item.fats || 0) * quantity;
       });
     }
-  
+
     return { totalCalories, totalProtein, totalCarbs, totalFat };
   };
 
@@ -251,6 +268,7 @@ export const FoodTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[60px]">Image</TableHead>
                 <TableHead className="w-[100px]">Date</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Meal Type</TableHead>
@@ -267,6 +285,16 @@ export const FoodTable = ({
 
                 return (
                   <TableRow key={entry.id}>
+                    <TableCell>
+                      <Avatar className="h-10 w-10">
+                        {entry.image_url && (
+                          <AvatarImage src={entry.image_url} alt="Food" className="object-cover" />
+                        )}
+                        <AvatarFallback className="bg-orange-100">
+                          <Utensils className="h-4 w-4 text-orange-600" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </TableCell>
                     <TableCell className="font-medium">{format(new Date(entry.created_at), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{entry.description || 'N/A'}</TableCell>
                     <TableCell>
@@ -301,7 +329,7 @@ export const FoodTable = ({
               })}
               {foodEntries.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No food entries found.
                   </TableCell>
                 </TableRow>
