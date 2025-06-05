@@ -15,7 +15,7 @@ const PWAUpdatePrompt = () => {
         const { useRegisterSW } = await import('virtual:pwa-register/react');
         
         const {
-          needRefresh: [needRefresh, setNeedRefresh],
+          needRefresh,
           updateServiceWorker: updateSW,
         } = useRegisterSW({
           onRegistered(r) {
@@ -38,7 +38,7 @@ const PWAUpdatePrompt = () => {
 
   const handleUpdate = () => {
     if (updateServiceWorker) {
-      updateServiceWorker(true);
+      updateServiceWorker();
     }
   };
 
