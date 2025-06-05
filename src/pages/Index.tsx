@@ -1,26 +1,19 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRole } from "@/contexts/RoleContext";
+import { useUserType } from "@/contexts/UserTypeContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Brain, Heart, Shield, Users, Stethoscope, Activity, FileText } from "lucide-react";
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
-  const { 
-    currentRole, 
-    isPureCaretaker, 
-    isPureParticipant, 
-    isDualRole, 
-    isLoading: roleLoading 
-  } = useRole();
+  const { userType, isLoading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (authLoading || roleLoading) {
-      console.log('Index: Still loading auth or roles');
+    if (authLoading || userTypeLoading) {
+      console.log('Index: Still loading auth or user type');
       return;
     }
 
@@ -29,27 +22,22 @@ const Index = () => {
       return;
     }
 
-    console.log('Index: Routing user with roles:', {
-      isPureCaretaker,
-      isPureParticipant,
-      isDualRole,
-      currentRole
-    });
+    console.log('Index: Routing user with type:', userType);
 
-    if (isPureCaretaker) {
-      console.log('Index: Routing pure caretaker to /caretaker');
+    if (userType === 'caretaker') {
+      console.log('Index: Routing caretaker to /caretaker');
       navigate("/caretaker", { replace: true });
     } else {
       console.log('Index: Routing to participant dashboard');
       navigate("/dashboard", { replace: true });
     }
-  }, [user, authLoading, roleLoading, isPureCaretaker, navigate]);
+  }, [user, authLoading, userTypeLoading, userType, navigate]);
 
   const handleSignIn = () => {
     navigate("/auth");
   };
 
-  if (authLoading || (user && roleLoading)) {
+  if (authLoading || (user && userTypeLoading)) {
     return (
       <div className="nw-page-container flex items-center justify-center">
         <Card className="nw-card-modern max-w-md">

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
+import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3, User } from "lucide-react";
@@ -15,20 +15,20 @@ const CaretakerInsights = () => {
 
   if (loading) {
     return (
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
             <p>Loading participant insights...</p>
           </div>
         </div>
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     );
   }
 
   if (!selectedParticipantId || !participantData) {
     return (
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <Card>
           <CardHeader>
             <CardTitle>No Participant Selected</CardTitle>
@@ -37,12 +37,12 @@ const CaretakerInsights = () => {
             </CardDescription>
           </CardHeader>
         </Card>
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     );
   }
 
   return (
-    <RoleBasedLayout>
+    <SimpleRoleBasedLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -86,7 +86,7 @@ const CaretakerInsights = () => {
           </CardContent>
         </Card>
       </div>
-    </RoleBasedLayout>
+    </SimpleRoleBasedLayout>
   );
 };
 

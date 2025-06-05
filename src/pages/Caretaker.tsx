@@ -2,25 +2,22 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRole } from "@/contexts/RoleContext";
+import { useUserType } from "@/contexts/UserTypeContext";
 import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
-import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
+import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import CaretakerDashboard from "@/components/caretaker/CaretakerDashboard";
 
 const Caretaker = () => {
   const { user, loading: authLoading } = useAuth();
-  const { currentRole, isLoading: roleLoading, isPureParticipant, isCaretaker, isPureCaretaker } = useRole();
+  const { userType, isLoading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('Caretaker page: Auth and role state:', {
+    console.log('Caretaker page: Auth and user type state:', {
       user: !!user,
       authLoading,
-      roleLoading,
-      currentRole,
-      isPureParticipant,
-      isCaretaker,
-      isPureCaretaker
+      userTypeLoading,
+      userType
     });
 
     if (!authLoading && !user) {
@@ -29,51 +26,44 @@ const Caretaker = () => {
       return;
     }
 
-    // Wait for role loading to complete
-    if (roleLoading) {
-      console.log('Caretaker page: Still loading roles...');
+    // Wait for user type loading to complete
+    if (userTypeLoading) {
+      console.log('Caretaker page: Still loading user type...');
       return;
     }
 
-    // If user is pure participant (no caretaker relationships), redirect to participant dashboard
-    if (isPureParticipant) {
-      console.log('Caretaker page: Pure participant detected, redirecting to /dashboard');
-      navigate("/dashboard", { replace: true });
-      return;
-    }
-
-    // If user is not a caretaker at all, redirect to dashboard
-    if (!isCaretaker) {
+    // If user is not a caretaker, redirect to participant dashboard
+    if (userType !== 'caretaker') {
       console.log('Caretaker page: User is not a caretaker, redirecting to /dashboard');
       navigate("/dashboard", { replace: true });
       return;
     }
 
-    console.log('Caretaker page: User has caretaker access, showing dashboard');
-  }, [user, authLoading, roleLoading, isPureParticipant, isCaretaker, navigate]);
+    console.log('Caretaker page: User is caretaker, showing dashboard');
+  }, [user, authLoading, userTypeLoading, userType, navigate]);
 
-  if (authLoading || roleLoading) {
+  if (authLoading || userTypeLoading) {
     return (
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
             <p className="text-gray-600 font-medium">Loading your caretaker dashboard...</p>
           </div>
         </div>
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     );
   }
 
-  if (!user || isPureParticipant || !isCaretaker) {
+  if (!user || userType !== 'caretaker') {
     return null; // Will redirect via useEffect
   }
 
   return (
     <CaretakerDataProvider>
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <CaretakerDashboard />
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     </CaretakerDataProvider>
   );
 };
