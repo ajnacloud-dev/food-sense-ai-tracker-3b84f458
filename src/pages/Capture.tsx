@@ -125,7 +125,7 @@ const Capture = () => {
       <div className="max-w-lg mx-auto space-y-4 p-4 pt-16 lg:pt-4">
         <div className="text-center space-y-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
-            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-blue-500" />
+            <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-green-500" />
             Smart Capture
           </h1>
           <p className="text-sm md:text-base text-gray-600">
@@ -182,7 +182,7 @@ const Capture = () => {
               <Button 
                 type="submit" 
                 disabled={loading || (!file && !description)} 
-                className="w-full h-12 text-base"
+                className="w-full h-12 text-base bg-green-600 hover:bg-green-700"
                 size="lg"
               >
                 {loading ? (
