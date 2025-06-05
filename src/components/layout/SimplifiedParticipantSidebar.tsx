@@ -14,7 +14,8 @@ import {
   LogOut, 
   Home,
   Users,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -91,7 +92,7 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
       <ScrollArea className="flex-1 px-3 py-4">
         <div className="space-y-2">
           {navigationItems.map((item) => {
-            const Icon = item.icon;
+            const IconComponent = item.icon;
             const isActive = location.pathname === item.href;
             
             return (
@@ -99,11 +100,13 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
                 key={item.name}
                 to={item.href}
                 onClick={onItemClick}
-                className={`nw-sidebar-nav-item ${
-                  isActive ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
-                } nw-transition-smooth`}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  isActive 
+                    ? 'bg-green-100 text-green-900' 
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
               >
-                <Icon className="h-4 w-4" />
+                <IconComponent className="h-4 w-4" />
                 <span className="font-medium">{item.name}</span>
               </Link>
             );
@@ -113,16 +116,18 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
             <Link
               to="/billing"
               onClick={onItemClick}
-              className={`nw-sidebar-nav-item ${
-                location.pathname === "/billing" ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
-              } nw-transition-smooth`}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                location.pathname === "/billing" 
+                  ? 'bg-green-100 text-green-900' 
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+              }`}
             >
               <CreditCard className="h-4 w-4" />
               <span className="font-medium">Billing</span>
             </Link>
           )}
           
-          <div className="nw-divider" />
+          <div className="border-t border-gray-200 my-4" />
           
           <div className="px-3 py-2">
             <h3 className="mb-3 text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
@@ -131,18 +136,20 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
             </h3>
             <div className="space-y-1">
               {careItems.map((item) => {
-                const Icon = item.icon;
+                const IconComponent = item.icon;
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
                     onClick={onItemClick}
-                    className={`nw-sidebar-nav-item ${
-                      isActive ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
-                    } nw-transition-smooth`}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive 
+                        ? 'bg-green-100 text-green-900' 
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <IconComponent className="h-4 w-4" />
                     <span className="font-medium">{item.name}</span>
                   </Link>
                 );
@@ -152,7 +159,7 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
 
           {userRole === 'admin' && (
             <>
-              <div className="nw-divider" />
+              <div className="border-t border-gray-200 my-4" />
               <div className="px-3 py-2">
                 <h3 className="mb-3 text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <div className="w-1 h-1 bg-red-400 rounded-full"></div>
@@ -161,11 +168,13 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
                 <Link
                   to="/admin"
                   onClick={onItemClick}
-                  className={`nw-sidebar-nav-item ${
-                    location.pathname === "/admin" ? 'nw-sidebar-nav-item-active' : 'nw-sidebar-nav-item-inactive'
-                  } nw-transition-smooth`}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname === "/admin" 
+                      ? 'bg-green-100 text-green-900' 
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Shield className="h-4 w-4" />
                   <span className="font-medium">Admin Dashboard</span>
                 </Link>
               </div>
@@ -177,9 +186,9 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
       {/* User info & Sign out */}
       <div className="border-t border-gray-200 p-4 bg-gray-50">
         {user && (
-          <div className="mb-4 p-3 bg-white rounded-lg nw-shadow-soft">
+          <div className="mb-4 p-3 bg-white rounded-lg shadow-sm">
             <div className="flex items-center gap-3 mb-2">
-              <div className="nw-avatar w-8 h-8 bg-green-100 text-green-700 text-sm">
+              <div className="w-8 h-8 bg-green-100 text-green-700 text-sm rounded-full flex items-center justify-center">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -187,11 +196,11 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
               </div>
             </div>
             <div className="flex flex-wrap gap-1">
-              <Badge className="nw-role-badge-participant text-2xs">
+              <Badge className="bg-green-100 text-green-800 text-xs">
                 Participant
               </Badge>
               {userRole === 'admin' && (
-                <Badge className="nw-role-badge-admin text-2xs">
+                <Badge className="bg-red-100 text-red-800 text-xs">
                   Administrator
                 </Badge>
               )}
@@ -200,7 +209,7 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
         )}
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 nw-transition-smooth"
+          className="w-full justify-start gap-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100"
           onClick={handleSignOut}
         >
           <LogOut className="h-4 w-4" />

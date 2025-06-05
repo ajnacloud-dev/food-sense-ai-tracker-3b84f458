@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,7 @@ import { useUserType } from "@/contexts/UserTypeContext";
 import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Camera, Utensils, Dumbbell, BarChart3, Users } from "lucide-react";
+import { Camera, Utensils, Dumbbell, BarChart3, Users, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Dashboard = () => {
@@ -63,15 +64,15 @@ const Dashboard = () => {
   return (
     <SimpleRoleBasedLayout>
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="nw-page-header">
+        <div className="mb-8">
           <div>
-            <h1 className="nw-page-title">Health Dashboard</h1>
-            <p className="nw-page-subtitle">Track your nutrition, fitness, and wellness journey</p>
+            <h1 className="text-3xl font-bold text-gray-900">Health Dashboard</h1>
+            <p className="text-gray-600 mt-2">Track your nutrition, fitness, and wellness journey</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="nw-card hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
             <Link to="/capture">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Quick Capture</CardTitle>
@@ -86,7 +87,7 @@ const Dashboard = () => {
             </Link>
           </Card>
 
-          <Card className="nw-card hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
             <Link to="/food">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Nutrition</CardTitle>
@@ -101,7 +102,7 @@ const Dashboard = () => {
             </Link>
           </Card>
 
-          <Card className="nw-card hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
             <Link to="/workouts">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Fitness</CardTitle>
@@ -116,7 +117,7 @@ const Dashboard = () => {
             </Link>
           </Card>
 
-          <Card className="nw-card hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="border border-gray-200 shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
             <Link to="/insights">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Analytics</CardTitle>
@@ -133,7 +134,7 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="nw-card">
+          <Card className="border border-gray-200 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Camera className="h-5 w-5 text-blue-600" />
@@ -162,7 +163,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="nw-card">
+          <Card className="border border-gray-200 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-green-600" />
