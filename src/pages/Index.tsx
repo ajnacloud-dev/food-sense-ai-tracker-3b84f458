@@ -10,20 +10,34 @@ import { useEffect } from "react";
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { isPureCaretaker, isLoading: roleLoading, currentRole } = useRole();
+  const { isPureCaretaker, isLoading: roleLoading, currentRole, primaryRole } = useRole();
 
   // Redirect authenticated users based on their role
   useEffect(() => {
-    if (authLoading || roleLoading) return;
+    // Wait for both auth and role loading to complete
+    if (authLoading || roleLoading) {
+      console.log('Index: Still loading...', { authLoading, roleLoading });
+      return;
+    }
     
     if (user) {
+      console.log('Index: User authenticated, determining route...', {
+        isPureCaretaker,
+        currentRole,
+        primaryRole
+      });
+      
+      // Route pure caretakers directly to caretaker dashboard
       if (isPureCaretaker) {
-        navigate("/caretaker");
+        console.log('Index: Routing pure caretaker to /caretaker');
+        navigate("/caretaker", { replace: true });
       } else {
-        navigate("/dashboard");
+        // Route all other users (participants, dual-role) to dashboard
+        console.log('Index: Routing to /dashboard');
+        navigate("/dashboard", { replace: true });
       }
     }
-  }, [user, authLoading, roleLoading, isPureCaretaker, navigate]);
+  }, [user, authLoading, roleLoading, isPureCaretaker, navigate, currentRole, primaryRole]);
 
   // Show loading state while checking authentication and roles
   if (authLoading || roleLoading) {

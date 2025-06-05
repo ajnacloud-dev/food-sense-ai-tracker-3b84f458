@@ -9,28 +9,47 @@ import CaretakerDashboard from "@/components/caretaker/CaretakerDashboard";
 
 const Caretaker = () => {
   const { user, loading: authLoading } = useAuth();
-  const { currentRole, isLoading: roleLoading, isPureParticipant, isCaretaker } = useRole();
+  const { currentRole, isLoading: roleLoading, isPureParticipant, isCaretaker, isPureCaretaker } = useRole();
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Caretaker page: Auth and role state:', {
+      user: !!user,
+      authLoading,
+      roleLoading,
+      currentRole,
+      isPureParticipant,
+      isCaretaker,
+      isPureCaretaker
+    });
+
     if (!authLoading && !user) {
+      console.log('Caretaker page: No user, redirecting to /auth');
       navigate("/auth");
       return;
     }
 
+    // Wait for role loading to complete
+    if (roleLoading) {
+      console.log('Caretaker page: Still loading roles...');
+      return;
+    }
+
     // If user is pure participant (no caretaker relationships), redirect to participant dashboard
-    if (!roleLoading && isPureParticipant) {
+    if (isPureParticipant) {
       console.log('Caretaker page: Pure participant detected, redirecting to /dashboard');
       navigate("/dashboard", { replace: true });
       return;
     }
 
     // If user is not a caretaker at all, redirect to dashboard
-    if (!roleLoading && !isCaretaker) {
+    if (!isCaretaker) {
       console.log('Caretaker page: User is not a caretaker, redirecting to /dashboard');
       navigate("/dashboard", { replace: true });
       return;
     }
+
+    console.log('Caretaker page: User has caretaker access, showing dashboard');
   }, [user, authLoading, roleLoading, isPureParticipant, isCaretaker, navigate]);
 
   if (authLoading || roleLoading) {
