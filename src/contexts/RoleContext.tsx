@@ -56,62 +56,36 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       console.log('RoleContext: Checking roles for user:', user.email, user.id);
 
-      // Check caretaker relationships with more detailed logging
+      // Check active caretaker relationships
       const { data: caretakerRelationships, error: caretakerError } = await supabase
         .from('care_relationships')
         .select('id, status, user_id')
-        .eq('caretaker_id', user.id);
-
-      console.log('RoleContext: Caretaker relationships query result:', {
-        data: caretakerRelationships,
-        error: caretakerError,
-        user_id: user.id
-      });
+        .eq('caretaker_id', user.id)
+        .eq('status', 'active');
 
       if (caretakerError) {
         console.error('RoleContext: Error checking caretaker relationships:', caretakerError);
       }
 
-      // Filter for active relationships only
-      const activeRelationships = caretakerRelationships?.filter(rel => rel.status === 'active') || [];
-      const hasRelationships = activeRelationships.length > 0;
+      const hasActiveCaretakerRels = (caretakerRelationships?.length || 0) > 0;
+      console.log('RoleContext: Active caretaker relationships:', hasActiveCaretakerRels);
       
-      console.log('RoleContext: Active caretaker relationships:', {
-        total: caretakerRelationships?.length || 0,
-        active: activeRelationships.length,
-        hasRelationships
-      });
-      
-      setIsCaretaker(hasRelationships);
-      setHasCaretakerRelationships(hasRelationships);
+      setIsCaretaker(hasActiveCaretakerRels);
+      setHasCaretakerRelationships(hasActiveCaretakerRels);
 
-      // Check if user has personal data (is a participant) - be more thorough
-      const [
-        { data: foodEntries, error: foodError },
-        { data: receipts, error: receiptError },
-        { data: workouts, error: workoutError }
-      ] = await Promise.all([
-        supabase.from('food_entries').select('id').eq('user_id', user.id).limit(1),
-        supabase.from('receipts').select('id').eq('user_id', user.id).limit(1),
-        supabase.from('workouts').select('id').eq('user_id', user.id).limit(1)
-      ]);
+      // Check if user has personal data (simplified check)
+      const { data: foodEntries, error: foodError } = await supabase
+        .from('food_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
 
       if (foodError) console.error('RoleContext: Food entries error:', foodError);
-      if (receiptError) console.error('RoleContext: Receipts error:', receiptError);
-      if (workoutError) console.error('RoleContext: Workouts error:', workoutError);
 
-      const hasOwnData = (foodEntries && foodEntries.length > 0) || 
-                        (receipts && receipts.length > 0) || 
-                        (workouts && workouts.length > 0);
+      const hasPersonalData = (foodEntries && foodEntries.length > 0);
+      console.log('RoleContext: Has personal data:', hasPersonalData);
       
-      console.log('RoleContext: Personal data check:', {
-        foodEntries: foodEntries?.length || 0,
-        receipts: receipts?.length || 0,
-        workouts: workouts?.length || 0,
-        hasOwnData
-      });
-      
-      setIsParticipant(hasOwnData);
+      setIsParticipant(hasPersonalData);
 
       // Check subscription status
       const { data: userData, error: userError } = await supabase
@@ -126,43 +100,43 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setHasSubscription(userData?.is_subscribed || false);
 
-      // Determine roles with clear priority and detailed logging
+      // Simplified role determination
       let determinedPrimaryRole: 'participant' | 'caretaker' | null = null;
       let determinedCurrentRole: 'participant' | 'caretaker' = 'participant';
       
-      if (hasRelationships && !hasOwnData) {
-        // Pure caretaker
+      if (hasActiveCaretakerRels && !hasPersonalData) {
+        // Pure caretaker - prioritize caretaker role
         determinedPrimaryRole = 'caretaker';
         determinedCurrentRole = 'caretaker';
         console.log('RoleContext: Determined as PURE CARETAKER');
-      } else if (hasOwnData && !hasRelationships) {
+      } else if (hasPersonalData && !hasActiveCaretakerRels) {
         // Pure participant
         determinedPrimaryRole = 'participant';
         determinedCurrentRole = 'participant';
         console.log('RoleContext: Determined as pure participant');
-      } else if (hasOwnData && hasRelationships) {
-        // Dual role - default to participant
+      } else if (hasPersonalData && hasActiveCaretakerRels) {
+        // Dual role - default to participant for now
         determinedPrimaryRole = 'participant';
         determinedCurrentRole = 'participant';
-        console.log('RoleContext: Determined as dual role (defaulting to participant)');
+        console.log('RoleContext: Determined as dual role');
       } else {
-        // No role yet - default to participant
+        // New user - default to participant
         determinedPrimaryRole = 'participant';
         determinedCurrentRole = 'participant';
-        console.log('RoleContext: No clear role, defaulting to participant');
+        console.log('RoleContext: New user, defaulting to participant');
       }
 
       setPrimaryRole(determinedPrimaryRole);
       setCurrentRole(determinedCurrentRole);
 
-      console.log('RoleContext: Final role state for', user.email, ':', {
-        isParticipant: hasOwnData,
-        isCaretaker: hasRelationships,
+      console.log('RoleContext: Final role state:', {
+        isParticipant: hasPersonalData,
+        isCaretaker: hasActiveCaretakerRels,
         primaryRole: determinedPrimaryRole,
         currentRole: determinedCurrentRole,
-        isPureCaretaker: hasRelationships && !hasOwnData,
-        isPureParticipant: hasOwnData && !hasRelationships,
-        isDualRole: hasOwnData && hasRelationships
+        isPureCaretaker: hasActiveCaretakerRels && !hasPersonalData,
+        isPureParticipant: hasPersonalData && !hasActiveCaretakerRels,
+        isDualRole: hasPersonalData && hasActiveCaretakerRels
       });
 
     } catch (error) {

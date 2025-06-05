@@ -19,7 +19,9 @@ import {
   TrendingUp,
   Activity,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Stethoscope,
+  User
 } from "lucide-react";
 
 const ModernCaretakerDashboard = () => {
@@ -37,43 +39,47 @@ const ModernCaretakerDashboard = () => {
 
   const quickActions = [
     {
-      title: "Food Entries",
-      description: "Monitor daily nutrition and meals",
+      title: "Nutrition Analysis",
+      description: "Review daily food intake and nutritional patterns",
       icon: Utensils,
       href: "/caretaker/food",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
+      color: "text-green-700",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      hoverColor: "hover:bg-green-100",
       permission: "food_entries"
     },
     {
-      title: "Receipts",
-      description: "Track spending and purchases",
+      title: "Receipt Analysis", 
+      description: "Monitor spending patterns and food purchases",
       icon: FileText,
       href: "/caretaker/receipts",
-      color: "text-blue-600",
+      color: "text-blue-700",
       bgColor: "bg-blue-50",
       borderColor: "border-blue-200",
+      hoverColor: "hover:bg-blue-100",
       permission: "receipts"
     },
     {
-      title: "Workouts",
-      description: "Review exercise and activity",
+      title: "Exercise Monitoring",
+      description: "Track physical activity and fitness progress",
       icon: Dumbbell,
       href: "/caretaker/workouts",
-      color: "text-purple-600",
+      color: "text-purple-700",
       bgColor: "bg-purple-50",
       borderColor: "border-purple-200",
+      hoverColor: "hover:bg-purple-100",
       permission: "workouts"
     },
     {
-      title: "Insights",
-      description: "View analytics and trends",
+      title: "Health Insights",
+      description: "Comprehensive analytics and trend analysis",
       icon: BarChart3,
       href: "/caretaker/insights",
-      color: "text-green-600",
-      bgColor: "bg-green-50",
-      borderColor: "border-green-200",
+      color: "text-indigo-700",
+      bgColor: "bg-indigo-50",
+      borderColor: "border-indigo-200",
+      hoverColor: "hover:bg-indigo-100",
       permission: null
     }
   ];
@@ -94,12 +100,12 @@ const ModernCaretakerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto p-6">
           <div className="flex items-center justify-center h-64">
             <div className="text-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-              <p className="text-gray-600 font-medium">Loading your caretaker dashboard...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto"></div>
+              <p className="text-gray-600 font-medium">Loading patient dashboard...</p>
             </div>
           </div>
         </div>
@@ -109,15 +115,15 @@ const ModernCaretakerDashboard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <Card className="max-w-2xl mx-auto mt-12 border-red-200">
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto p-6">
+          <Card className="max-w-2xl mx-auto mt-12 border-red-200 bg-red-50">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="h-8 w-8 text-red-600" />
               </div>
-              <CardTitle className="text-2xl text-red-800">Error Loading Dashboard</CardTitle>
-              <CardDescription className="text-red-600">
+              <CardTitle className="text-2xl text-red-800">Dashboard Error</CardTitle>
+              <CardDescription className="text-red-700">
                 {error}
               </CardDescription>
             </CardHeader>
@@ -129,66 +135,73 @@ const ModernCaretakerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="space-y-8 p-6">
-        {/* Header */}
+      <div className="space-y-6 p-6">
+        {/* Medical-grade Header */}
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Heart className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900">Caretaker Dashboard</h1>
-              <p className="text-gray-600 mt-1">Monitor and support your participants' health journey</p>
+          <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Stethoscope className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Healthcare Dashboard</h1>
+                <p className="text-gray-600 mt-1">Patient monitoring and care management system</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto grid gap-8 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Participant Selection */}
+        <div className="max-w-7xl mx-auto grid gap-6 lg:grid-cols-4">
+          {/* Main Content - 3 columns */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Patient Selection */}
             {!selectedParticipantId && participants.length > 0 && (
-              <Card className="bg-white shadow-sm">
-                <CardHeader>
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardHeader className="pb-4">
                   <div className="flex items-center gap-3">
                     <Users className="h-5 w-5 text-blue-600" />
-                    <CardTitle>Select a Participant</CardTitle>
+                    <CardTitle className="text-xl">Select Patient</CardTitle>
                   </div>
                   <CardDescription>
-                    Choose a participant to monitor their health data and activities.
+                    Choose a patient to access their health monitoring dashboard.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-3">
+                  <div className="grid gap-4">
                     {participants.map((participant) => (
                       <div
                         key={participant.id}
                         onClick={() => handleSelectParticipant(participant.id)}
-                        className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                        className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all duration-200"
                       >
                         <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{participant.full_name}</h3>
-                            <p className="text-sm text-gray-600">{participant.email}</p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge variant="outline" className="text-xs">
-                                {participant.caretaker_type.replace('_', ' ')}
-                              </Badge>
-                              <Badge 
-                                variant={participant.status === 'active' ? 'default' : 'secondary'}
-                                className="text-xs"
-                              >
-                                {participant.status}
-                              </Badge>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="font-semibold text-blue-700 text-sm">
+                                {participant.full_name.split(' ').map(n => n[0]).join('')}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{participant.full_name}</h3>
+                              <p className="text-sm text-gray-600">{participant.email}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {participant.caretaker_type.replace('_', ' ')}
+                                </Badge>
+                                <Badge 
+                                  variant={participant.status === 'active' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {participant.status}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            {participant.health_score && (
-                              <div className="text-2xl font-bold text-green-600">
-                                {participant.health_score}%
-                              </div>
-                            )}
-                            <p className="text-xs text-gray-500">Health Score</p>
+                            <div className="text-sm text-gray-500">Patient ID</div>
+                            <div className="text-xs font-mono text-gray-400">
+                              {participant.id.slice(-8)}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -198,72 +211,76 @@ const ModernCaretakerDashboard = () => {
               </Card>
             )}
 
-            {/* Selected Participant Overview */}
+            {/* Selected Patient Overview */}
             {selectedParticipantId && participantData && (
-              <Card className="bg-white shadow-sm">
-                <CardHeader>
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="font-semibold text-blue-600">
-                          {participantData.full_name.split(' ').map(n => n[0]).join('')}
-                        </span>
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="h-6 w-6 text-blue-600" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl">{participantData.full_name}</CardTitle>
-                        <CardDescription>{participantData.email}</CardDescription>
+                        <CardTitle className="text-xl text-gray-900">{participantData.full_name}</CardTitle>
+                        <CardDescription className="text-gray-600">{participantData.email}</CardDescription>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Shield className={`h-4 w-4 ${
                         hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts') 
-                          ? 'text-green-500' : 'text-amber-500'
+                          ? 'text-green-600' : 'text-amber-500'
                       }`} />
-                      <Badge variant={
-                        hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts')
-                          ? 'default' : 'secondary'
-                      }>
+                      <Badge 
+                        variant={
+                          hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts')
+                            ? 'default' : 'secondary'
+                        }
+                        className={
+                          hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts')
+                            ? 'bg-green-100 text-green-800 border-green-200' : 'bg-amber-100 text-amber-800 border-amber-200'
+                        }
+                      >
                         {hasPermission('food_entries') || hasPermission('receipts') || hasPermission('workouts') 
-                          ? 'Access Granted' : 'Limited Access'}
+                          ? 'Full Access' : 'Limited Access'}
                       </Badge>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">
-                        {participantData.health_score || 'N/A'}%
+                    <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="text-2xl font-bold text-gray-900 mb-1">
+                        Active
                       </div>
-                      <p className="text-sm text-gray-600">Health Score</p>
+                      <p className="text-sm text-gray-600">Monitoring Status</p>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">
-                        <Activity className="h-6 w-6 mx-auto" />
+                    <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-center mb-1">
+                        <Activity className="h-6 w-6 text-blue-600" />
                       </div>
-                      <p className="text-sm text-gray-600">Active Monitoring</p>
+                      <p className="text-sm text-gray-600">Real-time Tracking</p>
                     </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-2xl font-bold text-gray-900">
-                        <Clock className="h-6 w-6 mx-auto" />
+                    <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-center mb-1">
+                        <Clock className="h-6 w-6 text-green-600" />
                       </div>
-                      <p className="text-sm text-gray-600">Real-time Updates</p>
+                      <p className="text-sm text-gray-600">Live Updates</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Quick Actions */}
+            {/* Medical-grade Quick Actions */}
             {selectedParticipantId && (
-              <Card className="bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Quick Actions
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <TrendingUp className="h-5 w-5 text-blue-600" />
+                    Patient Data Access
                   </CardTitle>
                   <CardDescription>
-                    Access participant data and monitoring tools
+                    Access comprehensive health monitoring tools and analytics
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -278,28 +295,28 @@ const ModernCaretakerDashboard = () => {
                           variant="outline"
                           onClick={() => handleActionClick(action.href, action.permission)}
                           disabled={!canAccess}
-                          className={`h-auto p-6 text-left justify-start border-2 ${
+                          className={`h-auto p-6 text-left justify-start border ${
                             canAccess 
-                              ? `${action.borderColor} hover:${action.bgColor}` 
+                              ? `${action.borderColor} ${action.hoverColor} hover:shadow-sm` 
                               : 'border-gray-200 opacity-50 cursor-not-allowed'
                           }`}
                         >
                           <div className="flex items-start gap-4 w-full">
-                            <div className={`p-3 rounded-lg ${canAccess ? action.bgColor : 'bg-gray-100'}`}>
+                            <div className={`p-3 rounded-lg ${canAccess ? action.bgColor : 'bg-gray-100'} border ${canAccess ? action.borderColor : 'border-gray-200'}`}>
                               <Icon className={`h-6 w-6 ${canAccess ? action.color : 'text-gray-400'}`} />
                             </div>
-                            <div className="flex-1">
+                            <div className="flex-1 text-left">
                               <h3 className="font-semibold text-gray-900 mb-1">{action.title}</h3>
                               <p className="text-sm text-gray-600 mb-2">{action.description}</p>
                               {!canAccess && action.permission && (
-                                <Badge variant="outline" className="text-xs border-amber-200 text-amber-600">
+                                <Badge variant="outline" className="text-xs border-amber-200 text-amber-700 bg-amber-50">
                                   Permission Required
                                 </Badge>
                               )}
                               {canAccess && (
-                                <Badge variant="outline" className="text-xs border-green-200 text-green-600">
+                                <Badge variant="outline" className="text-xs border-green-200 text-green-700 bg-green-50">
                                   <CheckCircle className="h-3 w-3 mr-1" />
-                                  Available
+                                  Authorized
                                 </Badge>
                               )}
                             </div>
@@ -313,7 +330,7 @@ const ModernCaretakerDashboard = () => {
             )}
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - 1 column */}
           <div className="space-y-6">
             {/* Permission Status */}
             {selectedParticipantId && participantData && (
@@ -326,43 +343,43 @@ const ModernCaretakerDashboard = () => {
 
             {/* No Participants Message */}
             {participants.length === 0 && (
-              <Card className="bg-white shadow-sm">
-                <CardHeader className="text-center">
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardHeader className="text-center pb-4">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Users className="h-8 w-8 text-blue-600" />
                   </div>
-                  <CardTitle>No Participants</CardTitle>
-                  <CardDescription>
-                    You don't have any participants to monitor yet. Participants need to invite you as their caretaker.
+                  <CardTitle className="text-xl">No Patients Assigned</CardTitle>
+                  <CardDescription className="text-gray-600">
+                    You don't have any patients to monitor yet. Patients need to provide you with their invitation code.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="text-center">
+                <CardContent className="text-center pt-0">
                   <p className="text-sm text-gray-600 mb-4">
-                    To get started, ask a participant to send you an invitation code.
+                    To get started, ask a patient to share their invitation code with you.
                   </p>
                 </CardContent>
               </Card>
             )}
 
-            {/* Recent Activity (placeholder) */}
+            {/* System Status */}
             {selectedParticipantId && (
-              <Card className="bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">System Status</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div className="flex items-center gap-3 text-sm">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-gray-600">System monitoring active</span>
+                      <span className="text-gray-700">Monitoring Active</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span className="text-gray-600">Permissions up to date</span>
+                      <span className="text-gray-700">Data Sync Current</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      <span className="text-gray-600">Ready for monitoring</span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-gray-700">Platform Online</span>
                     </div>
                   </div>
                 </CardContent>
