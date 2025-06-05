@@ -1,7 +1,7 @@
 
 import { useUserType } from "@/contexts/UserTypeContext";
 import SidebarLayout from "./SidebarLayout";
-import ParticipantSidebar from "./ParticipantSidebar";
+import SimplifiedParticipantSidebar from "./SimplifiedParticipantSidebar";
 import ModernCaretakerSidebar from "./ModernCaretakerSidebar";
 
 interface SimpleRoleBasedLayoutProps {
@@ -28,9 +28,9 @@ const SimpleRoleBasedLayout = ({ children }: SimpleRoleBasedLayoutProps) => {
     );
   }
 
-  // Use participant sidebar for participants (default)
+  // Use simplified participant sidebar for participants (default)
   return (
-    <SidebarLayout sidebar={<ParticipantSidebar />}>
+    <SidebarLayout sidebar={<SimplifiedParticipantSidebar />}>
       {children}
     </SidebarLayout>
   );
