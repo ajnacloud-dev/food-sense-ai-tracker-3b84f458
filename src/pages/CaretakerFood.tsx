@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -38,16 +37,41 @@ const CaretakerFoodContent = () => {
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const fetchingRef = useRef(false);
 
-  const fetchFoodEntries = useCallback(async () => {
-    if (!selectedParticipantId || !hasPermission('food_entries')) {
-      console.log('CaretakerFood: Cannot fetch - no participant or no permission');
+  const fetchFoodEntries = useCallback(async (forceRefresh = false) => {
+    // Prevent multiple simultaneous requests
+    if (fetchingRef.current && !forceRefresh) {
+      console.log('CaretakerFood: Request already in progress, skipping...');
+      return;
+    }
+
+    // Check prerequisites
+    if (!selectedParticipantId) {
+      console.log('CaretakerFood: No participant selected');
+      setLoading(false);
+      return;
+    }
+
+    if (permissionLoading) {
+      console.log('CaretakerFood: Still loading permissions...');
+      return;
+    }
+
+    if (!hasPermission('food_entries')) {
+      console.log('CaretakerFood: No permission to view food entries');
       setLoading(false);
       return;
     }
 
     try {
-      setRefreshing(true);
+      fetchingRef.current = true;
+      if (forceRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
       console.log('CaretakerFood: Fetching food entries for participant:', selectedParticipantId);
       
       const { data: foodData, error: foodError } = await supabase
@@ -69,27 +93,31 @@ const CaretakerFoodContent = () => {
         return;
       }
 
-      console.log('CaretakerFood: Found food entries:', foodData?.length || 0);
+      console.log('CaretakerFood: Successfully fetched food entries:', foodData?.length || 0);
       setFoodEntries(foodData || []);
     } catch (error) {
       console.error('CaretakerFood: Error:', error);
       toast.error("Failed to load food entries");
     } finally {
+      fetchingRef.current = false;
+      setLoading(false);
       setRefreshing(false);
-      setLoading(false);
     }
-  }, [selectedParticipantId, hasPermission]);
+  }, [selectedParticipantId, hasPermission, permissionLoading]);
 
+  // Main effect for fetching data when conditions are met
   useEffect(() => {
-    if (selectedParticipantId && hasPermission('food_entries')) {
+    // Only fetch if we have all required data and permissions are loaded
+    if (selectedParticipantId && !permissionLoading && hasPermission('food_entries')) {
       fetchFoodEntries();
-    } else {
+    } else if (!permissionLoading) {
+      // If permissions are loaded but we don't have access, stop loading
       setLoading(false);
     }
-  }, [selectedParticipantId, hasPermission, fetchFoodEntries]);
+  }, [selectedParticipantId, permissionLoading, hasPermission]);
 
   const handleRefresh = async () => {
-    await fetchFoodEntries();
+    await fetchFoodEntries(true);
     toast.success("Food entries refreshed");
   };
 
