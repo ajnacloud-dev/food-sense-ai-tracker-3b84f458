@@ -3,14 +3,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import RoleBasedLayout from "@/components/layout/RoleBasedLayout";
+import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import ReceiptTable from "@/components/receipts/ReceiptTable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText, User } from "lucide-react";
 import { CaretakerDataProvider, useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRole } from "@/contexts/RoleContext";
+import { useUserType } from "@/contexts/UserTypeContext";
 
 const CaretakerReceiptsContent = () => {
   const navigate = useNavigate();
@@ -70,7 +70,7 @@ const CaretakerReceiptsContent = () => {
 
 const CaretakerReceipts = () => {
   const { user, loading: authLoading } = useAuth();
-  const { isCaretaker, isLoading: roleLoading } = useRole();
+  const { userType, isLoading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -79,35 +79,35 @@ const CaretakerReceipts = () => {
       return;
     }
 
-    if (!roleLoading && !isCaretaker) {
+    if (!userTypeLoading && userType !== 'caretaker') {
       console.log('CaretakerReceipts: User is not a caretaker, redirecting to /dashboard');
       navigate("/dashboard", { replace: true });
       return;
     }
-  }, [user, authLoading, roleLoading, isCaretaker, navigate]);
+  }, [user, authLoading, userTypeLoading, userType, navigate]);
 
-  if (authLoading || roleLoading) {
+  if (authLoading || userTypeLoading) {
     return (
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
             <p>Loading participant receipts...</p>
           </div>
         </div>
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     );
   }
 
-  if (!user || !isCaretaker) {
+  if (!user || userType !== 'caretaker') {
     return null; // Will redirect via useEffect
   }
 
   return (
     <CaretakerDataProvider>
-      <RoleBasedLayout>
+      <SimpleRoleBasedLayout>
         <CaretakerReceiptsContent />
-      </RoleBasedLayout>
+      </SimpleRoleBasedLayout>
     </CaretakerDataProvider>
   );
 };
