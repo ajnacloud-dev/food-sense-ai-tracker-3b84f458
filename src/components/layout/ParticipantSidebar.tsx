@@ -16,8 +16,7 @@ import {
   Home,
   Users,
   Shield,
-  Settings,
-  Heart
+  Settings
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -109,8 +108,8 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
         </Link>
       </div>
 
-      {/* Role Switcher for dual role users */}
-      <RoleSwitcher onSwitch={onItemClick} />
+      {/* Role Switcher for dual role users only */}
+      {isDualRole && <RoleSwitcher onSwitch={onItemClick} />}
       
       <ScrollArea className="flex-1">
         <div className="space-y-1 p-2">
@@ -167,19 +166,6 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
                 </Link>
               );
             })}
-            
-            {!roleLoading && hasCaretakerRelationships && !isDualRole && (
-              <Link
-                to="/caretaker"
-                onClick={onItemClick}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100 ${
-                  location.pathname === "/caretaker" ? "bg-gray-100 text-gray-900" : ""
-                }`}
-              >
-                <Heart className="h-4 w-4" />
-                Caretaker Dashboard
-              </Link>
-            )}
           </div>
 
           {userRole === 'admin' && (
@@ -214,7 +200,7 @@ const ParticipantSidebar = ({ onItemClick }: ParticipantSidebarProps) => {
               {userRole === 'admin' && (
                 <p className="text-xs text-red-600 font-medium">• Administrator</p>
               )}
-              {hasCaretakerRelationships && (
+              {isDualRole && (
                 <p className="text-xs text-green-600 font-medium">• Caretaker</p>
               )}
             </div>

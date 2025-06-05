@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -6,6 +5,20 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Permission level mappings
+const getPermissionsForLevel = (permissionLevel: string): string[] => {
+  switch (permissionLevel) {
+    case 'view_only':
+      return ['food_entries', 'receipts', 'workouts', 'health_metrics'];
+    case 'interactive':
+      return ['food_entries', 'receipts', 'workouts', 'health_metrics', 'goals'];
+    case 'full_access':
+      return ['food_entries', 'receipts', 'workouts', 'health_metrics', 'goals'];
+    default:
+      return ['food_entries']; // Default minimal access
+  }
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -119,11 +132,22 @@ serve(async (req) => {
       );
     }
 
-    // Auto-grant default permissions if specified
+    // Determine which permissions to grant
+    let permissionsToGrant: string[] = [];
+    
+    // If default_permissions are specified, use those
     if (invitation.default_permissions && Array.isArray(invitation.default_permissions) && invitation.default_permissions.length > 0) {
-      console.log('Granting default permissions:', invitation.default_permissions);
+      permissionsToGrant = invitation.default_permissions;
+    } else {
+      // Otherwise, map permission level to default categories
+      permissionsToGrant = getPermissionsForLevel(invitation.permission_level);
+    }
+
+    // Grant permissions
+    if (permissionsToGrant.length > 0) {
+      console.log('Granting permissions:', permissionsToGrant);
       
-      const permissionInserts = invitation.default_permissions.map((category: string) => ({
+      const permissionInserts = permissionsToGrant.map((category: string) => ({
         participant_id: invitation.created_by,
         caretaker_id: userId,
         category: category,
@@ -137,10 +161,10 @@ serve(async (req) => {
         .insert(permissionInserts);
 
       if (permissionError) {
-        console.error('Error granting default permissions:', permissionError);
+        console.error('Error granting permissions:', permissionError);
         // Don't fail the relationship creation, just log the error
       } else {
-        console.log('Successfully granted default permissions');
+        console.log('Successfully granted permissions');
       }
     }
 
@@ -181,7 +205,7 @@ serve(async (req) => {
         message: 'Invitation code redeemed successfully',
         relationshipCreated: true,
         selfCaretaking: userId === invitation.created_by,
-        permissionsGranted: invitation.default_permissions || []
+        permissionsGranted: permissionsToGrant
       }),
       { 
         status: 200, 

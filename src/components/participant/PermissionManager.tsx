@@ -8,6 +8,7 @@ import { Utensils, Receipt, Dumbbell, Target, Heart, Check, X, Clock, ArrowRight
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import BulkPermissionActions from "./BulkPermissionActions";
 import type { Database } from "@/integrations/supabase/types";
 
 type PermissionCategory = Database['public']['Enums']['permission_category'];
@@ -282,6 +283,14 @@ const PermissionManager = () => {
     return permission?.is_granted || false;
   };
 
+  const getCaretakerPermissions = (caretakerId: string): Record<string, boolean> => {
+    const caretakerPermissions: Record<string, boolean> = {};
+    categories.forEach(category => {
+      caretakerPermissions[category.key] = getPermissionStatus(caretakerId, category.key);
+    });
+    return caretakerPermissions;
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading permissions...</div>;
   }
@@ -388,7 +397,16 @@ const PermissionManager = () => {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Bulk Actions */}
+                  <BulkPermissionActions
+                    caretakerId={relationship.caretaker_id}
+                    caretakerName={relationship.caretaker.full_name || 'Unknown User'}
+                    categories={categories}
+                    currentPermissions={getCaretakerPermissions(relationship.caretaker_id)}
+                    onPermissionsUpdated={fetchData}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                     {categories.map((category) => {
                       const Icon = category.icon;
                       const isGranted = getPermissionStatus(relationship.caretaker_id, category.key);
