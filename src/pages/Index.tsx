@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,7 +70,7 @@ const Index = () => {
         {/* Hero Section */}
         <div className="text-center mb-16 nw-clinical-slide-in">
           <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl flex items-center justify-center shadow-lg">
               <Brain className="h-9 w-9 text-white" />
             </div>
             <h1 className="nw-page-title nw-text-medical">
@@ -84,7 +85,7 @@ const Index = () => {
           
           <Button 
             onClick={handleSignIn}
-            className="nw-button-modern text-lg px-8 py-4 h-auto"
+            className="bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-4 h-auto"
           >
             Start Your Journey
           </Button>
@@ -183,7 +184,7 @@ const Index = () => {
 
         {/* CTA Section */}
         <div className="text-center">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-3xl p-8 md:p-12 text-white">
+          <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-3xl p-8 md:p-12 text-white">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to Transform Your Wellness?
             </h2>
@@ -193,7 +194,7 @@ const Index = () => {
             <Button 
               onClick={handleSignIn}
               variant="secondary"
-              className="bg-white text-blue-700 hover:bg-gray-100 text-lg px-8 py-4 h-auto font-semibold"
+              className="bg-white text-green-700 hover:bg-gray-100 text-lg px-8 py-4 h-auto font-semibold"
             >
               Get Started Today
             </Button>
