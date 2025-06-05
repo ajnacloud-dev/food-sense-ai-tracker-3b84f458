@@ -6,7 +6,7 @@ import { RefreshCw, X } from 'lucide-react';
 
 const PWAUpdatePrompt = () => {
   const [showReload, setShowReload] = useState(false);
-  const [updateServiceWorker, setUpdateServiceWorker] = useState<(() => void) | null>(null);
+  const [updateServiceWorker, setUpdateServiceWorker] = useState<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     // Dynamically import the PWA register hook to avoid build errors
@@ -15,7 +15,7 @@ const PWAUpdatePrompt = () => {
         const { useRegisterSW } = await import('virtual:pwa-register/react');
         
         const {
-          needRefresh,
+          needRefresh: [needRefresh],
           updateServiceWorker: updateSW,
         } = useRegisterSW({
           onRegistered(r) {
