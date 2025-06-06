@@ -1,17 +1,17 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Utensils, LayoutGrid, List, Filter } from "lucide-react";
+import { Plus, RefreshCw, Utensils, LayoutGrid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
-import { CompactFilterButton } from "@/components/food/CompactFilterButton";
 import { FoodTable } from "@/components/food/FoodTable";
 import { ModernFoodGrid } from "@/components/food/ModernFoodGrid";
 import { CompactStatsGrid } from "@/components/food/CompactStatsGrid";
+import { FoodAdvancedFilters } from "@/components/food/FoodAdvancedFilters";
+import { ModernFilterBar } from "@/components/common/ModernFilterBar";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +41,10 @@ const Food = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date-desc');
   const [selectedMealType, setSelectedMealType] = useState('all');
   const [selectedDietType, setSelectedDietType] = useState('all');
   const [startDate, setStartDate] = useState<Date | undefined>();
@@ -53,9 +57,27 @@ const Food = () => {
            'unknown';
   };
 
+  const sortOptions = [
+    { value: 'date-desc', label: 'Date (newest first)' },
+    { value: 'date-asc', label: 'Date (oldest first)' },
+    { value: 'calories-desc', label: 'Calories (high to low)' },
+    { value: 'calories-asc', label: 'Calories (low to high)' },
+    { value: 'name-asc', label: 'Name (A-Z)' },
+    { value: 'name-desc', label: 'Name (Z-A)' },
+  ];
+
   const filteredEntries = useMemo(() => {
     let filtered = foodEntries;
 
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(entry =>
+        entry.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getMealTypeFromEntry(entry).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Meal type filter
     if (selectedMealType !== 'all') {
       filtered = filtered.filter(entry => {
         const mealType = getMealTypeFromEntry(entry).toLowerCase();
@@ -63,6 +85,7 @@ const Food = () => {
       });
     }
 
+    // Diet type filter
     if (selectedDietType !== 'all') {
       filtered = filtered.filter(entry => {
         const vegData = calculateVegetarianPercentage(entry);
@@ -79,6 +102,7 @@ const Food = () => {
       });
     }
 
+    // Date range filter
     if (startDate || endDate) {
       filtered = filtered.filter(entry => {
         const entryDate = new Date(entry.created_at);
@@ -99,11 +123,31 @@ const Food = () => {
       });
     }
 
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'calories-desc':
+          return (b.calories || 0) - (a.calories || 0);
+        case 'calories-asc':
+          return (a.calories || 0) - (b.calories || 0);
+        case 'name-asc':
+          return (a.description || '').localeCompare(b.description || '');
+        case 'name-desc':
+          return (b.description || '').localeCompare(a.description || '');
+        default:
+          return 0;
+      }
+    });
+
     return filtered;
-  }, [foodEntries, selectedMealType, selectedDietType, startDate, endDate]);
+  }, [foodEntries, searchTerm, sortBy, selectedMealType, selectedDietType, startDate, endDate]);
 
   const mealTypeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number> = { all: foodEntries.length };
     foodEntries.forEach(entry => {
       const mealType = getMealTypeFromEntry(entry).toLowerCase();
       counts[mealType] = (counts[mealType] || 0) + 1;
@@ -147,6 +191,15 @@ const Food = () => {
     
     return { totalEntries, totalCalories, avgCalories, overallVegPercentage };
   }, [filteredEntries]);
+
+  const hasActiveFilters = selectedMealType !== 'all' || selectedDietType !== 'all' || startDate || endDate;
+
+  const handleClearFilters = () => {
+    setSelectedMealType('all');
+    setSelectedDietType('all');
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -223,7 +276,7 @@ const Food = () => {
   return (
     <SidebarLayout>
       <div className="p-4 space-y-4 max-w-7xl mx-auto">
-        {/* Compact Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-md">
@@ -274,7 +327,7 @@ const Food = () => {
           </div>
         </div>
 
-        {/* Compact Stats */}
+        {/* Stats */}
         <CompactStatsGrid
           totalEntries={stats.totalEntries}
           totalCalories={stats.totalCalories}
@@ -284,30 +337,35 @@ const Food = () => {
           originalCount={foodEntries.length}
         />
 
-        {/* Filter Section */}
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            {filteredEntries.length !== foodEntries.length ? (
-              <span>Showing {filteredEntries.length} of {foodEntries.length} entries</span>
-            ) : (
-              <span>{foodEntries.length} total entries</span>
-            )}
-          </div>
-          <CompactFilterButton
-            selectedMealType={selectedMealType}
-            onMealTypeChange={setSelectedMealType}
-            mealTypeCounts={mealTypeCounts}
-            selectedDietType={selectedDietType}
-            onDietTypeChange={setSelectedDietType}
-            dietTypeCounts={dietTypeCounts}
-            startDate={startDate}
-            endDate={endDate}
-            onDateRangeChange={(start, end) => {
-              setStartDate(start);
-              setEndDate(end);
-            }}
-          />
-        </div>
+        {/* Modern Filter Bar */}
+        <ModernFilterBar
+          searchPlaceholder="Search food entries..."
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          sortOptions={sortOptions}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
+          advancedFilters={
+            <FoodAdvancedFilters
+              selectedMealType={selectedMealType}
+              onMealTypeChange={setSelectedMealType}
+              mealTypeCounts={mealTypeCounts}
+              selectedDietType={selectedDietType}
+              onDietTypeChange={setSelectedDietType}
+              dietTypeCounts={dietTypeCounts}
+              startDate={startDate}
+              endDate={endDate}
+              onDateRangeChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
+            />
+          }
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          totalCount={foodEntries.length}
+          filteredCount={filteredEntries.length}
+        />
 
         {/* Food Entries Display */}
         {filteredEntries.length === 0 ? (

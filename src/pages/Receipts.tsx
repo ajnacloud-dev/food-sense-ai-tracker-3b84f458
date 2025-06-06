@@ -11,8 +11,11 @@ import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButto
 import { CompactReceiptStatsGrid } from "@/components/receipts/CompactReceiptStatsGrid";
 import { ModernReceiptCard } from "@/components/receipts/ModernReceiptCard";
 import { ReceiptTable } from "@/components/receipts/ReceiptTable";
-import { ReceiptFilters, ReceiptFilterState } from "@/components/receipts/ReceiptFilters";
+import { ModernFilterBar } from "@/components/common/ModernFilterBar";
 import { filterReceipts, sortReceipts, getUniqueVendors } from "@/utils/receiptUtils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface ReceiptEntry {
   id: string;
@@ -33,14 +36,22 @@ const Receipts = () => {
   const [receipts, setReceipts] = useState<ReceiptEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [filters, setFilters] = useState<ReceiptFilterState>({
-    searchTerm: '',
-    vendor: '',
-    minAmount: '',
-    maxAmount: '',
-    dateRange: '',
-    sortBy: 'date-desc'
-  });
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date-desc');
+  const [selectedVendor, setSelectedVendor] = useState('');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+
+  const sortOptions = [
+    { value: 'date-desc', label: 'Date (newest first)' },
+    { value: 'date-asc', label: 'Date (oldest first)' },
+    { value: 'amount-desc', label: 'Amount (high to low)' },
+    { value: 'amount-asc', label: 'Amount (low to high)' },
+    { value: 'vendor-asc', label: 'Vendor (A-Z)' },
+    { value: 'vendor-desc', label: 'Vendor (Z-A)' },
+  ];
 
   useEffect(() => {
     fetchReceipts();
@@ -95,17 +106,108 @@ const Receipts = () => {
     navigate(`/receipts/${receiptId}`);
   };
 
-  const handleFiltersChange = (newFilters: ReceiptFilterState) => {
-    setFilters(newFilters);
-  };
-
   // Memoized filtered and sorted receipts
   const processedReceipts = useMemo(() => {
-    const filtered = filterReceipts(receipts, filters);
-    return sortReceipts(filtered, filters.sortBy);
-  }, [receipts, filters]);
+    let filtered = receipts;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(receipt =>
+        receipt.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        receipt.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Vendor filter
+    if (selectedVendor) {
+      filtered = filtered.filter(receipt => receipt.vendor === selectedVendor);
+    }
+
+    // Amount range filter
+    if (minAmount || maxAmount) {
+      filtered = filtered.filter(receipt => {
+        const amount = receipt.total_amount || 0;
+        const min = minAmount ? parseFloat(minAmount) : 0;
+        const max = maxAmount ? parseFloat(maxAmount) : Infinity;
+        return amount >= min && amount <= max;
+      });
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'amount-desc':
+          return (b.total_amount || 0) - (a.total_amount || 0);
+        case 'amount-asc':
+          return (a.total_amount || 0) - (b.total_amount || 0);
+        case 'vendor-asc':
+          return (a.vendor || '').localeCompare(b.vendor || '');
+        case 'vendor-desc':
+          return (b.vendor || '').localeCompare(a.vendor || '');
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [receipts, searchTerm, sortBy, selectedVendor, minAmount, maxAmount]);
 
   const uniqueVendors = useMemo(() => getUniqueVendors(receipts), [receipts]);
+
+  const hasActiveFilters = selectedVendor !== '' || minAmount !== '' || maxAmount !== '';
+
+  const handleClearFilters = () => {
+    setSelectedVendor('');
+    setMinAmount('');
+    setMaxAmount('');
+  };
+
+  const ReceiptAdvancedFilters = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Vendor Filter */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium text-gray-700">Vendor</Label>
+        <Select value={selectedVendor} onValueChange={setSelectedVendor}>
+          <SelectTrigger className="border-green-200/60 focus:border-green-400">
+            <SelectValue placeholder="Select vendor..." />
+          </SelectTrigger>
+          <SelectContent className="bg-white border-green-200 shadow-lg">
+            <SelectItem value="">All Vendors</SelectItem>
+            {uniqueVendors.map((vendor) => (
+              <SelectItem key={vendor} value={vendor} className="hover:bg-green-50">
+                {vendor}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Amount Range */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium text-gray-700">Amount Range</Label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Min amount"
+            value={minAmount}
+            onChange={(e) => setMinAmount(e.target.value)}
+            className="border-green-200/60 focus:border-green-400"
+          />
+          <Input
+            type="number"
+            placeholder="Max amount"
+            value={maxAmount}
+            onChange={(e) => setMaxAmount(e.target.value)}
+            className="border-green-200/60 focus:border-green-400"
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -168,10 +270,17 @@ const Receipts = () => {
         {/* Compact Stats Grid */}
         <CompactReceiptStatsGrid receipts={receipts} />
 
-        {/* Filters */}
-        <ReceiptFilters 
-          onFiltersChange={handleFiltersChange}
-          vendors={uniqueVendors}
+        {/* Modern Filter Bar */}
+        <ModernFilterBar
+          searchPlaceholder="Search receipts..."
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          sortOptions={sortOptions}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
+          advancedFilters={<ReceiptAdvancedFilters />}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
           totalCount={receipts.length}
           filteredCount={processedReceipts.length}
         />

@@ -1,10 +1,8 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dumbbell, Clock, Flame, Plus, Trash2, Activity, Eye, LayoutGrid, List } from "lucide-react";
+import { Dumbbell, Plus, LayoutGrid, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,6 +10,8 @@ import SidebarLayout from "@/components/layout/SidebarLayout";
 import { WorkoutStatsCards } from "@/components/workouts/WorkoutStatsCards";
 import { WorkoutTable } from "@/components/workouts/WorkoutTable";
 import { WorkoutCards } from "@/components/workouts/WorkoutCards";
+import { WorkoutFilters } from "@/components/workouts/WorkoutFilters";
+import { ModernFilterBar } from "@/components/common/ModernFilterBar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
 
@@ -38,12 +38,32 @@ const Workouts = () => {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date-desc');
+  const [workoutType, setWorkoutType] = useState('all');
+  const [minDuration, setMinDuration] = useState('');
+  const [maxDuration, setMaxDuration] = useState('');
+  const [minCalories, setMinCalories] = useState('');
+  const [maxCalories, setMaxCalories] = useState('');
+
   const [stats, setStats] = useState({
     totalWorkouts: 0,
     totalDuration: 0,
     totalCalories: 0,
     avgDuration: 0,
   });
+
+  const sortOptions = [
+    { value: 'date-desc', label: 'Date (newest first)' },
+    { value: 'date-asc', label: 'Date (oldest first)' },
+    { value: 'duration-desc', label: 'Duration (longest first)' },
+    { value: 'duration-asc', label: 'Duration (shortest first)' },
+    { value: 'calories-desc', label: 'Calories (highest first)' },
+    { value: 'calories-asc', label: 'Calories (lowest first)' },
+    { value: 'type-asc', label: 'Type (A-Z)' },
+  ];
 
   useEffect(() => {
     fetchWorkouts();
@@ -100,6 +120,88 @@ const Workouts = () => {
       console.error('Error deleting workout:', error);
       toast.error("Failed to delete workout");
     }
+  };
+
+  // Filtered and sorted workouts
+  const filteredWorkouts = useMemo(() => {
+    let filtered = workouts;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(workout =>
+        workout.workout_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        workout.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        workout.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Workout type filter
+    if (workoutType !== 'all') {
+      filtered = filtered.filter(workout => workout.workout_type === workoutType);
+    }
+
+    // Duration range filter
+    if (minDuration || maxDuration) {
+      filtered = filtered.filter(workout => {
+        const duration = workout.duration || 0;
+        const min = minDuration ? parseInt(minDuration) : 0;
+        const max = maxDuration ? parseInt(maxDuration) : Infinity;
+        return duration >= min && duration <= max;
+      });
+    }
+
+    // Calories range filter
+    if (minCalories || maxCalories) {
+      filtered = filtered.filter(workout => {
+        const calories = workout.calories_burned || 0;
+        const min = minCalories ? parseInt(minCalories) : 0;
+        const max = maxCalories ? parseInt(maxCalories) : Infinity;
+        return calories >= min && calories <= max;
+      });
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'duration-desc':
+          return (b.duration || 0) - (a.duration || 0);
+        case 'duration-asc':
+          return (a.duration || 0) - (b.duration || 0);
+        case 'calories-desc':
+          return (b.calories_burned || 0) - (a.calories_burned || 0);
+        case 'calories-asc':
+          return (a.calories_burned || 0) - (b.calories_burned || 0);
+        case 'type-asc':
+          return (a.workout_type || '').localeCompare(b.workout_type || '');
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [workouts, searchTerm, sortBy, workoutType, minDuration, maxDuration, minCalories, maxCalories]);
+
+  const workoutTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: workouts.length };
+    workouts.forEach(workout => {
+      const type = workout.workout_type || 'other';
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return counts;
+  }, [workouts]);
+
+  const hasActiveFilters = workoutType !== 'all' || minDuration !== '' || maxDuration !== '' || minCalories !== '' || maxCalories !== '';
+
+  const handleClearFilters = () => {
+    setWorkoutType('all');
+    setMinDuration('');
+    setMaxDuration('');
+    setMinCalories('');
+    setMaxCalories('');
   };
 
   if (loading) {
@@ -163,6 +265,35 @@ const Workouts = () => {
         {/* Enhanced Stats Cards */}
         <WorkoutStatsCards stats={stats} />
 
+        {/* Modern Filter Bar */}
+        <ModernFilterBar
+          searchPlaceholder="Search workouts..."
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          sortOptions={sortOptions}
+          sortValue={sortBy}
+          onSortChange={setSortBy}
+          advancedFilters={
+            <WorkoutFilters
+              workoutType={workoutType}
+              onWorkoutTypeChange={setWorkoutType}
+              minDuration={minDuration}
+              onMinDurationChange={setMinDuration}
+              maxDuration={maxDuration}
+              onMaxDurationChange={setMaxDuration}
+              minCalories={minCalories}
+              onMinCaloriesChange={setMinCalories}
+              maxCalories={maxCalories}
+              onMaxCaloriesChange={setMaxCalories}
+              workoutTypeCounts={workoutTypeCounts}
+            />
+          }
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={handleClearFilters}
+          totalCount={workouts.length}
+          filteredCount={filteredWorkouts.length}
+        />
+
         {/* Enhanced Workouts Display */}
         <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
           <CardHeader className="border-b border-green-100/50 bg-gradient-to-r from-green-50/50 to-white pb-4">
@@ -175,79 +306,42 @@ const Workouts = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            {workouts.length === 0 ? (
+            {filteredWorkouts.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <Dumbbell className="h-10 w-10 text-green-500" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">No workouts yet</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {workouts.length === 0 ? "No workouts yet" : "No workouts match your filters"}
+                </h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Start tracking your fitness by adding your first workout with detailed exercise logging
+                  {workouts.length === 0 
+                    ? "Start tracking your fitness by adding your first workout with detailed exercise logging"
+                    : "Try adjusting your filters to find what you're looking for"
+                  }
                 </p>
-                <Button 
-                  onClick={() => navigate("/capture")}
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Your First Workout
-                </Button>
+                {workouts.length === 0 && (
+                  <Button 
+                    onClick={() => navigate("/capture")}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Your First Workout
+                  </Button>
+                )}
               </div>
             ) : (
               <>
                 {viewMode === 'grid' ? (
-                  <div className="grid gap-4">
-                    {workouts.map((workout) => (
-                      <div key={workout.id} className="p-4 border border-green-200 rounded-lg hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-green-50/30">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                              <Dumbbell className="h-5 w-5 text-green-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-gray-900">{workout.workout_type}</h3>
-                              <p className="text-sm text-gray-600">{new Date(workout.created_at).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/workouts/${workout.id}`)}
-                              className="text-green-600 border-green-200 hover:bg-green-50"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => deleteWorkout(workout.id)}
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div className="text-center p-2 bg-white rounded-lg border border-green-100">
-                            <div className="font-semibold text-green-600">{workout.duration || 0}</div>
-                            <div className="text-gray-600">Minutes</div>
-                          </div>
-                          <div className="text-center p-2 bg-white rounded-lg border border-green-100">
-                            <div className="font-semibold text-orange-600">{workout.calories_burned || 0}</div>
-                            <div className="text-gray-600">Calories</div>
-                          </div>
-                          <div className="text-center p-2 bg-white rounded-lg border border-green-100">
-                            <div className="font-semibold text-blue-600">{workout.workout_exercises?.length || 0}</div>
-                            <div className="text-gray-600">Exercises</div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <WorkoutCards
+                    workouts={filteredWorkouts}
+                    onDelete={deleteWorkout}
+                    onView={(id) => navigate(`/workouts/${id}`)}
+                  />
                 ) : (
                   <div className="rounded-lg border border-green-200/50 overflow-hidden">
                     <WorkoutTable 
-                      workouts={workouts} 
+                      workouts={filteredWorkouts} 
                       onDelete={deleteWorkout} 
                       onView={(id) => navigate(`/workouts/${id}`)} 
                     />
