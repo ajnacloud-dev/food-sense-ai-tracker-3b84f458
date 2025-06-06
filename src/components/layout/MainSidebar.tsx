@@ -63,16 +63,16 @@ export const MainSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700 p-3">
+      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700 p-2">
         <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white">
-          <Brain className="h-6 w-6" />
+          <Brain className="h-6 w-6 flex-shrink-0" />
           <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
         </Link>
       </SidebarHeader>
       
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-2 py-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-2">
+          <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
             Health Tracking
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -86,11 +86,12 @@ export const MainSidebar = () => {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className="h-9 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                      tooltip={item.name}
+                      className="h-8 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
                     >
                       <Link to={item.href} className="flex items-center gap-3">
-                        <Icon className="h-4 w-4" />
-                        <span className="font-medium text-sm">{item.name}</span>
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -100,8 +101,8 @@ export const MainSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-2">
+        <SidebarGroup className="mt-3">
+          <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
             Account
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -115,11 +116,12 @@ export const MainSidebar = () => {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className="h-9 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                      tooltip={item.name}
+                      className="h-8 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
                     >
                       <Link to={item.href} className="flex items-center gap-3">
-                        <Icon className="h-4 w-4" />
-                        <span className="font-medium text-sm">{item.name}</span>
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -130,11 +132,11 @@ export const MainSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-green-200/50 p-3">
+      <SidebarFooter className="border-t border-green-200/50 p-2 mt-auto">
         {user && (
-          <div className="mb-3 p-3 bg-green-50 rounded-lg">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+          <div className="mb-2 p-2 bg-green-50 rounded-lg group-data-[collapsible=icon]:p-1">
+            <div className="flex items-center gap-3 mb-2 group-data-[collapsible=icon]:mb-0 group-data-[collapsible=icon]:justify-center">
+              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
@@ -152,10 +154,11 @@ export const MainSidebar = () => {
           <SidebarMenuItem>
             <SidebarMenuButton 
               onClick={handleSignOut}
-              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-9"
+              tooltip="Sign Out"
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-8"
             >
-              <LogOut className="h-4 w-4" />
-              <span className="font-medium text-sm">Sign Out</span>
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

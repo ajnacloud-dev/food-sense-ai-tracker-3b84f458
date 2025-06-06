@@ -62,81 +62,96 @@ const ModernCaretakerSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 p-3">
+      <SidebarHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 p-2">
         <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white">
-          <Brain className="h-6 w-6" />
+          <Brain className="h-6 w-6 flex-shrink-0" />
           <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-2 py-2">
         {/* Patient Selector */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-blue-700 font-semibold text-xs mb-2">
+          <SidebarGroupLabel className="text-blue-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
             Active Patient
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            {loading ? (
-              <div className="p-3 bg-gray-50 rounded-lg animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </div>
-            ) : error ? (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <span className="text-sm text-red-600 font-medium">Error loading patients</span>
-              </div>
-            ) : participants.length > 0 ? (
-              <Select
-                value={selectedParticipantId || ''}
-                onValueChange={(value) => {
-                  console.log('ModernCaretakerSidebar: Patient selected:', value);
-                  setSelectedParticipantId(value);
-                }}
-              >
-                <SelectTrigger className="h-10 bg-white border-gray-300 shadow-sm group-data-[collapsible=icon]:hidden">
-                  <SelectValue placeholder="Select patient..." />
-                </SelectTrigger>
-                <SelectContent className="w-full bg-white border border-gray-200 shadow-lg rounded-lg">
-                  {participants.map((participant) => (
-                    <SelectItem key={participant.id} value={participant.id} className="hover:bg-gray-50">
-                      <div className="flex items-center gap-3 min-w-0 flex-1 py-1">
-                        <div className="w-6 h-6 bg-blue-100 text-blue-700 text-xs flex-shrink-0 rounded-full flex items-center justify-center font-medium">
-                          {participant.full_name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-gray-900 truncate text-sm">{participant.full_name}</div>
-                          <div className="text-xs text-gray-500 truncate">{participant.email}</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <span className="text-sm text-gray-500">No patients available</span>
-              </div>
-            )}
-            
-            {/* Status info */}
-            <div className="mt-2 flex items-center text-xs group-data-[collapsible=icon]:hidden">
-              {participants.length > 0 ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span>{participants.length} patient(s) available</span>
+            {/* Collapsed state indicator */}
+            <div className="group-data-[collapsible=icon]:block hidden mb-2">
+              <div className="flex items-center justify-center">
+                <div className="w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4" />
                 </div>
+              </div>
+              {participants.length > 0 && selectedParticipantId && (
+                <div className="w-2 h-2 bg-green-500 rounded-full mx-auto mt-1"></div>
+              )}
+            </div>
+
+            {/* Expanded state selector */}
+            <div className="group-data-[collapsible=icon]:hidden">
+              {loading ? (
+                <div className="p-3 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              ) : error ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <span className="text-sm text-red-600 font-medium">Error loading patients</span>
+                </div>
+              ) : participants.length > 0 ? (
+                <Select
+                  value={selectedParticipantId || ''}
+                  onValueChange={(value) => {
+                    console.log('ModernCaretakerSidebar: Patient selected:', value);
+                    setSelectedParticipantId(value);
+                  }}
+                >
+                  <SelectTrigger className="h-10 bg-white border-gray-300 shadow-sm">
+                    <SelectValue placeholder="Select patient..." />
+                  </SelectTrigger>
+                  <SelectContent className="w-full bg-white border border-gray-200 shadow-lg rounded-lg">
+                    {participants.map((participant) => (
+                      <SelectItem key={participant.id} value={participant.id} className="hover:bg-gray-50">
+                        <div className="flex items-center gap-3 min-w-0 flex-1 py-1">
+                          <div className="w-6 h-6 bg-blue-100 text-blue-700 text-xs flex-shrink-0 rounded-full flex items-center justify-center font-medium">
+                            {participant.full_name.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-gray-900 truncate text-sm">{participant.full_name}</div>
+                            <div className="text-xs text-gray-500 truncate">{participant.email}</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               ) : (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span>No active patients</span>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <span className="text-sm text-gray-500">No patients available</span>
                 </div>
               )}
+              
+              {/* Status info */}
+              <div className="mt-2 flex items-center text-xs">
+                {participants.length > 0 ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>{participants.length} patient(s) available</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <span>No active patients</span>
+                  </div>
+                )}
+              </div>
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
         
         {/* Navigation */}
-        <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="text-blue-700 font-semibold text-xs mb-2">
+        <SidebarGroup className="mt-3">
+          <SidebarGroupLabel className="text-blue-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
             Patient Care
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -151,7 +166,8 @@ const ModernCaretakerSidebar = () => {
                     <SidebarMenuButton 
                       asChild={!isDisabled}
                       isActive={isActive}
-                      className={`h-9 hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 ${
+                      tooltip={item.name}
+                      className={`h-8 hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 ${
                         isDisabled ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                       onClick={(e) => {
@@ -164,13 +180,13 @@ const ModernCaretakerSidebar = () => {
                     >
                       {isDisabled ? (
                         <div className="flex items-center gap-3">
-                          <Icon className="h-4 w-4" />
-                          <span className="font-medium text-sm">{item.name}</span>
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                         </div>
                       ) : (
                         <Link to={item.href} className="flex items-center gap-3">
-                          <Icon className="h-4 w-4" />
-                          <span className="font-medium text-sm">{item.name}</span>
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                         </Link>
                       )}
                     </SidebarMenuButton>
@@ -182,30 +198,33 @@ const ModernCaretakerSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-gray-200 p-3">
+      <SidebarFooter className="border-t border-gray-200 p-2 mt-auto">
         {user && (
-          <div className="mb-3 p-3 bg-blue-50 rounded-lg group-data-[collapsible=icon]:hidden">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+          <div className="mb-2 p-2 bg-blue-50 rounded-lg group-data-[collapsible=icon]:p-1">
+            <div className="flex items-center gap-3 mb-2 group-data-[collapsible=icon]:mb-0 group-data-[collapsible=icon]:justify-center">
+              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                 <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
               </div>
             </div>
-            <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
-              Healthcare Provider
-            </Badge>
+            <div className="group-data-[collapsible=icon]:hidden">
+              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                Healthcare Provider
+              </Badge>
+            </div>
           </div>
         )}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 
               onClick={handleSignOut}
-              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-9"
+              tooltip="Sign Out"
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-8"
             >
-              <LogOut className="h-4 w-4" />
-              <span className="font-medium text-sm">Sign Out</span>
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
