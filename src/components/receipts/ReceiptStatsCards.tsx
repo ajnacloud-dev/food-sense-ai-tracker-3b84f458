@@ -51,69 +51,69 @@ export const ReceiptStatsCards = ({ receipts }: ReceiptStatsCardsProps) => {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-      <Card>
+      <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Receipts</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-700">Total Receipts</CardTitle>
           <Receipt className="h-4 w-4 text-blue-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{totalReceipts}</div>
-          <p className="text-xs text-muted-foreground">Receipts processed</p>
+          <div className="text-2xl font-bold text-gray-900">{totalReceipts}</div>
+          <p className="text-xs text-gray-500">Receipts processed</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Spending</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-700">Total Spending</CardTitle>
           <DollarSign className="h-4 w-4 text-green-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalAmount)}</div>
-          <p className="text-xs text-muted-foreground">All time</p>
+          <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalAmount)}</div>
+          <p className="text-xs text-gray-500">All time</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">This Month</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-700">This Month</CardTitle>
           <Calendar className="h-4 w-4 text-purple-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(thisMonthAmount)}</div>
-          <p className="text-xs text-muted-foreground">{thisMonthReceipts.length} receipts</p>
+          <div className="text-2xl font-bold text-gray-900">{formatCurrency(thisMonthAmount)}</div>
+          <p className="text-xs text-gray-500">{thisMonthReceipts.length} receipts</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Average Spending</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-700">Average Spending</CardTitle>
           <TrendingUp className="h-4 w-4 text-orange-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(avgAmount)}</div>
-          <p className="text-xs text-muted-foreground">Per receipt</p>
+          <div className="text-2xl font-bold text-gray-900">{formatCurrency(avgAmount)}</div>
+          <p className="text-xs text-gray-500">Per receipt</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Unique Stores</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-700">Unique Stores</CardTitle>
           <Store className="h-4 w-4 text-indigo-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{uniqueVendors}</div>
-          <p className="text-xs text-muted-foreground">Different vendors</p>
+          <div className="text-2xl font-bold text-gray-900">{uniqueVendors}</div>
+          <p className="text-xs text-gray-500">Different vendors</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Items</CardTitle>
+          <CardTitle className="text-sm font-medium text-gray-700">Total Items</CardTitle>
           <ShoppingCart className="h-4 w-4 text-pink-600" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{totalItems}</div>
-          <p className="text-xs text-muted-foreground">Items purchased</p>
+          <div className="text-2xl font-bold text-gray-900">{totalItems}</div>
+          <p className="text-xs text-gray-500">Items purchased</p>
         </CardContent>
       </Card>
     </div>

@@ -8,8 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { FloatingCaptureButton } from "@/components/capture/FloatingCaptureButton";
-import { ReceiptStatsCards } from "@/components/receipts/ReceiptStatsCards";
-import { ReceiptCard } from "@/components/receipts/ReceiptCard";
+import { CompactReceiptStatsGrid } from "@/components/receipts/CompactReceiptStatsGrid";
+import { ModernReceiptCard } from "@/components/receipts/ModernReceiptCard";
 import { ReceiptTable } from "@/components/receipts/ReceiptTable";
 import { ReceiptFilters, ReceiptFilterState } from "@/components/receipts/ReceiptFilters";
 import { filterReceipts, sortReceipts, getUniqueVendors } from "@/utils/receiptUtils";
@@ -112,7 +112,7 @@ const Receipts = () => {
       <SidebarLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
             <p className="text-gray-600 font-medium">Loading receipts...</p>
           </div>
         </div>
@@ -122,17 +122,19 @@ const Receipts = () => {
 
   return (
     <SidebarLayout>
-      <div className="space-y-6 nw-clinical-slide-in">
-        {/* Enhanced Header */}
-        <div className="nw-page-header">
+      <div className="space-y-6 p-6 animate-fade-in">
+        {/* Modern Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="nw-page-title flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-md">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center shadow-lg">
                 <Receipt className="h-6 w-6 text-white" />
               </div>
-              <span className="nw-text-gradient">Receipts</span>
+              <span className="bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+                Receipt Management
+              </span>
             </h1>
-            <p className="nw-page-subtitle">Track your expenses and spending patterns with intelligent insights</p>
+            <p className="text-gray-600 mt-1">Track expenses and analyze spending patterns with AI-powered insights</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex border border-green-200 rounded-xl p-1 bg-white shadow-sm">
@@ -155,7 +157,7 @@ const Receipts = () => {
             </div>
             <Button 
               onClick={() => navigate("/capture")} 
-              className="nw-button-primary flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
             >
               <Plus className="h-4 w-4" />
               Add Receipt
@@ -163,10 +165,10 @@ const Receipts = () => {
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
-        <ReceiptStatsCards receipts={receipts} />
+        {/* Compact Stats Grid */}
+        <CompactReceiptStatsGrid receipts={receipts} />
 
-        {/* Enhanced Filters */}
+        {/* Filters */}
         <ReceiptFilters 
           onFiltersChange={handleFiltersChange}
           vendors={uniqueVendors}
@@ -174,15 +176,15 @@ const Receipts = () => {
           filteredCount={processedReceipts.length}
         />
 
-        {/* Enhanced Receipts Display */}
-        <Card className="nw-card-modern">
-          <CardHeader className="border-b border-green-100/50 bg-gradient-to-r from-green-50/50 to-white">
+        {/* Receipts Display */}
+        <Card className="border-green-200/50 shadow-sm bg-white/80 backdrop-blur-sm">
+          <CardHeader className="border-b border-green-100/50 bg-gradient-to-r from-green-50/50 to-white pb-4">
             <CardTitle className="flex items-center gap-2 text-xl text-green-700">
               <Receipt className="h-5 w-5" />
               Receipt History
             </CardTitle>
             <CardDescription className="text-sm text-gray-600">
-              Your processed receipts and expense tracking with AI-powered insights
+              Your processed receipts with AI-powered expense tracking and insights
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
@@ -203,7 +205,7 @@ const Receipts = () => {
                 {receipts.length === 0 && (
                   <Button 
                     onClick={() => navigate("/capture")}
-                    className="nw-button-primary"
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Your First Receipt
@@ -213,9 +215,9 @@ const Receipts = () => {
             ) : (
               <>
                 {viewMode === 'grid' ? (
-                  <div className="grid gap-6">
+                  <div className="grid gap-4">
                     {processedReceipts.map((receipt) => (
-                      <ReceiptCard
+                      <ModernReceiptCard
                         key={receipt.id}
                         receipt={receipt}
                         onView={(id) => navigate(`/receipts/${id}`)}
@@ -224,7 +226,7 @@ const Receipts = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="nw-table-modern">
+                  <div className="rounded-lg border border-green-200/50 overflow-hidden">
                     <ReceiptTable
                       receipts={processedReceipts}
                       onView={(id) => navigate(`/receipts/${id}`)}
