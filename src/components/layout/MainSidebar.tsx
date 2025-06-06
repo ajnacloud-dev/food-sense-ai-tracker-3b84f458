@@ -63,16 +63,16 @@ export const MainSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700">
-        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white px-2 py-3">
+      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700 p-3">
+        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white">
           <Brain className="h-6 w-6" />
           <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
         </Link>
       </SidebarHeader>
       
-      <SidebarContent className="px-2 py-4">
+      <SidebarContent className="px-2 py-3">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-green-700 font-semibold">
+          <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-2">
             Health Tracking
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -86,11 +86,11 @@ export const MainSidebar = () => {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className="hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                      className="h-9 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
                     >
                       <Link to={item.href} className="flex items-center gap-3">
                         <Icon className="h-4 w-4" />
-                        <span className="font-medium">{item.name}</span>
+                        <span className="font-medium text-sm">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -100,8 +100,8 @@ export const MainSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-6">
-          <SidebarGroupLabel className="text-green-700 font-semibold">
+        <SidebarGroup className="mt-4">
+          <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-2">
             Account
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -115,11 +115,11 @@ export const MainSidebar = () => {
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      className="hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                      className="h-9 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
                     >
                       <Link to={item.href} className="flex items-center gap-3">
                         <Icon className="h-4 w-4" />
-                        <span className="font-medium">{item.name}</span>
+                        <span className="font-medium text-sm">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -130,7 +130,7 @@ export const MainSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-green-200/50 p-4">
+      <SidebarFooter className="border-t border-green-200/50 p-3">
         {user && (
           <div className="mb-3 p-3 bg-green-50 rounded-lg">
             <div className="flex items-center gap-3 mb-2">
@@ -152,10 +152,10 @@ export const MainSidebar = () => {
           <SidebarMenuItem>
             <SidebarMenuButton 
               onClick={handleSignOut}
-              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-9"
             >
               <LogOut className="h-4 w-4" />
-              <span className="font-medium">Sign Out</span>
+              <span className="font-medium text-sm">Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
