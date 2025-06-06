@@ -2,8 +2,6 @@
 import { useRole } from "@/contexts/RoleContext";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import SidebarLayout from "./SidebarLayout";
-import ParticipantSidebar from "./ParticipantSidebar";
-import ModernCaretakerSidebar from "./ModernCaretakerSidebar";
 
 interface RoleBasedLayoutProps {
   children: React.ReactNode;
@@ -20,18 +18,9 @@ const RoleBasedLayout = ({ children }: RoleBasedLayoutProps) => {
     );
   }
 
-  // Use modern caretaker sidebar for caretaker role
-  if (currentRole === 'caretaker') {
-    return (
-      <SidebarLayout sidebar={<ModernCaretakerSidebar />}>
-        {children}
-      </SidebarLayout>
-    );
-  }
-
-  // Use participant sidebar for participant role
+  // SidebarLayout now handles the sidebar selection internally based on userType
   return (
-    <SidebarLayout sidebar={<ParticipantSidebar />}>
+    <SidebarLayout>
       {children}
     </SidebarLayout>
   );

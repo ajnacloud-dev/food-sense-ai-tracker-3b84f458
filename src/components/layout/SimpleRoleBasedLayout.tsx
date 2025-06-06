@@ -1,8 +1,6 @@
 
 import { useUserType } from "@/contexts/UserTypeContext";
 import SidebarLayout from "./SidebarLayout";
-import SimplifiedParticipantSidebar from "./SimplifiedParticipantSidebar";
-import ModernCaretakerSidebar from "./ModernCaretakerSidebar";
 
 interface SimpleRoleBasedLayoutProps {
   children: React.ReactNode;
@@ -19,18 +17,9 @@ const SimpleRoleBasedLayout = ({ children }: SimpleRoleBasedLayoutProps) => {
     );
   }
 
-  // Use caretaker sidebar for caretakers
-  if (userType === 'caretaker') {
-    return (
-      <SidebarLayout sidebar={<ModernCaretakerSidebar />}>
-        {children}
-      </SidebarLayout>
-    );
-  }
-
-  // Use simplified participant sidebar for participants (default)
+  // SidebarLayout now handles the sidebar selection internally based on userType
   return (
-    <SidebarLayout sidebar={<SimplifiedParticipantSidebar />}>
+    <SidebarLayout>
       {children}
     </SidebarLayout>
   );
