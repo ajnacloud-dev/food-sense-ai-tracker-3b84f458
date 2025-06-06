@@ -1,0 +1,165 @@
+
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { 
+  Brain, 
+  Camera, 
+  FileText, 
+  Utensils, 
+  Dumbbell, 
+  BarChart3, 
+  CreditCard, 
+  Settings, 
+  LogOut,
+  Home,
+  Users
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserType } from "@/contexts/UserTypeContext";
+import { Badge } from "@/components/ui/badge";
+import {
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+} from "@/components/ui/sidebar";
+
+export const MainSidebar = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { userType } = useUserType();
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/");
+    } catch (error) {
+      toast.error("Error signing out");
+    }
+  };
+
+  const navigationItems = [
+    { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "Capture", href: "/capture", icon: Camera },
+    { name: "Food Analysis", href: "/food", icon: Utensils },
+    { name: "Receipts", href: "/receipts", icon: FileText },
+    { name: "Workouts", href: "/workouts", icon: Dumbbell },
+    { name: "Insights", href: "/insights", icon: BarChart3 },
+    { name: "Billing", href: "/billing", icon: CreditCard },
+  ];
+
+  const settingsItems = [
+    { name: "Invite Caretakers", href: "/invite-caretakers", icon: Users },
+    { name: "Settings", href: "/participant", icon: Settings },
+  ];
+
+  return (
+    <>
+      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700">
+        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white px-2 py-3">
+          <Brain className="h-6 w-6" />
+          <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
+        </Link>
+      </SidebarHeader>
+      
+      <SidebarContent className="px-2 py-4">
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-green-700 font-semibold">
+            Health Tracking
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      className="hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                    >
+                      <Link to={item.href} className="flex items-center gap-3">
+                        <Icon className="h-4 w-4" />
+                        <span className="font-medium">{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="mt-6">
+          <SidebarGroupLabel className="text-green-700 font-semibold">
+            Account
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingsItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      className="hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                    >
+                      <Link to={item.href} className="flex items-center gap-3">
+                        <Icon className="h-4 w-4" />
+                        <span className="font-medium">{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-green-200/50 p-4">
+        {user && (
+          <div className="mb-3 p-3 bg-green-50 rounded-lg">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                {user.email?.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
+              </div>
+            </div>
+            <div className="group-data-[collapsible=icon]:hidden">
+              <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+                {userType === 'participant' ? 'Patient' : 'User'}
+              </Badge>
+            </div>
+          </div>
+        )}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={handleSignOut}
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="font-medium">Sign Out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </>
+  );
+};

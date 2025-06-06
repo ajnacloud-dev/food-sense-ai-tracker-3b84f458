@@ -1,7 +1,6 @@
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Brain, 
@@ -19,12 +18,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { Badge } from "@/components/ui/badge";
+import {
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+} from "@/components/ui/sidebar";
 
-interface ModernCaretakerSidebarProps {
-  onItemClick?: () => void;
-}
-
-const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) => {
+const ModernCaretakerSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -55,144 +61,156 @@ const ModernCaretakerSidebar = ({ onItemClick }: ModernCaretakerSidebarProps) =>
   ];
 
   return (
-    <div className="flex h-full flex-col bg-white border-r border-gray-200">
-      {/* Header */}
-      <div className="flex h-14 items-center border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-blue-600 to-blue-700">
-        <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white">
+    <>
+      <SidebarHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+        <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white px-2 py-3">
           <Brain className="h-6 w-6" />
-          <span>NutriWealth</span>
+          <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
         </Link>
-      </div>
+      </SidebarHeader>
 
-      {/* Patient Selector */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <label className="text-sm font-semibold text-gray-800 mb-3 block flex items-center gap-2">
-          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-          Active Patient
-        </label>
-        
-        {loading ? (
-          <div className="nw-card p-3 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          </div>
-        ) : error ? (
-          <div className="nw-card border-red-200 bg-red-50 p-3">
-            <span className="text-sm text-red-600 font-medium">Error loading patients</span>
-          </div>
-        ) : participants.length > 0 ? (
-          <Select
-            value={selectedParticipantId || ''}
-            onValueChange={(value) => {
-              console.log('ModernCaretakerSidebar: Patient selected:', value);
-              setSelectedParticipantId(value);
-            }}
-          >
-            <SelectTrigger className="nw-input h-12 bg-white border-gray-300 shadow-sm">
-              <SelectValue placeholder="Select patient..." />
-            </SelectTrigger>
-            <SelectContent className="w-full bg-white border border-gray-200 shadow-lg rounded-lg">
-              {participants.map((participant) => (
-                <SelectItem key={participant.id} value={participant.id} className="hover:bg-gray-50">
-                  <div className="flex items-center gap-3 min-w-0 flex-1 py-2">
-                    <div className="nw-avatar w-8 h-8 bg-blue-100 text-blue-700 text-xs flex-shrink-0">
-                      {participant.full_name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-gray-900 truncate">{participant.full_name}</div>
-                      <div className="text-xs text-gray-500 truncate">{participant.email}</div>
-                    </div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <div className="nw-card p-3 border-gray-200">
-            <span className="text-sm text-gray-500">No patients available</span>
-          </div>
-        )}
-        
-        {/* Status info */}
-        <div className="mt-3 flex items-center justify-between text-xs">
-          {participants.length > 0 ? (
-            <div className="nw-status-indicator nw-status-active">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>{participants.length} patient(s) available</span>
-            </div>
-          ) : (
-            <div className="nw-status-indicator nw-status-inactive">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <span>No active patients</span>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Navigation */}
-      <ScrollArea className="flex-1 px-3 py-4">
-        <div className="space-y-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.href;
-            const isDisabled = item.href !== '/caretaker' && !selectedParticipantId;
-            
-            return (
-              <Link
-                key={item.name}
-                to={isDisabled ? '#' : item.href}
-                onClick={(e) => {
-                  if (isDisabled) {
-                    e.preventDefault();
-                    toast.error('Please select a patient first');
-                    return;
-                  }
-                  onItemClick?.();
+      <SidebarContent className="px-2 py-4">
+        {/* Patient Selector */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-blue-700 font-semibold mb-2">
+            Active Patient
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            {loading ? (
+              <div className="p-3 bg-gray-50 rounded-lg animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            ) : error ? (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <span className="text-sm text-red-600 font-medium">Error loading patients</span>
+              </div>
+            ) : participants.length > 0 ? (
+              <Select
+                value={selectedParticipantId || ''}
+                onValueChange={(value) => {
+                  console.log('ModernCaretakerSidebar: Patient selected:', value);
+                  setSelectedParticipantId(value);
                 }}
-                className={`nw-sidebar-nav-item ${
-                  isDisabled 
-                    ? 'nw-sidebar-nav-item-disabled' 
-                    : isActive
-                    ? 'nw-sidebar-nav-item-active'
-                    : 'nw-sidebar-nav-item-inactive'
-                } nw-transition-smooth`}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <span className="font-medium">{item.name}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </ScrollArea>
+                <SelectTrigger className="h-12 bg-white border-gray-300 shadow-sm group-data-[collapsible=icon]:hidden">
+                  <SelectValue placeholder="Select patient..." />
+                </SelectTrigger>
+                <SelectContent className="w-full bg-white border border-gray-200 shadow-lg rounded-lg">
+                  {participants.map((participant) => (
+                    <SelectItem key={participant.id} value={participant.id} className="hover:bg-gray-50">
+                      <div className="flex items-center gap-3 min-w-0 flex-1 py-2">
+                        <div className="w-8 h-8 bg-blue-100 text-blue-700 text-xs flex-shrink-0 rounded-full flex items-center justify-center font-medium">
+                          {participant.full_name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-900 truncate">{participant.full_name}</div>
+                          <div className="text-xs text-gray-500 truncate">{participant.email}</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <span className="text-sm text-gray-500">No patients available</span>
+              </div>
+            )}
+            
+            {/* Status info */}
+            <div className="mt-3 flex items-center text-xs group-data-[collapsible=icon]:hidden">
+              {participants.length > 0 ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>{participants.length} patient(s) available</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                  <span>No active patients</span>
+                </div>
+              )}
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        {/* Navigation */}
+        <SidebarGroup className="mt-6">
+          <SidebarGroupLabel className="text-blue-700 font-semibold">
+            Patient Care
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                const isDisabled = item.href !== '/caretaker' && !selectedParticipantId;
+                
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton 
+                      asChild={!isDisabled}
+                      isActive={isActive}
+                      className={`hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 ${
+                        isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      onClick={(e) => {
+                        if (isDisabled) {
+                          e.preventDefault();
+                          toast.error('Please select a patient first');
+                          return;
+                        }
+                      }}
+                    >
+                      {isDisabled ? (
+                        <div className="flex items-center gap-3">
+                          <Icon className="h-4 w-4" />
+                          <span className="font-medium">{item.name}</span>
+                        </div>
+                      ) : (
+                        <Link to={item.href} className="flex items-center gap-3">
+                          <Icon className="h-4 w-4" />
+                          <span className="font-medium">{item.name}</span>
+                        </Link>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-      {/* User info & Sign out */}
-      <div className="border-t border-gray-200 p-4 bg-gray-50">
+      <SidebarFooter className="border-t border-gray-200 p-4">
         {user && (
-          <div className="mb-4 p-3 bg-white rounded-lg nw-shadow-soft">
+          <div className="mb-3 p-3 bg-blue-50 rounded-lg group-data-[collapsible=icon]:hidden">
             <div className="flex items-center gap-3 mb-2">
-              <div className="nw-avatar w-8 h-8 bg-blue-100 text-blue-700 text-sm">
+              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-1">
-              <Badge className="nw-role-badge-caretaker text-2xs">
-                Healthcare Provider
-              </Badge>
-            </div>
+            <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+              Healthcare Provider
+            </Badge>
           </div>
         )}
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 nw-transition-smooth"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="font-medium">Sign Out</span>
-        </Button>
-      </div>
-    </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={handleSignOut}
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="font-medium">Sign Out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </>
   );
 };
 
