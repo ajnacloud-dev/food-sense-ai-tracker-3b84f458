@@ -192,7 +192,7 @@ const Food = () => {
     return { totalEntries, totalCalories, avgCalories, overallVegPercentage };
   }, [filteredEntries]);
 
-  const hasActiveFilters = selectedMealType !== 'all' || selectedDietType !== 'all' || startDate || endDate;
+  const hasActiveFilters = selectedMealType !== 'all' || selectedDietType !== 'all' || !!startDate || !!endDate;
 
   const handleClearFilters = () => {
     setSelectedMealType('all');
