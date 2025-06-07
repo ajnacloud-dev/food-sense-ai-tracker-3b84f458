@@ -40,7 +40,7 @@ const Receipts = () => {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');
-  const [selectedVendor, setSelectedVendor] = useState('');
+  const [selectedVendor, setSelectedVendor] = useState('all');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
 
@@ -119,7 +119,7 @@ const Receipts = () => {
     }
 
     // Vendor filter
-    if (selectedVendor) {
+    if (selectedVendor && selectedVendor !== 'all') {
       filtered = filtered.filter(receipt => receipt.vendor === selectedVendor);
     }
 
@@ -158,10 +158,10 @@ const Receipts = () => {
 
   const uniqueVendors = useMemo(() => getUniqueVendors(receipts), [receipts]);
 
-  const hasActiveFilters = selectedVendor !== '' || minAmount !== '' || maxAmount !== '';
+  const hasActiveFilters = selectedVendor !== 'all' || minAmount !== '' || maxAmount !== '';
 
   const handleClearFilters = () => {
-    setSelectedVendor('');
+    setSelectedVendor('all');
     setMinAmount('');
     setMaxAmount('');
   };
@@ -176,7 +176,7 @@ const Receipts = () => {
             <SelectValue placeholder="Select vendor..." />
           </SelectTrigger>
           <SelectContent className="bg-white border-green-200 shadow-lg">
-            <SelectItem value="">All Vendors</SelectItem>
+            <SelectItem value="all">All Vendors</SelectItem>
             {uniqueVendors.map((vendor) => (
               <SelectItem key={vendor} value={vendor} className="hover:bg-green-50">
                 {vendor}
