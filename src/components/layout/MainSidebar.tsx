@@ -63,14 +63,14 @@ export const MainSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700 p-2">
-        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white">
+      <SidebarHeader className="border-b border-green-200/50 bg-gradient-to-r from-green-600 to-green-700 p-3 group-data-[collapsible=icon]:p-2">
+        <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white group-data-[collapsible=icon]:justify-center">
           <Brain className="h-6 w-6 flex-shrink-0" />
           <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
         </Link>
       </SidebarHeader>
       
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="px-2 py-2 group-data-[collapsible=icon]:px-1">
         <SidebarGroup>
           <SidebarGroupLabel className="text-green-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
             Health Tracking
@@ -87,10 +87,10 @@ export const MainSidebar = () => {
                       asChild 
                       isActive={isActive}
                       tooltip={item.name}
-                      className="h-8 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                      className="h-9 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700 group-data-[collapsible=icon]:h-10"
                     >
-                      <Link to={item.href} className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 flex-shrink-0" />
+                      <Link to={item.href} className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+                        <Icon className="h-5 w-5 flex-shrink-0" />
                         <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -117,10 +117,10 @@ export const MainSidebar = () => {
                       asChild 
                       isActive={isActive}
                       tooltip={item.name}
-                      className="h-8 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700"
+                      className="h-9 hover:bg-green-50 hover:text-green-700 data-[active=true]:bg-green-100 data-[active=true]:text-green-700 group-data-[collapsible=icon]:h-10"
                     >
-                      <Link to={item.href} className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 flex-shrink-0" />
+                      <Link to={item.href} className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+                        <Icon className="h-5 w-5 flex-shrink-0" />
                         <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -155,9 +155,9 @@ export const MainSidebar = () => {
             <SidebarMenuButton 
               onClick={handleSignOut}
               tooltip="Sign Out"
-              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-8"
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-9 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:justify-center"
             >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <LogOut className="h-5 w-5 flex-shrink-0" />
               <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -62,14 +62,14 @@ const ModernCaretakerSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 p-2">
-        <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white">
+      <SidebarHeader className="border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 p-3 group-data-[collapsible=icon]:p-2">
+        <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white group-data-[collapsible=icon]:justify-center">
           <Brain className="h-6 w-6 flex-shrink-0" />
           <span className="group-data-[collapsible=icon]:hidden">NutriWealth</span>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="px-2 py-2 group-data-[collapsible=icon]:px-1">
         {/* Patient Selector */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-blue-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
@@ -80,7 +80,7 @@ const ModernCaretakerSidebar = () => {
             <div className="group-data-[collapsible=icon]:block hidden mb-2">
               <div className="flex items-center justify-center">
                 <div className="w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4" />
+                  <User className="h-5 w-5" />
                 </div>
               </div>
               {participants.length > 0 && selectedParticipantId && (
@@ -167,7 +167,7 @@ const ModernCaretakerSidebar = () => {
                       asChild={!isDisabled}
                       isActive={isActive}
                       tooltip={item.name}
-                      className={`h-8 hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 ${
+                      className={`h-9 hover:bg-blue-50 hover:text-blue-700 data-[active=true]:bg-blue-100 data-[active=true]:text-blue-700 group-data-[collapsible=icon]:h-10 ${
                         isDisabled ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                       onClick={(e) => {
@@ -179,13 +179,13 @@ const ModernCaretakerSidebar = () => {
                       }}
                     >
                       {isDisabled ? (
-                        <div className="flex items-center gap-3">
-                          <Icon className="h-4 w-4 flex-shrink-0" />
+                        <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+                          <Icon className="h-5 w-5 flex-shrink-0" />
                           <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                         </div>
                       ) : (
-                        <Link to={item.href} className="flex items-center gap-3">
-                          <Icon className="h-4 w-4 flex-shrink-0" />
+                        <Link to={item.href} className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+                          <Icon className="h-5 w-5 flex-shrink-0" />
                           <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
                         </Link>
                       )}
@@ -221,9 +221,9 @@ const ModernCaretakerSidebar = () => {
             <SidebarMenuButton 
               onClick={handleSignOut}
               tooltip="Sign Out"
-              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-8"
+              className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-100 h-9 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:justify-center"
             >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <LogOut className="h-5 w-5 flex-shrink-0" />
               <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
