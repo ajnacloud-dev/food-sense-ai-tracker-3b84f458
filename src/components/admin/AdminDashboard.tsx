@@ -36,10 +36,18 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch user count
-      const { count: userCount } = await supabase
+      // Fetch user count - use a more direct approach
+      const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('*', { count: 'exact', head: true });
+        .select('id');
+
+      if (userError) {
+        console.error('Error fetching users:', userError);
+        throw userError;
+      }
+
+      const totalUsers = userData?.length || 0;
+      console.log('AdminDashboard: Found', totalUsers, 'total users');
 
       // Fetch total costs
       const { data: allCosts } = await supabase
@@ -55,7 +63,7 @@ const AdminDashboard = () => {
       ).reduce((sum, cost) => sum + Number(cost.cost_usd), 0) || 0;
 
       setStats({
-        totalUsers: userCount || 0,
+        totalUsers,
         totalCosts,
         todayCosts,
         totalAnalyses: allCosts?.length || 0
