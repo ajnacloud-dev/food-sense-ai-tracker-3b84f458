@@ -32,26 +32,38 @@ const PaginatedUserTable = ({
 }: PaginatedUserTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
 
+  console.log('📊 PaginatedUserTable: Received', users.length, 'users for display');
+  console.log('👥 PaginatedUserTable: User emails:', users.map(u => u.email));
+
   const totalPages = Math.ceil(users.length / USERS_PER_PAGE);
   
   const paginatedUsers = useMemo(() => {
     const startIndex = (currentPage - 1) * USERS_PER_PAGE;
     const endIndex = startIndex + USERS_PER_PAGE;
-    return users.slice(startIndex, endIndex);
+    const result = users.slice(startIndex, endIndex);
+    
+    console.log(`📄 PaginatedUserTable: Page ${currentPage}, showing users ${startIndex + 1}-${Math.min(endIndex, users.length)} of ${users.length}`);
+    console.log('📋 PaginatedUserTable: Current page users:', result.map(u => u.email));
+    
+    return result;
   }, [users, currentPage]);
 
   const handlePageChange = (page: number) => {
+    console.log('📄 PaginatedUserTable: Changing to page', page);
     setCurrentPage(page);
-    // Reset expanded users when changing pages for better performance
-    // onToggleExpansion could be enhanced to handle this
   };
 
   if (loading) {
+    console.log('⏳ PaginatedUserTable: Showing loading state');
     return (
       <div className="flex items-center justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
+  }
+
+  if (users.length === 0) {
+    console.log('⚠️ PaginatedUserTable: No users to display');
   }
 
   const renderPaginationItems = () => {
