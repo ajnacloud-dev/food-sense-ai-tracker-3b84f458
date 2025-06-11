@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserUsageData } from "@/types/userAnalytics";
@@ -32,8 +31,10 @@ const PaginatedUserTable = ({
 }: PaginatedUserTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
 
-  console.log('📊 PaginatedUserTable: Received', users.length, 'users for display');
-  console.log('👥 PaginatedUserTable: User emails:', users.map(u => u.email));
+  // CRITICAL DEBUGGING: Log exactly what this component receives
+  console.log('🔥 PaginatedUserTable: RECEIVED', users.length, 'users from parent');
+  console.log('📧 PaginatedUserTable: RECEIVED user emails:', users.map(u => u.email));
+  console.log('🎛️ PaginatedUserTable: showActiveOnly filter:', showActiveOnly);
 
   const totalPages = Math.ceil(users.length / USERS_PER_PAGE);
   
@@ -64,6 +65,11 @@ const PaginatedUserTable = ({
 
   if (users.length === 0) {
     console.log('⚠️ PaginatedUserTable: No users to display');
+    return (
+      <div className="text-center py-8 text-gray-500">
+        {showActiveOnly ? 'No active users found' : 'No users found'}
+      </div>
+    );
   }
 
   const renderPaginationItems = () => {
@@ -144,12 +150,6 @@ const PaginatedUserTable = ({
             ))}
           </TableBody>
         </Table>
-        
-        {users.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-500">
-            {showActiveOnly ? 'No active users found' : 'No users found'}
-          </div>
-        )}
       </div>
 
       {totalPages > 1 && (
