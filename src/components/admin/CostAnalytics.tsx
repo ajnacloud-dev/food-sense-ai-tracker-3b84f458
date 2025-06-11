@@ -19,7 +19,8 @@ interface CostEntry {
   cost_usd: number;
   category: string;
   created_at: string;
-  users?: { email: string; full_name: string } | null;
+  user_email?: string;
+  user_full_name?: string;
 }
 
 interface CostSummary {
@@ -65,98 +66,97 @@ const CostAnalytics = () => {
       setLoading(true);
       console.log('CostAnalytics: Starting to fetch cost data...');
 
-      // First, let's try to fetch costs without joins to see if basic access works
-      const { data: basicCostData, error: basicCostError } = await supabase
+      // First fetch cost data
+      const { data: costData, error: costError } = await supabase
         .from('api_costs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(1000);
 
-      if (basicCostError) {
-        console.error('CostAnalytics: Error fetching basic cost data:', basicCostError);
-        toast.error(`Failed to fetch cost data: ${basicCostError.message}`);
+      if (costError) {
+        console.error('CostAnalytics: Error fetching cost data:', costError);
+        toast.error(`Failed to fetch cost data: ${costError.message}`);
         return;
       }
 
-      console.log('CostAnalytics: Basic cost data fetched:', basicCostData?.length || 0, 'records');
+      console.log('CostAnalytics: Cost data fetched:', costData?.length || 0, 'records');
 
-      if (!basicCostData || basicCostData.length === 0) {
+      if (!costData || costData.length === 0) {
         console.log('CostAnalytics: No cost data found');
         setCosts([]);
         return;
       }
 
-      // Now try to fetch with user information
-      const { data: costDataWithUsers, error: costError } = await supabase
-        .from('api_costs')
-        .select(`
-          *,
-          users:user_id (email, full_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(1000);
+      // Get unique user IDs from cost data
+      const userIds = [...new Set(costData.map(cost => cost.user_id))];
+      console.log('CostAnalytics: Unique user IDs found:', userIds.length);
 
-      if (costError) {
-        console.error('CostAnalytics: Error fetching cost data with users:', costError);
-        // Fall back to basic data without user info
-        const validCosts: CostEntry[] = basicCostData.map(cost => ({
-          id: cost.id,
-          user_id: cost.user_id,
-          function_name: cost.function_name,
-          model_used: cost.model_used,
-          total_tokens: cost.total_tokens || 0,
-          cost_usd: cost.cost_usd || 0,
-          category: cost.category || 'unknown',
-          created_at: cost.created_at,
-          users: null
-        }));
+      // Fetch user information separately
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, email, full_name')
+        .in('id', userIds);
 
-        setCosts(validCosts);
-        console.log('CostAnalytics: Using basic cost data without user info:', validCosts.length, 'records');
-        return;
+      if (userError) {
+        console.error('CostAnalytics: Error fetching user data:', userError);
+        // Continue without user data
       }
 
-      if (costDataWithUsers) {
-        const validCosts: CostEntry[] = costDataWithUsers.map(cost => ({
-          id: cost.id,
-          user_id: cost.user_id,
-          function_name: cost.function_name,
-          model_used: cost.model_used,
-          total_tokens: cost.total_tokens || 0,
-          cost_usd: cost.cost_usd || 0,
-          category: cost.category || 'unknown',
-          created_at: cost.created_at,
-          users: Array.isArray(cost.users) ? cost.users[0] : cost.users
-        }));
+      console.log('CostAnalytics: User data fetched:', userData?.length || 0, 'records');
 
-        setCosts(validCosts);
-        console.log('CostAnalytics: Cost data with users fetched successfully:', validCosts.length, 'records');
-
-        // Extract unique values for filters
-        const users = validCosts
-          .filter(cost => cost.users)
-          .map(cost => ({
-            id: cost.user_id,
-            email: cost.users!.email,
-            name: cost.users!.full_name || cost.users!.email
-          }))
-          .filter((user, index, self) => 
-            self.findIndex(u => u.id === user.id) === index
-          );
-
-        const categories = [...new Set(validCosts.map(cost => cost.category))];
-        const models = [...new Set(validCosts.map(cost => cost.model_used))];
-
-        setUniqueUsers(users);
-        setUniqueCategories(categories);
-        setUniqueModels(models);
-
-        console.log('CostAnalytics: Filter options set:', {
-          users: users.length,
-          categories: categories.length,
-          models: models.length
+      // Create a map of user ID to user info
+      const userMap = new Map();
+      if (userData) {
+        userData.forEach(user => {
+          userMap.set(user.id, user);
         });
       }
+
+      // Combine cost data with user information
+      const enrichedCosts: CostEntry[] = costData.map(cost => {
+        const user = userMap.get(cost.user_id);
+        return {
+          id: cost.id,
+          user_id: cost.user_id,
+          function_name: cost.function_name,
+          model_used: cost.model_used,
+          total_tokens: cost.total_tokens || 0,
+          cost_usd: cost.cost_usd || 0,
+          category: cost.category || 'unknown',
+          created_at: cost.created_at,
+          user_email: user?.email || 'Unknown',
+          user_full_name: user?.full_name || 'Unknown'
+        };
+      });
+
+      setCosts(enrichedCosts);
+      console.log('CostAnalytics: Enriched cost data set:', enrichedCosts.length, 'records');
+
+      // Extract unique values for filters
+      const users = enrichedCosts
+        .filter(cost => cost.user_email && cost.user_email !== 'Unknown')
+        .map(cost => ({
+          id: cost.user_id,
+          email: cost.user_email!,
+          name: cost.user_full_name || cost.user_email!
+        }))
+        .filter((user, index, self) => 
+          self.findIndex(u => u.id === user.id) === index
+        );
+
+      const categories = [...new Set(enrichedCosts.map(cost => cost.category))];
+      const models = [...new Set(enrichedCosts.map(cost => cost.model_used))];
+
+      setUniqueUsers(users);
+      setUniqueCategories(categories);
+      setUniqueModels(models);
+
+      console.log('CostAnalytics: Filter options set:', {
+        users: users.length,
+        categories: categories.length,
+        models: models.length
+      });
+
     } catch (error) {
       console.error('CostAnalytics: Unexpected error fetching cost data:', error);
       toast.error('Failed to load cost analytics');
@@ -209,8 +209,8 @@ const CostAnalytics = () => {
     // Email search filter
     if (searchEmail) {
       filtered = filtered.filter(cost => 
-        cost.users?.email.toLowerCase().includes(searchEmail.toLowerCase()) ||
-        cost.users?.full_name?.toLowerCase().includes(searchEmail.toLowerCase())
+        cost.user_email?.toLowerCase().includes(searchEmail.toLowerCase()) ||
+        cost.user_full_name?.toLowerCase().includes(searchEmail.toLowerCase())
       );
     }
 
@@ -444,8 +444,8 @@ const CostAnalytics = () => {
                 <TableRow key={cost.id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{cost.users?.full_name || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{cost.users?.email || 'Unknown'}</div>
+                      <div className="font-medium">{cost.user_full_name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500">{cost.user_email || 'Unknown'}</div>
                     </div>
                   </TableCell>
                   <TableCell>
