@@ -36,37 +36,46 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch user count - use a more direct approach
-      const { data: userData, error: userError } = await supabase
+      // Optimized queries - fetch only what we need for overview stats
+      const today = new Date().toISOString().split('T')[0];
+
+      // Get user count efficiently
+      const { count: userCount, error: userError } = await supabase
         .from('users')
-        .select('id');
+        .select('*', { count: 'exact', head: true });
 
       if (userError) {
-        console.error('Error fetching users:', userError);
+        console.error('Error fetching user count:', userError);
         throw userError;
       }
 
-      const totalUsers = userData?.length || 0;
-      console.log('AdminDashboard: Found', totalUsers, 'total users');
-
-      // Fetch total costs
-      const { data: allCosts } = await supabase
+      // Get cost data efficiently with aggregation
+      const { data: costData, error: costError } = await supabase
         .from('api_costs')
         .select('cost_usd, created_at');
 
-      const totalCosts = allCosts?.reduce((sum, cost) => sum + Number(cost.cost_usd), 0) || 0;
-      
-      // Calculate today's costs
-      const today = new Date().toISOString().split('T')[0];
-      const todayCosts = allCosts?.filter(cost => 
+      if (costError) {
+        console.error('Error fetching costs:', costError);
+        throw costError;
+      }
+
+      const totalCosts = costData?.reduce((sum, cost) => sum + Number(cost.cost_usd), 0) || 0;
+      const todayCosts = costData?.filter(cost => 
         cost.created_at.startsWith(today)
       ).reduce((sum, cost) => sum + Number(cost.cost_usd), 0) || 0;
 
       setStats({
-        totalUsers,
+        totalUsers: userCount || 0,
         totalCosts,
         todayCosts,
-        totalAnalyses: allCosts?.length || 0
+        totalAnalyses: costData?.length || 0
+      });
+
+      console.log('AdminDashboard: Stats loaded efficiently:', {
+        totalUsers: userCount,
+        totalCosts,
+        todayCosts,
+        totalAnalyses: costData?.length || 0
       });
 
     } catch (error) {
@@ -86,7 +95,12 @@ const AdminDashboard = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading admin dashboard...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <span className="ml-2">Loading admin dashboard...</span>
+      </div>
+    );
   }
 
   return (

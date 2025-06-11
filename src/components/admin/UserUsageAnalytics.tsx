@@ -3,18 +3,18 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Users, Calendar, Filter } from "lucide-react";
-import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { useOptimizedAutoRefresh } from "@/hooks/useOptimizedAutoRefresh";
 import { StandardFilters } from "@/components/common/StandardFilters";
-import { useUserAnalytics } from "@/hooks/useUserAnalytics";
-import { useUserFilters } from "@/hooks/useUserFilters";
+import { useOptimizedUserAnalytics } from "@/hooks/useOptimizedUserAnalytics";
+import { useOptimizedUserFilters } from "@/hooks/useOptimizedUserFilters";
 import UserMetricsCards from "./UserMetricsCards";
-import UserTable from "./UserTable";
+import PaginatedUserTable from "./PaginatedUserTable";
 import { sortOptions } from "@/utils/userAnalyticsUtils";
 
 const UserUsageAnalytics = () => {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
-  const { allUsers, metrics, loading, fetchUserUsage } = useUserAnalytics();
+  const { allUsers, metrics, loading, lastFetch, refetch } = useOptimizedUserAnalytics();
   
   const {
     filteredUsers,
@@ -26,12 +26,12 @@ const UserUsageAnalytics = () => {
     setSortBy,
     clearFilters,
     hasActiveFilters
-  } = useUserFilters(allUsers);
+  } = useOptimizedUserFilters(allUsers);
 
-  const { isRefreshing, lastRefresh } = useAutoRefresh({
+  const { isRefreshing } = useOptimizedAutoRefresh({
     enabled: true,
-    interval: 30000, // 30 seconds
-    onRefresh: fetchUserUsage
+    interval: 300000, // 5 minutes
+    onRefresh: refetch
   });
 
   const toggleUserExpansion = (userId: string) => {
@@ -39,9 +39,19 @@ const UserUsageAnalytics = () => {
     if (newExpanded.has(userId)) {
       newExpanded.delete(userId);
     } else {
+      // Limit expanded users to prevent performance issues
+      if (newExpanded.size >= 5) {
+        const firstExpanded = newExpanded.values().next().value;
+        newExpanded.delete(firstExpanded);
+      }
       newExpanded.add(userId);
     }
     setExpandedUsers(newExpanded);
+  };
+
+  const handleManualRefresh = async () => {
+    setExpandedUsers(new Set()); // Collapse all for better performance during refresh
+    await refetch();
   };
 
   const customFilters = (
@@ -93,12 +103,12 @@ const UserUsageAnalytics = () => {
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500 flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                Last updated: {lastRefresh.toLocaleTimeString()}
+                Last updated: {lastFetch.toLocaleTimeString()}
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchUserUsage}
+                onClick={handleManualRefresh}
                 disabled={loading || isRefreshing}
                 className="flex items-center gap-2"
               >
@@ -109,7 +119,7 @@ const UserUsageAnalytics = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <UserTable
+          <PaginatedUserTable
             users={filteredUsers}
             expandedUsers={expandedUsers}
             onToggleExpansion={toggleUserExpansion}
