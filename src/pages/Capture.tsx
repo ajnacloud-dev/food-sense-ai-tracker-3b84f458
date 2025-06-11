@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +49,7 @@ const Capture = () => {
     setError('');
     
     let usageIncremented = false;
+    let userData: any = null;
     
     try {
       setUploadProgress('Checking usage limits...');
@@ -61,7 +61,8 @@ const Capture = () => {
         return;
       }
 
-      const { userData, currentUsage } = usageCheck;
+      const { userData: checkedUserData, currentUsage } = usageCheck;
+      userData = checkedUserData; // Store in outer scope
 
       // Step 2: Increment usage BEFORE starting analysis (for non-subscribed users)
       if (!userData?.is_subscribed) {
@@ -122,7 +123,7 @@ const Capture = () => {
       console.error('Processing error:', error);
       
       // Rollback usage if we incremented it but analysis failed
-      if (usageIncremented && !userData?.is_subscribed) {
+      if (usageIncremented && userData && !userData.is_subscribed) {
         console.log('Rolling back usage due to error');
         try {
           await rollbackUsage(user.id);

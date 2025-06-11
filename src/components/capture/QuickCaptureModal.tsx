@@ -48,6 +48,7 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
     setError('');
     
     let usageIncremented = false;
+    let userData: any = null;
     
     try {
       setUploadProgress('Checking usage limits...');
@@ -59,7 +60,8 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
         return;
       }
 
-      const { userData, currentUsage } = usageCheck;
+      const { userData: checkedUserData, currentUsage } = usageCheck;
+      userData = checkedUserData; // Store in outer scope
 
       // Step 2: Increment usage BEFORE starting analysis (for non-subscribed users)
       if (!userData?.is_subscribed) {
@@ -119,7 +121,7 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
       console.error('Processing error:', error);
       
       // Rollback usage if we incremented it but analysis failed
-      if (usageIncremented && !userData?.is_subscribed) {
+      if (usageIncremented && userData && !userData.is_subscribed) {
         console.log('Rolling back usage due to error');
         try {
           await rollbackUsage(user.id);
@@ -149,79 +151,78 @@ export const QuickCaptureModal = ({ isOpen, onClose, onAnalysisStarted }: QuickC
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-blue-500" />
-            Smart Capture
-          </DialogTitle>
-        </DialogHeader>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-blue-500" />
+          Smart Capture
+        </DialogTitle>
+      </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FileUpload 
-            file={file} 
-            onFileChange={setFile} 
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FileUpload 
+          file={file} 
+          onFileChange={setFile} 
+        />
+
+        <div className="space-y-2">
+          <label htmlFor="description" className="text-sm font-medium">
+            Description (Optional)
+          </label>
+          <Textarea
+            id="description"
+            placeholder="Describe what you're capturing..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="text-sm"
           />
+        </div>
 
-          <div className="space-y-2">
-            <label htmlFor="description" className="text-sm font-medium">
-              Description (Optional)
-            </label>
-            <Textarea
-              id="description"
-              placeholder="Describe what you're capturing..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="text-sm"
-            />
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-red-700">
-                <p className="font-medium">Analysis Error</p>
-                <p>{error}</p>
-              </div>
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-red-700">
+              <p className="font-medium">Analysis Error</p>
+              <p>{error}</p>
             </div>
-          )}
-
-          <ProcessingIndicator 
-            loading={loading} 
-            progress={uploadProgress} 
-          />
-
-          <div className="flex gap-2">
-            <Button 
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={loading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={loading || (!file && !description)} 
-              className="flex-1"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Analyze
-                </>
-              )}
-            </Button>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        )}
+
+        <ProcessingIndicator 
+          loading={loading} 
+          progress={uploadProgress} 
+        />
+
+        <div className="flex gap-2">
+          <Button 
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={loading}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={loading || (!file && !description)} 
+            className="flex-1"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Analyze
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </DialogContent>
+  </Dialog>
   );
 };
