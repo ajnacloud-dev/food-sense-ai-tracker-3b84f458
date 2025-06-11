@@ -2,8 +2,9 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, X, Eye } from 'lucide-react';
+import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, Eye } from 'lucide-react';
 import { PendingAnalysis, retryFailedAnalysis } from '@/utils/pendingAnalysisService';
+import { navigateToCategory } from '@/utils/navigationUtils';
 import { toast } from "sonner";
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
@@ -91,13 +92,8 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
   };
 
   const handleViewResult = (analysis: PendingAnalysis) => {
-    if (analysis.category === 'food') {
-      navigate('/food');
-    } else if (analysis.category === 'receipt') {
-      navigate('/receipts');
-    } else if (analysis.category === 'workout') {
-      navigate('/workouts');
-    }
+    console.log('Navigating to category:', analysis.category);
+    navigateToCategory(navigate, analysis.category || 'food');
   };
 
   const getStatusIcon = (status: string) => {

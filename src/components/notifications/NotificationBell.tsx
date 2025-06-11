@@ -45,26 +45,53 @@ export const NotificationBell = () => {
     try {
       setLoading(true);
       
-      // Fetch from the new persistent notifications table
-      const { data: notificationData, error } = await supabase
+      // Fetch from the user_notifications table if it exists, otherwise create mock notifications from pending analyses
+      let notificationList: Notification[] = [];
+
+      // Try to fetch from user_notifications table first
+      const { data: notificationData, error: notificationError } = await supabase
         .from('user_notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
+      if (notificationData && notificationData.length > 0) {
+        notificationList = notificationData.map(notification => ({
+          id: notification.id,
+          notification_type: notification.notification_type,
+          title: notification.title,
+          message: notification.message,
+          created_at: notification.created_at,
+          read: notification.read,
+          analysis_id: notification.analysis_id,
+          metadata: notification.metadata
+        }));
+      } else {
+        // Fallback: Create notifications from recent pending analyses
+        const { data: analysesData, error: analysesError } = await supabase
+          .from('pending_analyses')
+          .select('*')
+          .eq('user_id', user.id)
+          .in('status', ['completed', 'failed'])
+          .order('updated_at', { ascending: false })
+          .limit(10);
 
-      const notificationList: Notification[] = notificationData?.map(notification => ({
-        id: notification.id,
-        notification_type: notification.notification_type,
-        title: notification.title,
-        message: notification.message,
-        created_at: notification.created_at,
-        read: notification.read,
-        analysis_id: notification.analysis_id,
-        metadata: notification.metadata
-      })) || [];
+        if (analysesData) {
+          notificationList = analysesData.map(analysis => ({
+            id: `analysis-${analysis.id}`,
+            notification_type: analysis.status === 'completed' ? 'analysis_complete' : 'analysis_failed',
+            title: analysis.status === 'completed' ? 'Analysis Complete!' : 'Analysis Failed',
+            message: analysis.status === 'completed' 
+              ? `Your ${analysis.category || 'content'} has been processed successfully.`
+              : `Analysis failed: ${analysis.error_message || 'Unknown error'}`,
+            created_at: analysis.updated_at,
+            read: false,
+            analysis_id: analysis.id,
+            metadata: { category: analysis.category }
+          }));
+        }
+      }
 
       setNotifications(notificationList);
       setUnreadCount(notificationList.filter(n => !n.read).length);
@@ -80,7 +107,58 @@ export const NotificationBell = () => {
   const setupRealtimeSubscription = () => {
     if (!user) return;
 
-    // Listen for new notifications
+    console.log('Setting up notification real-time subscription for user:', user.id);
+
+    // Listen for pending analysis updates to create notifications
+    const analysisChannel = supabase
+      .channel('analysis-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'pending_analyses',
+          filter: `user_id=eq.${user.id}`
+        },
+        async (payload) => {
+          const analysis = payload.new;
+          console.log('Analysis update received for notifications:', analysis);
+          
+          if (analysis.status === 'completed' || analysis.status === 'failed') {
+            const newNotification: Notification = {
+              id: `analysis-${analysis.id}`,
+              notification_type: analysis.status === 'completed' ? 'analysis_complete' : 'analysis_failed',
+              title: analysis.status === 'completed' ? 'Analysis Complete!' : 'Analysis Failed',
+              message: analysis.status === 'completed' 
+                ? `Your ${analysis.category || 'content'} has been processed successfully.`
+                : `Analysis failed: ${analysis.error_message || 'Unknown error'}`,
+              created_at: new Date().toISOString(),
+              read: false,
+              analysis_id: analysis.id,
+              metadata: { category: analysis.category }
+            };
+            
+            setNotifications(prev => [newNotification, ...prev]);
+            setUnreadCount(prev => prev + 1);
+            
+            // Show toast notification
+            if (analysis.status === 'completed') {
+              toast.success(newNotification.title, {
+                description: newNotification.message
+              });
+            } else {
+              toast.error(newNotification.title, {
+                description: newNotification.message
+              });
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Notification subscription status:', status);
+      });
+
+    // Also listen for user_notifications table if it exists
     const notificationChannel = supabase
       .channel('user-notifications')
       .on(
@@ -93,6 +171,7 @@ export const NotificationBell = () => {
         },
         (payload) => {
           const newNotification = payload.new as Notification;
+          console.log('New notification received:', newNotification);
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
           toast.info(newNotification.title);
@@ -100,55 +179,24 @@ export const NotificationBell = () => {
       )
       .subscribe();
 
-    // Also listen for analysis completions and trigger notification processing
-    const analysisChannel = supabase
-      .channel('analysis-completions')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'pending_analyses',
-          filter: `user_id=eq.${user.id}`
-        },
-        async (payload) => {
-          const analysis = payload.new;
-          if (analysis.status === 'completed' || analysis.status === 'failed') {
-            console.log('Analysis completed, triggering processing:', analysis.id);
-            
-            // Trigger the processing function
-            try {
-              const { data, error } = await supabase.functions.invoke('process-completed-analysis', {
-                body: { analysisId: analysis.id }
-              });
-              
-              if (error) {
-                console.error('Error processing analysis:', error);
-              } else {
-                console.log('Analysis processed successfully:', data);
-              }
-            } catch (error) {
-              console.error('Error invoking process function:', error);
-            }
-          }
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(notificationChannel);
+      console.log('Cleaning up notification subscriptions');
       supabase.removeChannel(analysisChannel);
+      supabase.removeChannel(notificationChannel);
     };
   };
 
   const markAsRead = async (notificationId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_notifications')
-        .update({ read: true })
-        .eq('id', notificationId);
+      // Only try to update if it's not an analysis-based notification
+      if (!notificationId.startsWith('analysis-')) {
+        const { error } = await supabase
+          .from('user_notifications')
+          .update({ read: true })
+          .eq('id', notificationId);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       setNotifications(prev => 
         prev.map(notification => 
@@ -160,19 +208,27 @@ export const NotificationBell = () => {
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      toast.error("Failed to mark notification as read");
+      // Don't show error toast for analysis-based notifications
+      if (!notificationId.startsWith('analysis-')) {
+        toast.error("Failed to mark notification as read");
+      }
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      const { error } = await supabase
-        .from('user_notifications')
-        .update({ read: true })
-        .eq('user_id', user?.id)
-        .eq('read', false);
+      // Only update database notifications, not analysis-based ones
+      const dbNotifications = notifications.filter(n => !n.id.startsWith('analysis-'));
+      
+      if (dbNotifications.length > 0) {
+        const { error } = await supabase
+          .from('user_notifications')
+          .update({ read: true })
+          .eq('user_id', user?.id)
+          .eq('read', false);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       setNotifications(prev => 
         prev.map(notification => ({ ...notification, read: true }))
