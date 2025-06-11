@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,7 +32,7 @@ const UserUsageAnalytics = () => {
     try {
       setLoading(true);
       
-      // Get all users with their basic info
+      // Get all users with their basic info - this ensures we show ALL users
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, email, full_name, is_subscribed, created_at')
@@ -51,10 +50,10 @@ const UserUsageAnalytics = () => {
       // Get today's date for filtering
       const today = new Date().toISOString().split('T')[0];
 
-      // Get analyses data from pending_analyses table (primary source)
-      const { data: allAnalysesData } = await supabase
-        .from('pending_analyses')
-        .select('user_id, created_at, status')
+      // Get analyses data from api_costs table (primary source - matches dashboard)
+      const { data: allApiCostsData } = await supabase
+        .from('api_costs')
+        .select('user_id, created_at, function_name')
         .in('user_id', userIds)
         .order('created_at', { ascending: false });
 
@@ -70,31 +69,38 @@ const UserUsageAnalytics = () => {
         .select('user_id, usage_count')
         .in('user_id', userIds);
 
-      // Get last 7 days for weekly breakdown
+      // Get pending_analyses for activity status detection only
+      const { data: pendingAnalysesData } = await supabase
+        .from('pending_analyses')
+        .select('user_id, created_at, status')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
+
+      // Get last 7 days for weekly breakdown from api_costs
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       const weekAgoStr = weekAgo.toISOString().split('T')[0];
 
-      const { data: weeklyAnalysesData } = await supabase
-        .from('pending_analyses')
+      const { data: weeklyApiCostsData } = await supabase
+        .from('api_costs')
         .select('user_id, created_at')
         .gte('created_at', weekAgoStr)
         .in('user_id', userIds);
 
-      // Process the data
+      // Process the data - SHOW ALL USERS
       const combinedData: UserUsageData[] = usersData.map(user => {
-        // Get user's analyses data
-        const userAnalyses = allAnalysesData?.filter(a => a.user_id === user.id) || [];
+        // Get user's analyses data from api_costs (primary source)
+        const userApiCosts = allApiCostsData?.filter(a => a.user_id === user.id) || [];
         
-        // Count today's analyses
-        const todayAnalyses = userAnalyses.filter(a => 
+        // Count today's analyses from api_costs
+        const todayAnalyses = userApiCosts.filter(a => 
           a.created_at.startsWith(today)
         ).length;
 
-        // Count total analyses
-        const totalAnalyses = userAnalyses.length;
+        // Count total analyses from api_costs
+        const totalAnalyses = userApiCosts.length;
 
-        // Get billing usage
+        // Get billing usage from api_usage_log
         const todayBilledUsage = todayBilledData
           ?.filter(u => u.user_id === user.id)
           .reduce((sum, u) => sum + (u.usage_count || 0), 0) || 0;
@@ -103,8 +109,8 @@ const UserUsageAnalytics = () => {
           ?.filter(u => u.user_id === user.id)
           .reduce((sum, u) => sum + (u.usage_count || 0), 0) || 0;
 
-        // Get weekly analyses breakdown
-        const userWeeklyData = weeklyAnalysesData?.filter(a => a.user_id === user.id) || [];
+        // Get weekly analyses breakdown from api_costs
+        const userWeeklyData = weeklyApiCostsData?.filter(a => a.user_id === user.id) || [];
         const weeklyAnalyses = [];
         for (let i = 6; i >= 0; i--) {
           const date = new Date();
@@ -116,8 +122,33 @@ const UserUsageAnalytics = () => {
           weeklyAnalyses.push({ date: dateStr, count: dayCount });
         }
 
-        // Get last activity from analyses
-        const lastActivity = userAnalyses[0]; // Already sorted by created_at desc
+        // Get last activity - try api_costs first, then pending_analyses
+        const lastApiCost = userApiCosts[0]; // Already sorted by created_at desc
+        const userPendingAnalyses = pendingAnalysesData?.filter(a => a.user_id === user.id) || [];
+        const lastPendingAnalysis = userPendingAnalyses[0];
+
+        // Use the most recent activity from either source
+        let lastActive = null;
+        let lastActivityType = null;
+
+        if (lastApiCost && lastPendingAnalysis) {
+          // Compare dates and use the most recent
+          const apiCostDate = new Date(lastApiCost.created_at);
+          const pendingDate = new Date(lastPendingAnalysis.created_at);
+          if (apiCostDate >= pendingDate) {
+            lastActive = lastApiCost.created_at;
+            lastActivityType = 'completed analysis';
+          } else {
+            lastActive = lastPendingAnalysis.created_at;
+            lastActivityType = 'analysis activity';
+          }
+        } else if (lastApiCost) {
+          lastActive = lastApiCost.created_at;
+          lastActivityType = 'completed analysis';
+        } else if (lastPendingAnalysis) {
+          lastActive = lastPendingAnalysis.created_at;
+          lastActivityType = 'analysis activity';
+        }
 
         return {
           ...user,
@@ -125,15 +156,18 @@ const UserUsageAnalytics = () => {
           totalAnalyses,
           todayBilledUsage,
           totalBilledUsage,
-          lastActive: lastActivity?.created_at || null,
-          lastActivityType: lastActivity ? 'analysis' : null,
+          lastActive,
+          lastActivityType,
           weeklyAnalyses
         };
       });
 
-      // Sort by total analyses descending
+      // Sort by total analyses descending, but keep all users
       combinedData.sort((a, b) => b.totalAnalyses - a.totalAnalyses);
       setUsers(combinedData);
+
+      console.log('UserUsageAnalytics: Processed data for', combinedData.length, 'users');
+      console.log('Total analyses across all users:', combinedData.reduce((sum, user) => sum + user.totalAnalyses, 0));
 
     } catch (error) {
       console.error('Error fetching user usage:', error);
