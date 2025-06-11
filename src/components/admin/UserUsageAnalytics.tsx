@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Users, Calendar, ChevronDown, ChevronRight, Activity, UserCheck, CreditCard, BarChart3 } from "lucide-react";
+import { RefreshCw, Users, Calendar, ChevronDown, ChevronRight, Activity, UserCheck, CreditCard, BarChart3, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
+import { StandardFilters } from "@/components/common/StandardFilters";
 
 interface UserUsageData {
   id: string;
@@ -25,6 +26,7 @@ interface UserUsageData {
 }
 
 interface UserMetrics {
+  totalUsers: number;
   totalActiveUsers: number;
   usersAnalysesToday: number;
   totalSubscribedUsers: number;
@@ -32,8 +34,10 @@ interface UserMetrics {
 }
 
 const UserUsageAnalytics = () => {
-  const [users, setUsers] = useState<UserUsageData[]>([]);
+  const [allUsers, setAllUsers] = useState<UserUsageData[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserUsageData[]>([]);
   const [metrics, setMetrics] = useState<UserMetrics>({
+    totalUsers: 0,
     totalActiveUsers: 0,
     usersAnalysesToday: 0,
     totalSubscribedUsers: 0,
@@ -41,12 +45,17 @@ const UserUsageAnalytics = () => {
   });
   const [loading, setLoading] = useState(true);
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [showActiveOnly, setShowActiveOnly] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("totalAnalyses-desc");
 
   const fetchUserUsage = async () => {
     try {
       setLoading(true);
       
-      // Get all users with their basic info - this ensures we show ALL users
+      console.log('UserUsageAnalytics: Starting data fetch...');
+      
+      // Get ALL users with their basic info - this is our primary source
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, email, full_name, is_subscribed, created_at')
@@ -57,15 +66,19 @@ const UserUsageAnalytics = () => {
         throw usersError;
       }
 
-      console.log('UserUsageAnalytics: Found', usersData?.length || 0, 'users in database');
+      console.log('UserUsageAnalytics: Raw users data:', usersData);
 
       if (!usersData || usersData.length === 0) {
-        console.log('UserUsageAnalytics: No users found');
-        setUsers([]);
+        console.log('UserUsageAnalytics: No users found in database');
+        setAllUsers([]);
+        setFilteredUsers([]);
         return;
       }
 
+      console.log('UserUsageAnalytics: Found', usersData.length, 'users in database');
+
       const userIds = usersData.map(u => u.id);
+      console.log('UserUsageAnalytics: User IDs:', userIds);
 
       // Get today's date for filtering
       const today = new Date().toISOString().split('T')[0];
@@ -80,6 +93,8 @@ const UserUsageAnalytics = () => {
       if (apiCostsError) {
         console.error('Error fetching api_costs:', apiCostsError);
       }
+
+      console.log('UserUsageAnalytics: API costs data:', allApiCostsData?.length || 0, 'records');
 
       // Get billing usage from api_usage_log (secondary data)
       const { data: todayBilledData } = await supabase
@@ -111,8 +126,10 @@ const UserUsageAnalytics = () => {
         .gte('created_at', weekAgoStr)
         .in('user_id', userIds);
 
-      // Process the data - SHOW ALL USERS
+      // Process the data - SHOW ALL USERS (this is the key fix)
       const combinedData: UserUsageData[] = usersData.map(user => {
+        console.log('UserUsageAnalytics: Processing user:', user.email);
+        
         // Get user's analyses data from api_costs (primary source)
         const userApiCosts = allApiCostsData?.filter(a => a.user_id === user.id) || [];
         
@@ -123,6 +140,8 @@ const UserUsageAnalytics = () => {
 
         // Count total analyses from api_costs
         const totalAnalyses = userApiCosts.length;
+
+        console.log('UserUsageAnalytics: User', user.email, 'has', totalAnalyses, 'total analyses,', todayAnalyses, 'today');
 
         // Get billing usage from api_usage_log
         const todayBilledUsage = todayBilledData
@@ -186,14 +205,16 @@ const UserUsageAnalytics = () => {
         };
       });
 
-      // Sort by total analyses descending, but keep all users
-      combinedData.sort((a, b) => b.totalAnalyses - a.totalAnalyses);
-      setUsers(combinedData);
+      console.log('UserUsageAnalytics: Final processed data:', combinedData.length, 'users');
+
+      // Set all users first
+      setAllUsers(combinedData);
 
       // Calculate metrics
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
+      const totalUsers = combinedData.length;
       const totalActiveUsers = combinedData.filter(user => 
         user.lastActive && new Date(user.lastActive) >= thirtyDaysAgo
       ).length;
@@ -201,17 +222,23 @@ const UserUsageAnalytics = () => {
       const usersAnalysesToday = combinedData.filter(user => user.todayAnalyses > 0).length;
       const totalSubscribedUsers = combinedData.filter(user => user.is_subscribed).length;
       const totalAnalysesAll = combinedData.reduce((sum, user) => sum + user.totalAnalyses, 0);
-      const averageAnalysesPerUser = combinedData.length > 0 ? totalAnalysesAll / combinedData.length : 0;
+      const averageAnalysesPerUser = totalUsers > 0 ? totalAnalysesAll / totalUsers : 0;
 
       setMetrics({
+        totalUsers,
         totalActiveUsers,
         usersAnalysesToday,
         totalSubscribedUsers,
         averageAnalysesPerUser
       });
 
-      console.log('UserUsageAnalytics: Processed data for', combinedData.length, 'users');
-      console.log('Total analyses across all users:', totalAnalysesAll);
+      console.log('UserUsageAnalytics: Metrics calculated:', {
+        totalUsers,
+        totalActiveUsers,
+        usersAnalysesToday,
+        totalSubscribedUsers,
+        averageAnalysesPerUser
+      });
 
     } catch (error) {
       console.error('Error fetching user usage:', error);
@@ -220,6 +247,53 @@ const UserUsageAnalytics = () => {
       setLoading(false);
     }
   };
+
+  // Filter and sort users whenever filters change
+  useEffect(() => {
+    let filtered = [...allUsers];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(user => 
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply active only filter
+    if (showActiveOnly) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      filtered = filtered.filter(user => 
+        user.lastActive && new Date(user.lastActive) >= thirtyDaysAgo
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'totalAnalyses-desc':
+          return b.totalAnalyses - a.totalAnalyses;
+        case 'totalAnalyses-asc':
+          return a.totalAnalyses - b.totalAnalyses;
+        case 'todayAnalyses-desc':
+          return b.todayAnalyses - a.todayAnalyses;
+        case 'email-asc':
+          return a.email.localeCompare(b.email);
+        case 'email-desc':
+          return b.email.localeCompare(a.email);
+        case 'created-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'created-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return b.totalAnalyses - a.totalAnalyses;
+      }
+    });
+
+    setFilteredUsers(filtered);
+    console.log('UserUsageAnalytics: Filtered users:', filtered.length, 'from', allUsers.length, 'total');
+  }, [allUsers, searchTerm, showActiveOnly, sortBy]);
 
   const { isRefreshing, lastRefresh } = useAutoRefresh({
     enabled: true,
@@ -265,10 +339,47 @@ const UserUsageAnalytics = () => {
     setExpandedUsers(newExpanded);
   };
 
+  const sortOptions = [
+    { value: "totalAnalyses-desc", label: "Total Analyses (High to Low)" },
+    { value: "totalAnalyses-asc", label: "Total Analyses (Low to High)" },
+    { value: "todayAnalyses-desc", label: "Today's Analyses (High to Low)" },
+    { value: "email-asc", label: "Email (A-Z)" },
+    { value: "email-desc", label: "Email (Z-A)" },
+    { value: "created-desc", label: "Newest Users" },
+    { value: "created-asc", label: "Oldest Users" },
+  ];
+
+  const customFilters = (
+    <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex items-center gap-2">
+        <Button
+          variant={showActiveOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowActiveOnly(!showActiveOnly)}
+          className="flex items-center gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          {showActiveOnly ? "Active Users Only" : "All Users"}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* User Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">All registered users</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Users (30d)</CardTitle>
@@ -313,6 +424,23 @@ const UserUsageAnalytics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Filters */}
+      <StandardFilters
+        searchPlaceholder="Search users by email or name..."
+        sortOptions={sortOptions}
+        customFilters={customFilters}
+        onSearchChange={setSearchTerm}
+        onSortChange={setSortBy}
+        totalCount={allUsers.length}
+        filteredCount={filteredUsers.length}
+        hasActiveFilters={showActiveOnly || searchTerm.length > 0}
+        onClearFilters={() => {
+          setSearchTerm("");
+          setShowActiveOnly(false);
+          setSortBy("totalAnalyses-desc");
+        }}
+      />
 
       <Card>
         <CardHeader>
@@ -365,7 +493,7 @@ const UserUsageAnalytics = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => {
+                  {filteredUsers.map((user) => {
                     const activityStatus = getActivityStatus(user.lastActive, user.todayAnalyses);
                     const isExpanded = expandedUsers.has(user.id);
                     
@@ -463,9 +591,9 @@ const UserUsageAnalytics = () => {
                   })}
                 </TableBody>
               </Table>
-              {users.length === 0 && (
+              {filteredUsers.length === 0 && !loading && (
                 <div className="text-center py-8 text-gray-500">
-                  No users found
+                  {showActiveOnly ? 'No active users found' : 'No users found'}
                 </div>
               )}
             </div>
