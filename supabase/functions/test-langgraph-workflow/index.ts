@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -567,7 +568,7 @@ serve(async (req) => {
         .from('api_costs')
         .insert({
           user_id: user.id,
-          function_name: 'langgraph-workflow-optimized',
+          function_name: 'test-langgraph-workflow',
           prompt_tokens: Math.floor(result.metadata.totalTokens * 0.7),
           completion_tokens: Math.floor(result.metadata.totalTokens * 0.3),
           total_tokens: result.metadata.totalTokens,
