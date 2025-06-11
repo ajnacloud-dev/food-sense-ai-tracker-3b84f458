@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import PromptManager from "./PromptManager";
 import CostAnalytics from "./CostAnalytics";
+import UserUsageAnalytics from "./UserUsageAnalytics";
 
 interface AdminStats {
   totalUsers: number;
@@ -140,8 +141,12 @@ const AdminDashboard = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="prompts" className="space-y-4">
+      <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            User Analytics
+          </TabsTrigger>
           <TabsTrigger value="prompts" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Prompt Management
@@ -151,6 +156,10 @@ const AdminDashboard = () => {
             Cost Analytics
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="users">
+          <UserUsageAnalytics />
+        </TabsContent>
 
         <TabsContent value="prompts">
           <PromptManager />

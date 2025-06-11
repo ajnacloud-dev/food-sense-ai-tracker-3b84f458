@@ -12,13 +12,15 @@ import {
   Settings, 
   LogOut,
   Home,
-  Users
+  Users,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
 import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
 import {
   SidebarContent,
   SidebarHeader,
@@ -36,6 +38,27 @@ export const MainSidebar = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { userType } = useUserType();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        setIsAdmin(userData?.role === 'admin');
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
 
   const handleSignOut = async () => {
     try {
@@ -59,6 +82,10 @@ export const MainSidebar = () => {
   const settingsItems = [
     { name: "Invite Caretakers", href: "/invite-caretakers", icon: Users },
     { name: "Settings", href: "/participant", icon: Settings },
+  ];
+
+  const adminItems = [
+    { name: "Admin Dashboard", href: "/admin", icon: Shield },
   ];
 
   return (
@@ -130,6 +157,38 @@ export const MainSidebar = () => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup className="mt-3">
+            <SidebarGroupLabel className="text-red-700 font-semibold text-xs mb-1 group-data-[collapsible=icon]:sr-only">
+              Administration
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.href;
+                  
+                  return (
+                    <SidebarMenuItem key={item.name}>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={isActive}
+                        tooltip={item.name}
+                        className="h-9 hover:bg-red-50 hover:text-red-700 data-[active=true]:bg-red-100 data-[active=true]:text-red-700 group-data-[collapsible=icon]:h-10"
+                      >
+                        <Link to={item.href} className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
+                          <Icon className="h-5 w-5 flex-shrink-0" />
+                          <span className="font-medium text-sm group-data-[collapsible=icon]:hidden">{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-green-200/50 p-2 mt-auto">
@@ -146,6 +205,7 @@ export const MainSidebar = () => {
             <div className="group-data-[collapsible=icon]:hidden">
               <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
                 {userType === 'participant' ? 'Patient' : 'User'}
+                {isAdmin && <span className="ml-1 text-red-600">• Admin</span>}
               </Badge>
             </div>
           </div>
