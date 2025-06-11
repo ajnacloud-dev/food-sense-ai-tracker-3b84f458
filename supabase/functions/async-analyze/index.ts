@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -27,12 +26,13 @@ serve(async (req) => {
       );
     }
 
-    const { pendingAnalysisId, description, imageUrl } = await req.json();
+    const { pendingAnalysisId, description, imageUrl, skipUsageCheck } = await req.json();
 
     console.log('Starting optimized async analysis:', {
       pendingAnalysisId,
       description: description?.substring(0, 100),
-      hasFile: !!imageUrl
+      hasFile: !!imageUrl,
+      skipUsageCheck: skipUsageCheck || false
     });
 
     if (!pendingAnalysisId) {
@@ -67,6 +67,63 @@ serve(async (req) => {
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Backend usage validation (double-check for security)
+    if (!skipUsageCheck) {
+      console.log('Performing backend usage validation for user:', existingAnalysis.user_id);
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check if user is subscribed
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_subscribed')
+        .eq('id', existingAnalysis.user_id)
+        .single();
+
+      if (!userData?.is_subscribed) {
+        // Check current usage
+        const { data: usageData } = await supabase
+          .from('api_usage_log')
+          .select('usage_count')
+          .eq('user_id', existingAnalysis.user_id)
+          .eq('usage_date', today)
+          .single();
+
+        const currentUsage = usageData?.usage_count || 0;
+        console.log('Backend usage check - current usage:', currentUsage);
+
+        if (currentUsage >= 2) {
+          console.error('Backend usage validation failed - limit exceeded:', currentUsage);
+          
+          // Mark analysis as failed due to usage limit
+          await supabase
+            .from('pending_analyses')
+            .update({
+              status: 'failed',
+              error_message: 'Daily usage limit exceeded',
+              completed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', pendingAnalysisId);
+
+          return new Response(
+            JSON.stringify({ error: 'Daily usage limit exceeded' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Increment usage in backend as additional safety measure
+        console.log('Backend: Incrementing usage as safety measure');
+        await supabase
+          .from('api_usage_log')
+          .upsert({
+            user_id: existingAnalysis.user_id,
+            usage_date: today,
+            usage_count: currentUsage + 1
+          });
+      }
     }
 
     // Update to processing

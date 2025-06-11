@@ -22,7 +22,7 @@ const Capture = () => {
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [error, setError] = useState<string>('');
   const navigate = useNavigate();
-  const { checkUsageLimits, updateUsageLog } = useUsageCheck();
+  const { checkUsageLimits, incrementUsage, rollbackUsage } = useUsageCheck();
   const { user } = useAuth();
 
   // Redirect if not authenticated
@@ -49,36 +49,53 @@ const Capture = () => {
     setUploadProgress('Preparing...');
     setError('');
     
+    let usageIncremented = false;
+    
     try {
       setUploadProgress('Checking usage limits...');
 
+      // Step 1: Check usage limits
       const usageCheck = await checkUsageLimits(user.id);
-      if (!usageCheck) return;
+      if (!usageCheck) {
+        setLoading(false);
+        return;
+      }
 
       const { userData, currentUsage } = usageCheck;
 
-      // Upload file if provided
+      // Step 2: Increment usage BEFORE starting analysis (for non-subscribed users)
+      if (!userData?.is_subscribed) {
+        setUploadProgress('Updating usage...');
+        await incrementUsage(user.id, currentUsage);
+        usageIncremented = true;
+        console.log('Usage incremented before analysis');
+      }
+
+      // Step 3: Upload file if provided
       let fileUrl = null;
       if (file) {
         setUploadProgress('Uploading file...');
         fileUrl = await uploadFile(file, user.id);
       }
 
-      setUploadProgress('Starting AI analysis...');
+      setUploadProgress('Creating analysis record...');
 
-      // Create pending analysis record
+      // Step 4: Create pending analysis record
       const pendingAnalysisId = await createPendingAnalysis(
         user.id,
         description || 'AI-analyzed content',
         fileUrl
       );
 
-      // Start analysis with LangGraph workflow
+      setUploadProgress('Starting AI analysis...');
+
+      // Step 5: Start analysis with enhanced error handling
       const { error: asyncError } = await supabase.functions.invoke('async-analyze', {
         body: {
           pendingAnalysisId,
           description,
-          imageUrl: fileUrl
+          imageUrl: fileUrl,
+          skipUsageCheck: true // Backend should skip usage check since we already did it
         }
       });
 
@@ -97,17 +114,24 @@ const Capture = () => {
         replace: true 
       });
 
-      // Update usage log for non-subscribed users
-      if (!userData?.is_subscribed) {
-        await updateUsageLog(user.id, currentUsage);
-      }
-
       // Reset form
       setFile(null);
       setDescription("");
 
     } catch (error: any) {
       console.error('Processing error:', error);
+      
+      // Rollback usage if we incremented it but analysis failed
+      if (usageIncremented && !userData?.is_subscribed) {
+        console.log('Rolling back usage due to error');
+        try {
+          await rollbackUsage(user.id);
+          toast.info("Usage count restored due to analysis failure");
+        } catch (rollbackError) {
+          console.error('Failed to rollback usage:', rollbackError);
+        }
+      }
+      
       setError(error.message || "Failed to start analysis");
       toast.error(error.message || "Failed to start analysis");
     } finally {
