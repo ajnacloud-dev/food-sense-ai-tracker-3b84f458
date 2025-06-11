@@ -15,11 +15,13 @@ interface UserUsageData {
   full_name: string | null;
   is_subscribed: boolean;
   created_at: string;
-  todayUsage: number;
-  totalUsage: number;
+  todayAnalyses: number;
+  totalAnalyses: number;
+  todayBilledUsage: number;
+  totalBilledUsage: number;
   lastActive: string | null;
   lastActivityType: string | null;
-  weeklyUsage: { date: string; count: number }[];
+  weeklyAnalyses: { date: string; count: number }[];
 }
 
 const UserUsageAnalytics = () => {
@@ -44,114 +46,93 @@ const UserUsageAnalytics = () => {
         return;
       }
 
-      // Get today's usage for all users
+      const userIds = usersData.map(u => u.id);
+
+      // Get today's date for filtering
       const today = new Date().toISOString().split('T')[0];
-      const { data: todayUsageData } = await supabase
+
+      // Get analyses data from pending_analyses table (primary source)
+      const { data: allAnalysesData } = await supabase
+        .from('pending_analyses')
+        .select('user_id, created_at, status')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
+
+      // Get billing usage from api_usage_log (secondary data)
+      const { data: todayBilledData } = await supabase
         .from('api_usage_log')
         .select('user_id, usage_count')
-        .eq('usage_date', today);
+        .eq('usage_date', today)
+        .in('user_id', userIds);
 
-      // Get total usage for all users
-      const { data: totalUsageData } = await supabase
+      const { data: totalBilledData } = await supabase
         .from('api_usage_log')
-        .select('user_id, usage_count');
+        .select('user_id, usage_count')
+        .in('user_id', userIds);
 
-      // Get last 7 days usage for weekly breakdown
+      // Get last 7 days for weekly breakdown
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
-      const { data: weeklyUsageData } = await supabase
-        .from('api_usage_log')
-        .select('user_id, usage_date, usage_count')
-        .gte('usage_date', weekAgo.toISOString().split('T')[0]);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
 
-      // Get last activity from multiple sources
-      const userIds = usersData.map(u => u.id);
-      
-      // Check food entries
-      const { data: foodActivity } = await supabase
-        .from('food_entries')
-        .select('user_id, created_at')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false });
-
-      // Check pending analyses
-      const { data: analysisActivity } = await supabase
+      const { data: weeklyAnalysesData } = await supabase
         .from('pending_analyses')
         .select('user_id, created_at')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false });
+        .gte('created_at', weekAgoStr)
+        .in('user_id', userIds);
 
-      // Check receipts
-      const { data: receiptActivity } = await supabase
-        .from('receipts')
-        .select('user_id, created_at')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false });
-
-      // Check workouts
-      const { data: workoutActivity } = await supabase
-        .from('workouts')
-        .select('user_id, created_at')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false });
-
-      // Combine all activity data
-      const allActivities = [
-        ...(foodActivity?.map(a => ({ ...a, type: 'food_entry' })) || []),
-        ...(analysisActivity?.map(a => ({ ...a, type: 'analysis' })) || []),
-        ...(receiptActivity?.map(a => ({ ...a, type: 'receipt' })) || []),
-        ...(workoutActivity?.map(a => ({ ...a, type: 'workout' })) || [])
-      ];
-
-      // Find last activity per user
-      const lastActivities = new Map();
-      allActivities.forEach(activity => {
-        const existing = lastActivities.get(activity.user_id);
-        if (!existing || new Date(activity.created_at) > new Date(existing.created_at)) {
-          lastActivities.set(activity.user_id, activity);
-        }
-      });
-
-      // Combine all the data
+      // Process the data
       const combinedData: UserUsageData[] = usersData.map(user => {
-        // Calculate today's usage
-        const todayUsage = todayUsageData
+        // Get user's analyses data
+        const userAnalyses = allAnalysesData?.filter(a => a.user_id === user.id) || [];
+        
+        // Count today's analyses
+        const todayAnalyses = userAnalyses.filter(a => 
+          a.created_at.startsWith(today)
+        ).length;
+
+        // Count total analyses
+        const totalAnalyses = userAnalyses.length;
+
+        // Get billing usage
+        const todayBilledUsage = todayBilledData
           ?.filter(u => u.user_id === user.id)
           .reduce((sum, u) => sum + (u.usage_count || 0), 0) || 0;
 
-        // Calculate total usage
-        const totalUsage = totalUsageData
+        const totalBilledUsage = totalBilledData
           ?.filter(u => u.user_id === user.id)
           .reduce((sum, u) => sum + (u.usage_count || 0), 0) || 0;
 
-        // Get weekly usage breakdown
-        const userWeeklyData = weeklyUsageData?.filter(u => u.user_id === user.id) || [];
-        const weeklyUsage = [];
+        // Get weekly analyses breakdown
+        const userWeeklyData = weeklyAnalysesData?.filter(a => a.user_id === user.id) || [];
+        const weeklyAnalyses = [];
         for (let i = 6; i >= 0; i--) {
           const date = new Date();
           date.setDate(date.getDate() - i);
           const dateStr = date.toISOString().split('T')[0];
-          const dayUsage = userWeeklyData
-            .filter(u => u.usage_date === dateStr)
-            .reduce((sum, u) => sum + (u.usage_count || 0), 0);
-          weeklyUsage.push({ date: dateStr, count: dayUsage });
+          const dayCount = userWeeklyData.filter(a => 
+            a.created_at.startsWith(dateStr)
+          ).length;
+          weeklyAnalyses.push({ date: dateStr, count: dayCount });
         }
 
-        // Get last activity
-        const lastActivity = lastActivities.get(user.id);
+        // Get last activity from analyses
+        const lastActivity = userAnalyses[0]; // Already sorted by created_at desc
 
         return {
           ...user,
-          todayUsage,
-          totalUsage,
+          todayAnalyses,
+          totalAnalyses,
+          todayBilledUsage,
+          totalBilledUsage,
           lastActive: lastActivity?.created_at || null,
-          lastActivityType: lastActivity?.type || null,
-          weeklyUsage
+          lastActivityType: lastActivity ? 'analysis' : null,
+          weeklyAnalyses
         };
       });
 
-      // Sort by total usage descending
-      combinedData.sort((a, b) => b.totalUsage - a.totalUsage);
+      // Sort by total analyses descending
+      combinedData.sort((a, b) => b.totalAnalyses - a.totalAnalyses);
       setUsers(combinedData);
 
     } catch (error) {
@@ -182,23 +163,18 @@ const UserUsageAnalytics = () => {
     });
   };
 
-  const getActivityStatus = (lastActive: string | null, todayUsage: number) => {
+  const getActivityStatus = (lastActive: string | null, todayAnalyses: number) => {
     if (!lastActive) return { status: 'inactive', color: 'bg-gray-100 text-gray-800' };
     
     const lastActiveDate = new Date(lastActive);
     const now = new Date();
     const daysSince = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (daysSince === 0 && todayUsage > 0) return { status: 'active today', color: 'bg-green-100 text-green-800' };
+    if (daysSince === 0 && todayAnalyses > 0) return { status: 'active today', color: 'bg-green-100 text-green-800' };
     if (daysSince === 0) return { status: 'seen today', color: 'bg-blue-100 text-blue-800' };
     if (daysSince <= 3) return { status: 'recent', color: 'bg-yellow-100 text-yellow-800' };
     if (daysSince <= 7) return { status: 'this week', color: 'bg-orange-100 text-orange-800' };
     return { status: 'inactive', color: 'bg-gray-100 text-gray-800' };
-  };
-
-  const formatActivityType = (type: string | null) => {
-    if (!type) return '';
-    return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const toggleUserExpansion = (userId: string) => {
@@ -221,7 +197,7 @@ const UserUsageAnalytics = () => {
               User Usage Analytics
             </CardTitle>
             <CardDescription>
-              Monitor user activity and API usage across the platform
+              Monitor user activity and analysis usage across the platform
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -255,15 +231,16 @@ const UserUsageAnalytics = () => {
                   <TableHead className="w-8"></TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Subscription</TableHead>
-                  <TableHead>Today's Usage</TableHead>
-                  <TableHead>Total Usage</TableHead>
+                  <TableHead>Today's Analyses</TableHead>
+                  <TableHead>Total Analyses</TableHead>
+                  <TableHead>Billed Usage</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map((user) => {
-                  const activityStatus = getActivityStatus(user.lastActive, user.todayUsage);
+                  const activityStatus = getActivityStatus(user.lastActive, user.todayAnalyses);
                   const isExpanded = expandedUsers.has(user.id);
                   
                   return (
@@ -289,21 +266,27 @@ const UserUsageAnalytics = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{user.todayUsage}</span>
-                            {!user.is_subscribed && user.todayUsage >= 2 && (
+                            <span className="font-medium">{user.todayAnalyses}</span>
+                            {!user.is_subscribed && user.todayAnalyses >= 2 && (
                               <Badge className="bg-red-100 text-red-800 text-xs">Limit Reached</Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium">{user.totalUsage}</span>
+                          <span className="font-medium">{user.totalAnalyses}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>Today: {user.todayBilledUsage}</div>
+                            <div className="text-gray-500">Total: {user.totalBilledUsage}</div>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div>
                             <span className="text-sm">{formatDate(user.lastActive)}</span>
                             {user.lastActivityType && (
-                              <div className="text-xs text-gray-400">
-                                {formatActivityType(user.lastActivityType)}
+                              <div className="text-xs text-gray-400 capitalize">
+                                {user.lastActivityType}
                               </div>
                             )}
                           </div>
@@ -316,11 +299,11 @@ const UserUsageAnalytics = () => {
                       </TableRow>
                       {isExpanded && (
                         <TableRow>
-                          <TableCell colSpan={7} className="bg-gray-50">
+                          <TableCell colSpan={8} className="bg-gray-50">
                             <div className="p-4">
-                              <h4 className="font-medium mb-2">7-Day Usage Breakdown</h4>
+                              <h4 className="font-medium mb-2">7-Day Analysis Breakdown</h4>
                               <div className="grid grid-cols-7 gap-2">
-                                {user.weeklyUsage.map((day, index) => (
+                                {user.weeklyAnalyses.map((day, index) => (
                                   <div key={index} className="text-center">
                                     <div className="text-xs text-gray-500 mb-1">
                                       {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
@@ -333,12 +316,17 @@ const UserUsageAnalytics = () => {
                                   </div>
                                 ))}
                               </div>
-                              <div className="mt-3 text-xs text-gray-500">
-                                Joined: {new Date(user.created_at).toLocaleDateString('en-US', { 
-                                  year: 'numeric', 
-                                  month: 'long', 
-                                  day: 'numeric' 
-                                })}
+                              <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-500">
+                                <div>
+                                  <strong>Joined:</strong> {new Date(user.created_at).toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                  })}
+                                </div>
+                                <div>
+                                  <strong>Billing vs Analyses:</strong> {user.totalBilledUsage} billed / {user.totalAnalyses} analyses
+                                </div>
                               </div>
                             </div>
                           </TableCell>
