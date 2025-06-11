@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Users, Calendar } from "lucide-react";
+import { RefreshCw, Users, Calendar, ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 interface UserUsageData {
   id: string;
@@ -17,18 +18,20 @@ interface UserUsageData {
   todayUsage: number;
   totalUsage: number;
   lastActive: string | null;
+  lastActivityType: string | null;
+  weeklyUsage: { date: string; count: number }[];
 }
 
 const UserUsageAnalytics = () => {
   const [users, setUsers] = useState<UserUsageData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   const fetchUserUsage = async () => {
     try {
       setLoading(true);
       
-      // Get all users
+      // Get all users with their basic info
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, email, full_name, is_subscribed, created_at')
@@ -36,47 +39,121 @@ const UserUsageAnalytics = () => {
 
       if (usersError) throw usersError;
 
+      if (!usersData || usersData.length === 0) {
+        setUsers([]);
+        return;
+      }
+
       // Get today's usage for all users
       const today = new Date().toISOString().split('T')[0];
-      const { data: todayUsageData, error: todayUsageError } = await supabase
+      const { data: todayUsageData } = await supabase
         .from('api_usage_log')
         .select('user_id, usage_count')
         .eq('usage_date', today);
 
-      if (todayUsageError) throw todayUsageError;
-
       // Get total usage for all users
-      const { data: totalUsageData, error: totalUsageError } = await supabase
+      const { data: totalUsageData } = await supabase
         .from('api_usage_log')
         .select('user_id, usage_count');
 
-      if (totalUsageError) throw totalUsageError;
+      // Get last 7 days usage for weekly breakdown
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const { data: weeklyUsageData } = await supabase
+        .from('api_usage_log')
+        .select('user_id, usage_date, usage_count')
+        .gte('usage_date', weekAgo.toISOString().split('T')[0]);
 
-      // Get last activity (recent food entries or pending analyses)
-      const { data: lastActivityData, error: lastActivityError } = await supabase
-        .from('pending_analyses')
+      // Get last activity from multiple sources
+      const userIds = usersData.map(u => u.id);
+      
+      // Check food entries
+      const { data: foodActivity } = await supabase
+        .from('food_entries')
         .select('user_id, created_at')
+        .in('user_id', userIds)
         .order('created_at', { ascending: false });
 
-      if (lastActivityError) throw lastActivityError;
+      // Check pending analyses
+      const { data: analysisActivity } = await supabase
+        .from('pending_analyses')
+        .select('user_id, created_at')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
 
-      // Combine the data
-      const combinedData: UserUsageData[] = usersData?.map(user => {
-        const todayUsage = todayUsageData?.find(u => u.user_id === user.id)?.usage_count || 0;
-        const totalUsage = totalUsageData?.filter(u => u.user_id === user.id)
-          .reduce((sum, u) => sum + u.usage_count, 0) || 0;
-        const lastActivity = lastActivityData?.find(a => a.user_id === user.id)?.created_at || null;
+      // Check receipts
+      const { data: receiptActivity } = await supabase
+        .from('receipts')
+        .select('user_id, created_at')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
+
+      // Check workouts
+      const { data: workoutActivity } = await supabase
+        .from('workouts')
+        .select('user_id, created_at')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
+
+      // Combine all activity data
+      const allActivities = [
+        ...(foodActivity?.map(a => ({ ...a, type: 'food_entry' })) || []),
+        ...(analysisActivity?.map(a => ({ ...a, type: 'analysis' })) || []),
+        ...(receiptActivity?.map(a => ({ ...a, type: 'receipt' })) || []),
+        ...(workoutActivity?.map(a => ({ ...a, type: 'workout' })) || [])
+      ];
+
+      // Find last activity per user
+      const lastActivities = new Map();
+      allActivities.forEach(activity => {
+        const existing = lastActivities.get(activity.user_id);
+        if (!existing || new Date(activity.created_at) > new Date(existing.created_at)) {
+          lastActivities.set(activity.user_id, activity);
+        }
+      });
+
+      // Combine all the data
+      const combinedData: UserUsageData[] = usersData.map(user => {
+        // Calculate today's usage
+        const todayUsage = todayUsageData
+          ?.filter(u => u.user_id === user.id)
+          .reduce((sum, u) => sum + (u.usage_count || 0), 0) || 0;
+
+        // Calculate total usage
+        const totalUsage = totalUsageData
+          ?.filter(u => u.user_id === user.id)
+          .reduce((sum, u) => sum + (u.usage_count || 0), 0) || 0;
+
+        // Get weekly usage breakdown
+        const userWeeklyData = weeklyUsageData?.filter(u => u.user_id === user.id) || [];
+        const weeklyUsage = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          const dayUsage = userWeeklyData
+            .filter(u => u.usage_date === dateStr)
+            .reduce((sum, u) => sum + (u.usage_count || 0), 0);
+          weeklyUsage.push({ date: dateStr, count: dayUsage });
+        }
+
+        // Get last activity
+        const lastActivity = lastActivities.get(user.id);
 
         return {
           ...user,
           todayUsage,
           totalUsage,
-          lastActive: lastActivity
+          lastActive: lastActivity?.created_at || null,
+          lastActivityType: lastActivity?.type || null,
+          weeklyUsage
         };
-      }) || [];
+      });
 
+      // Sort by total usage descending
+      combinedData.sort((a, b) => b.totalUsage - a.totalUsage);
       setUsers(combinedData);
-      setLastRefresh(new Date());
+
     } catch (error) {
       console.error('Error fetching user usage:', error);
       toast.error('Failed to load user usage data');
@@ -84,6 +161,12 @@ const UserUsageAnalytics = () => {
       setLoading(false);
     }
   };
+
+  const { isRefreshing, lastRefresh } = useAutoRefresh({
+    enabled: true,
+    interval: 30000, // 30 seconds
+    onRefresh: fetchUserUsage
+  });
 
   useEffect(() => {
     fetchUserUsage();
@@ -99,17 +182,33 @@ const UserUsageAnalytics = () => {
     });
   };
 
-  const getActivityStatus = (lastActive: string | null) => {
+  const getActivityStatus = (lastActive: string | null, todayUsage: number) => {
     if (!lastActive) return { status: 'inactive', color: 'bg-gray-100 text-gray-800' };
     
     const lastActiveDate = new Date(lastActive);
     const now = new Date();
     const daysSince = Math.floor((now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (daysSince === 0) return { status: 'active today', color: 'bg-green-100 text-green-800' };
-    if (daysSince <= 3) return { status: 'recent', color: 'bg-blue-100 text-blue-800' };
-    if (daysSince <= 7) return { status: 'this week', color: 'bg-yellow-100 text-yellow-800' };
+    if (daysSince === 0 && todayUsage > 0) return { status: 'active today', color: 'bg-green-100 text-green-800' };
+    if (daysSince === 0) return { status: 'seen today', color: 'bg-blue-100 text-blue-800' };
+    if (daysSince <= 3) return { status: 'recent', color: 'bg-yellow-100 text-yellow-800' };
+    if (daysSince <= 7) return { status: 'this week', color: 'bg-orange-100 text-orange-800' };
     return { status: 'inactive', color: 'bg-gray-100 text-gray-800' };
+  };
+
+  const formatActivityType = (type: string | null) => {
+    if (!type) return '';
+    return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const toggleUserExpansion = (userId: string) => {
+    const newExpanded = new Set(expandedUsers);
+    if (newExpanded.has(userId)) {
+      newExpanded.delete(userId);
+    } else {
+      newExpanded.add(userId);
+    }
+    setExpandedUsers(newExpanded);
   };
 
   return (
@@ -134,10 +233,10 @@ const UserUsageAnalytics = () => {
               variant="outline"
               size="sm"
               onClick={fetchUserUsage}
-              disabled={loading}
+              disabled={loading || isRefreshing}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${loading || isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
@@ -153,6 +252,7 @@ const UserUsageAnalytics = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Subscription</TableHead>
                   <TableHead>Today's Usage</TableHead>
@@ -163,40 +263,88 @@ const UserUsageAnalytics = () => {
               </TableHeader>
               <TableBody>
                 {users.map((user) => {
-                  const activityStatus = getActivityStatus(user.lastActive);
+                  const activityStatus = getActivityStatus(user.lastActive, user.todayUsage);
+                  const isExpanded = expandedUsers.has(user.id);
+                  
                   return (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{user.full_name || 'Unknown'}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={user.is_subscribed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                          {user.is_subscribed ? 'Pro' : 'Free'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{user.todayUsage}</span>
-                          {!user.is_subscribed && user.todayUsage >= 2 && (
-                            <Badge className="bg-red-100 text-red-800 text-xs">Limit Reached</Badge>
+                    <>
+                      <TableRow key={user.id} className="cursor-pointer" onClick={() => toggleUserExpansion(user.id)}>
+                        <TableCell>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium">{user.totalUsage}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{formatDate(user.lastActive)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={activityStatus.color}>
-                          {activityStatus.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{user.full_name || 'Unknown'}</div>
+                            <div className="text-sm text-gray-500">{user.email}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={user.is_subscribed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                            {user.is_subscribed ? 'Pro' : 'Free'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{user.todayUsage}</span>
+                            {!user.is_subscribed && user.todayUsage >= 2 && (
+                              <Badge className="bg-red-100 text-red-800 text-xs">Limit Reached</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">{user.totalUsage}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="text-sm">{formatDate(user.lastActive)}</span>
+                            {user.lastActivityType && (
+                              <div className="text-xs text-gray-400">
+                                {formatActivityType(user.lastActivityType)}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={activityStatus.color}>
+                            {activityStatus.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="bg-gray-50">
+                            <div className="p-4">
+                              <h4 className="font-medium mb-2">7-Day Usage Breakdown</h4>
+                              <div className="grid grid-cols-7 gap-2">
+                                {user.weeklyUsage.map((day, index) => (
+                                  <div key={index} className="text-center">
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
+                                    </div>
+                                    <div className={`text-sm font-medium px-2 py-1 rounded ${
+                                      day.count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'
+                                    }`}>
+                                      {day.count}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-3 text-xs text-gray-500">
+                                Joined: {new Date(user.created_at).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                })}
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   );
                 })}
               </TableBody>
