@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -135,35 +134,6 @@ const functionConfigs: FunctionConfig[] = [
       receipt: "Grocery store receipt from Safeway with milk, eggs, bread and vegetables",
       workout: "30 minute morning jog around the neighborhood park"
     }
-  },
-  {
-    name: 'test-content-analysis',
-    displayName: 'Test Content Analysis (Dev)',
-    description: 'Development function for testing direct content analysis with OpenAI',
-    category: 'testing',
-    parameters: [
-      {
-        name: 'description',
-        type: 'textarea',
-        label: 'Description',
-        required: true,
-        placeholder: 'Enter content to analyze...'
-      },
-      {
-        name: 'imageUrl',
-        type: 'url',
-        label: 'Image URL',
-        required: false,
-        placeholder: 'https://example.com/image.jpg'
-      },
-      {
-        name: 'category',
-        type: 'select',
-        label: 'Category',
-        required: true,
-        options: ['food', 'receipt', 'workout']
-      }
-    ]
   }
 ];
 
@@ -215,9 +185,9 @@ const AdminTestWorkflow = () => {
       let body: any = { ...parameters };
       let functionName = selectedFunction;
 
-      // Handle test function name mapping
+      // Handle test function name mapping - updated to use renamed function
       if (selectedFunction === 'test-langgraph-workflow') {
-        functionName = 'langgraph-workflow';
+        functionName = 'test-langgraph-workflow';
         body = {
           description: parameters.description || '',
           imageUrl: parameters.imageUrl || null,
@@ -226,8 +196,6 @@ const AdminTestWorkflow = () => {
             testMode: parameters.testMode !== false
           }
         };
-      } else if (selectedFunction === 'test-content-analysis') {
-        functionName = 'analyze-content';
       } else if (selectedFunction === 'async-analyze') {
         body = {
           pendingAnalysisId: 'test-' + Date.now(),
