@@ -19,15 +19,15 @@ export const useOptimizedUserAnalytics = () => {
   const fetchOptimizedUserData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔍 OptimizedUserAnalytics: Starting comprehensive data fetch...');
+      console.log('OptimizedUserAnalytics: Starting comprehensive data fetch...');
       
       const today = new Date().toISOString().split('T')[0];
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
 
-      // Step 1: Get ALL users first - this is critical
-      console.log('📊 Step 1: Fetching all users...');
+      // Step 1: Get ALL users first
+      console.log('Step 1: Fetching all users...');
       const { data: usersWithMetrics, error: usersError } = await supabase
         .from('users')
         .select(`
@@ -40,15 +40,14 @@ export const useOptimizedUserAnalytics = () => {
         .order('created_at', { ascending: false });
 
       if (usersError) {
-        console.error('❌ Error fetching users:', usersError);
+        console.error('Error fetching users:', usersError);
         throw usersError;
       }
 
-      console.log('✅ Raw users fetched:', usersWithMetrics?.length || 0);
-      console.log('👥 User emails:', usersWithMetrics?.map(u => u.email) || []);
+      console.log('Raw users fetched:', usersWithMetrics?.length || 0);
 
       if (!usersWithMetrics || usersWithMetrics.length === 0) {
-        console.log('⚠️ No users found in database');
+        console.log('No users found in database');
         setAllUsers([]);
         setMetrics({
           totalUsers: 0,
@@ -62,41 +61,39 @@ export const useOptimizedUserAnalytics = () => {
       }
 
       const userIds = usersWithMetrics.map(u => u.id);
-      console.log('🔑 User IDs to fetch data for:', userIds.length, userIds);
+      console.log('User IDs to fetch data for:', userIds.length);
 
       // Step 2: Get analysis data for all users
-      console.log('📊 Step 2: Fetching analysis data...');
+      console.log('Step 2: Fetching analysis data...');
       const { data: analysisData, error: analysisError } = await supabase
         .from('api_costs')
         .select('user_id, created_at')
         .in('user_id', userIds);
 
       if (analysisError) {
-        console.error('❌ Error fetching analysis data:', analysisError);
+        console.error('Error fetching analysis data:', analysisError);
       }
 
-      console.log('📈 Analysis records found:', analysisData?.length || 0);
+      console.log('Analysis records found:', analysisData?.length || 0);
 
       // Step 3: Get billing data
-      console.log('📊 Step 3: Fetching billing data...');
+      console.log('Step 3: Fetching billing data...');
       const { data: billingData, error: billingError } = await supabase
         .from('api_usage_log')
         .select('user_id, usage_date, usage_count')
         .in('user_id', userIds);
 
       if (billingError) {
-        console.error('❌ Error fetching billing data:', billingError);
+        console.error('Error fetching billing data:', billingError);
       }
 
-      console.log('💰 Billing records found:', billingData?.length || 0);
+      console.log('Billing records found:', billingData?.length || 0);
 
       // Step 4: Process each user with comprehensive metrics
-      console.log('📊 Step 4: Processing user metrics...');
+      console.log('Step 4: Processing user metrics...');
       
-      const combinedData: UserUsageData[] = usersWithMetrics.map((user, index) => {
-        console.log(`🔄 Processing user ${index + 1}/${usersWithMetrics.length}: ${user.email} (ID: ${user.id})`);
-        
-        // Initialize with default values - ENSURE ALL USERS GET PROCESSED
+      const combinedData: UserUsageData[] = usersWithMetrics.map((user) => {
+        // Initialize with default values
         const userData: UserUsageData = {
           ...user,
           todayAnalyses: 0,
@@ -146,20 +143,11 @@ export const useOptimizedUserAnalytics = () => {
         userData.todayBilledUsage = userBilling
           .filter(b => b.usage_date === today)
           .reduce((sum, b) => sum + (b.usage_count || 0), 0);
-
-        console.log(`✅ User ${user.email}: ${userData.totalAnalyses} analyses, ${userData.todayAnalyses} today, ID: ${user.id}`);
         
         return userData;
       });
 
-      console.log('🎯 Final processed data:', combinedData.length, 'users');
-      console.log('📋 Users with data (detailed):', combinedData.map(u => ({
-        email: u.email,
-        id: u.id,
-        total: u.totalAnalyses,
-        today: u.todayAnalyses,
-        subscribed: u.is_subscribed
-      })));
+      console.log('Final processed data:', combinedData.length, 'users');
 
       // Step 5: Calculate global metrics
       const totalUsers = combinedData.length;
@@ -179,21 +167,18 @@ export const useOptimizedUserAnalytics = () => {
         averageAnalysesPerUser
       };
 
-      console.log('📊 Calculated metrics:', calculatedMetrics);
+      console.log('Calculated metrics:', calculatedMetrics);
 
-      // Step 6: Set state - CRITICAL: Make sure we set ALL users
-      console.log('💾 Setting state with', combinedData.length, 'users');
+      // Step 6: Set state
+      console.log('Setting state with', combinedData.length, 'users');
       setAllUsers(combinedData);
       setMetrics(calculatedMetrics);
       setLastFetch(new Date());
       
-      // VERIFICATION LOG: Check what we actually set
-      console.log('✅ OptimizedUserAnalytics: Data fetch completed successfully');
-      console.log('🎯 Final state will contain - Users:', combinedData.length, 'Metrics:', calculatedMetrics);
-      console.log('📝 All user emails being set:', combinedData.map(u => u.email));
+      console.log('OptimizedUserAnalytics: Data fetch completed successfully');
 
     } catch (error) {
-      console.error('❌ Error fetching optimized user data:', error);
+      console.error('Error fetching optimized user data:', error);
       toast.error('Failed to load user analytics data');
     } finally {
       setLoading(false);
@@ -204,12 +189,6 @@ export const useOptimizedUserAnalytics = () => {
   useEffect(() => {
     fetchOptimizedUserData();
   }, [fetchOptimizedUserData]);
-
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('🔍 OptimizedUserAnalytics: allUsers state updated to:', allUsers.length, 'users');
-    console.log('👥 Current users in state:', allUsers.map(u => u.email));
-  }, [allUsers]);
 
   return {
     allUsers,

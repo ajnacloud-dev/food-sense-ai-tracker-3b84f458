@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserUsageData } from "@/types/userAnalytics";
@@ -31,31 +32,19 @@ const PaginatedUserTable = ({
 }: PaginatedUserTableProps) => {
   const [currentPage, setCurrentPage] = useState(1);
 
-  // CRITICAL DEBUGGING: Log exactly what this component receives
-  console.log('🔥 PaginatedUserTable: RECEIVED', users.length, 'users from parent');
-  console.log('📧 PaginatedUserTable: RECEIVED user emails:', users.map(u => u.email));
-  console.log('🎛️ PaginatedUserTable: showActiveOnly filter:', showActiveOnly);
-
   const totalPages = Math.ceil(users.length / USERS_PER_PAGE);
   
   const paginatedUsers = useMemo(() => {
     const startIndex = (currentPage - 1) * USERS_PER_PAGE;
     const endIndex = startIndex + USERS_PER_PAGE;
-    const result = users.slice(startIndex, endIndex);
-    
-    console.log(`📄 PaginatedUserTable: Page ${currentPage}, showing users ${startIndex + 1}-${Math.min(endIndex, users.length)} of ${users.length}`);
-    console.log('📋 PaginatedUserTable: Current page users:', result.map(u => u.email));
-    
-    return result;
+    return users.slice(startIndex, endIndex);
   }, [users, currentPage]);
 
   const handlePageChange = (page: number) => {
-    console.log('📄 PaginatedUserTable: Changing to page', page);
     setCurrentPage(page);
   };
 
   if (loading) {
-    console.log('⏳ PaginatedUserTable: Showing loading state');
     return (
       <div className="flex items-center justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -64,7 +53,6 @@ const PaginatedUserTable = ({
   }
 
   if (users.length === 0) {
-    console.log('⚠️ PaginatedUserTable: No users to display');
     return (
       <div className="text-center py-8 text-gray-500">
         {showActiveOnly ? 'No active users found' : 'No users found'}

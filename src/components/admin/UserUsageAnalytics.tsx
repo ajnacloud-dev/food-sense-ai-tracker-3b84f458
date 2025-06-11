@@ -16,10 +16,6 @@ const UserUsageAnalytics = () => {
 
   const { allUsers, metrics, loading, lastFetch, refetch } = useOptimizedUserAnalytics();
   
-  // ADD CRITICAL DEBUGGING HERE
-  console.log('🎯 UserUsageAnalytics: Received from analytics hook:', allUsers.length, 'users');
-  console.log('📧 UserUsageAnalytics: All user emails received:', allUsers.map(u => u.email));
-  
   const {
     filteredUsers,
     searchTerm,
@@ -31,16 +27,6 @@ const UserUsageAnalytics = () => {
     clearFilters,
     hasActiveFilters
   } = useOptimizedUserFilters(allUsers);
-
-  // ADD MORE CRITICAL DEBUGGING HERE
-  console.log('🔍 UserUsageAnalytics: After filtering got:', filteredUsers.length, 'users');
-  console.log('📧 UserUsageAnalytics: Filtered user emails:', filteredUsers.map(u => u.email));
-  console.log('🎛️ UserUsageAnalytics: Current filter state:', {
-    searchTerm,
-    showActiveOnly,
-    sortBy,
-    hasActiveFilters
-  });
 
   const { isRefreshing } = useOptimizedAutoRefresh({
     enabled: true,
@@ -83,9 +69,6 @@ const UserUsageAnalytics = () => {
       </div>
     </div>
   );
-
-  // ADD FINAL DEBUGGING BEFORE PASSING TO TABLE
-  console.log('🏁 UserUsageAnalytics: About to pass to PaginatedUserTable:', filteredUsers.length, 'users');
 
   return (
     <div className="space-y-6">
