@@ -62,7 +62,7 @@ export const useOptimizedUserAnalytics = () => {
       }
 
       const userIds = usersWithMetrics.map(u => u.id);
-      console.log('🔑 User IDs to fetch data for:', userIds.length);
+      console.log('🔑 User IDs to fetch data for:', userIds.length, userIds);
 
       // Step 2: Get analysis data for all users
       console.log('📊 Step 2: Fetching analysis data...');
@@ -94,9 +94,9 @@ export const useOptimizedUserAnalytics = () => {
       console.log('📊 Step 4: Processing user metrics...');
       
       const combinedData: UserUsageData[] = usersWithMetrics.map((user, index) => {
-        console.log(`🔄 Processing user ${index + 1}/${usersWithMetrics.length}: ${user.email}`);
+        console.log(`🔄 Processing user ${index + 1}/${usersWithMetrics.length}: ${user.email} (ID: ${user.id})`);
         
-        // Initialize with default values
+        // Initialize with default values - ENSURE ALL USERS GET PROCESSED
         const userData: UserUsageData = {
           ...user,
           todayAnalyses: 0,
@@ -147,16 +147,18 @@ export const useOptimizedUserAnalytics = () => {
           .filter(b => b.usage_date === today)
           .reduce((sum, b) => sum + (b.usage_count || 0), 0);
 
-        console.log(`✅ User ${user.email}: ${userData.totalAnalyses} analyses, ${userData.todayAnalyses} today`);
+        console.log(`✅ User ${user.email}: ${userData.totalAnalyses} analyses, ${userData.todayAnalyses} today, ID: ${user.id}`);
         
         return userData;
       });
 
       console.log('🎯 Final processed data:', combinedData.length, 'users');
-      console.log('📋 Users with data:', combinedData.map(u => ({
+      console.log('📋 Users with data (detailed):', combinedData.map(u => ({
         email: u.email,
+        id: u.id,
         total: u.totalAnalyses,
-        today: u.todayAnalyses
+        today: u.todayAnalyses,
+        subscribed: u.is_subscribed
       })));
 
       // Step 5: Calculate global metrics
@@ -179,13 +181,16 @@ export const useOptimizedUserAnalytics = () => {
 
       console.log('📊 Calculated metrics:', calculatedMetrics);
 
-      // Step 6: Set state
+      // Step 6: Set state - CRITICAL: Make sure we set ALL users
+      console.log('💾 Setting state with', combinedData.length, 'users');
       setAllUsers(combinedData);
       setMetrics(calculatedMetrics);
       setLastFetch(new Date());
       
+      // VERIFICATION LOG: Check what we actually set
       console.log('✅ OptimizedUserAnalytics: Data fetch completed successfully');
-      console.log('🎯 Final state - Users:', combinedData.length, 'Metrics:', calculatedMetrics);
+      console.log('🎯 Final state will contain - Users:', combinedData.length, 'Metrics:', calculatedMetrics);
+      console.log('📝 All user emails being set:', combinedData.map(u => u.email));
 
     } catch (error) {
       console.error('❌ Error fetching optimized user data:', error);
@@ -199,6 +204,12 @@ export const useOptimizedUserAnalytics = () => {
   useEffect(() => {
     fetchOptimizedUserData();
   }, [fetchOptimizedUserData]);
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log('🔍 OptimizedUserAnalytics: allUsers state updated to:', allUsers.length, 'users');
+    console.log('👥 Current users in state:', allUsers.map(u => u.email));
+  }, [allUsers]);
 
   return {
     allUsers,

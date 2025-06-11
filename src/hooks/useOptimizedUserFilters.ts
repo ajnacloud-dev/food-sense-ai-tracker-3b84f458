@@ -8,10 +8,12 @@ export const useOptimizedUserFilters = (allUsers: UserUsageData[]) => {
   const [sortBy, setSortBy] = useState("totalAnalyses-desc");
 
   console.log('🔍 UserFilters: Input users count:', allUsers.length);
+  console.log('👥 UserFilters: Input user emails:', allUsers.map(u => u.email));
 
   // Use useMemo for expensive filtering operations
   const filteredUsers = useMemo(() => {
     console.log('🔄 UserFilters: Starting filter process with', allUsers.length, 'users');
+    console.log('📝 UserFilters: Input users detailed:', allUsers.map(u => ({ email: u.email, id: u.id, total: u.totalAnalyses })));
     
     if (allUsers.length === 0) {
       console.log('⚠️ UserFilters: No users to filter');
@@ -45,6 +47,9 @@ export const useOptimizedUserFilters = (allUsers: UserUsageData[]) => {
       const beforeActive = filtered.length;
       filtered = filtered.filter(user => {
         const isActive = user.lastActive && new Date(user.lastActive) >= thirtyDaysAgo;
+        if (!isActive) {
+          console.log(`❌ User ${user.email} filtered out - lastActive: ${user.lastActive}, thirtyDaysAgo: ${thirtyDaysAgo.toISOString()}`);
+        }
         return isActive;
       });
       
@@ -75,7 +80,7 @@ export const useOptimizedUserFilters = (allUsers: UserUsageData[]) => {
     });
 
     console.log('✅ UserFilters: Final filtered result:', filtered.length, 'users');
-    console.log('📋 UserFilters: Filtered users:', filtered.map(u => u.email));
+    console.log('📋 UserFilters: Filtered users:', filtered.map(u => ({ email: u.email, total: u.totalAnalyses })));
 
     return filtered;
   }, [allUsers, searchTerm, showActiveOnly, sortBy]);
@@ -90,6 +95,7 @@ export const useOptimizedUserFilters = (allUsers: UserUsageData[]) => {
   const hasActiveFilters = showActiveOnly || searchTerm.length > 0;
 
   console.log('🎯 UserFilters: Returning', filteredUsers.length, 'filtered users from', allUsers.length, 'total');
+  console.log('📋 Final filtered emails:', filteredUsers.map(u => u.email));
 
   return {
     filteredUsers,
