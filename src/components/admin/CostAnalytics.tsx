@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DollarSign, Users, Activity, Calendar, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 interface CostEntry {
   id: string;
@@ -63,9 +63,31 @@ const CostAnalytics = () => {
   const fetchCostData = async () => {
     try {
       setLoading(true);
+      console.log('CostAnalytics: Starting to fetch cost data...');
 
-      // Fetch cost entries with user info
-      const { data: costData } = await supabase
+      // First, let's try to fetch costs without joins to see if basic access works
+      const { data: basicCostData, error: basicCostError } = await supabase
+        .from('api_costs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (basicCostError) {
+        console.error('CostAnalytics: Error fetching basic cost data:', basicCostError);
+        toast.error(`Failed to fetch cost data: ${basicCostError.message}`);
+        return;
+      }
+
+      console.log('CostAnalytics: Basic cost data fetched:', basicCostData?.length || 0, 'records');
+
+      if (!basicCostData || basicCostData.length === 0) {
+        console.log('CostAnalytics: No cost data found');
+        setCosts([]);
+        return;
+      }
+
+      // Now try to fetch with user information
+      const { data: costDataWithUsers, error: costError } = await supabase
         .from('api_costs')
         .select(`
           *,
@@ -74,20 +96,41 @@ const CostAnalytics = () => {
         .order('created_at', { ascending: false })
         .limit(1000);
 
-      if (costData) {
-        const validCosts: CostEntry[] = costData.map(cost => ({
+      if (costError) {
+        console.error('CostAnalytics: Error fetching cost data with users:', costError);
+        // Fall back to basic data without user info
+        const validCosts: CostEntry[] = basicCostData.map(cost => ({
           id: cost.id,
           user_id: cost.user_id,
           function_name: cost.function_name,
           model_used: cost.model_used,
-          total_tokens: cost.total_tokens,
-          cost_usd: cost.cost_usd,
+          total_tokens: cost.total_tokens || 0,
+          cost_usd: cost.cost_usd || 0,
+          category: cost.category || 'unknown',
+          created_at: cost.created_at,
+          users: null
+        }));
+
+        setCosts(validCosts);
+        console.log('CostAnalytics: Using basic cost data without user info:', validCosts.length, 'records');
+        return;
+      }
+
+      if (costDataWithUsers) {
+        const validCosts: CostEntry[] = costDataWithUsers.map(cost => ({
+          id: cost.id,
+          user_id: cost.user_id,
+          function_name: cost.function_name,
+          model_used: cost.model_used,
+          total_tokens: cost.total_tokens || 0,
+          cost_usd: cost.cost_usd || 0,
           category: cost.category || 'unknown',
           created_at: cost.created_at,
           users: Array.isArray(cost.users) ? cost.users[0] : cost.users
         }));
 
         setCosts(validCosts);
+        console.log('CostAnalytics: Cost data with users fetched successfully:', validCosts.length, 'records');
 
         // Extract unique values for filters
         const users = validCosts
@@ -107,9 +150,16 @@ const CostAnalytics = () => {
         setUniqueUsers(users);
         setUniqueCategories(categories);
         setUniqueModels(models);
+
+        console.log('CostAnalytics: Filter options set:', {
+          users: users.length,
+          categories: categories.length,
+          models: models.length
+        });
       }
     } catch (error) {
-      console.error('Error fetching cost data:', error);
+      console.error('CostAnalytics: Unexpected error fetching cost data:', error);
+      toast.error('Failed to load cost analytics');
     } finally {
       setLoading(false);
     }
@@ -117,6 +167,7 @@ const CostAnalytics = () => {
 
   const applyFilters = () => {
     let filtered = [...costs];
+    console.log('CostAnalytics: Applying filters to', costs.length, 'costs');
 
     // User filter
     if (selectedUser !== "all") {
@@ -164,14 +215,22 @@ const CostAnalytics = () => {
     }
 
     setFilteredCosts(filtered);
+    console.log('CostAnalytics: Filtered to', filtered.length, 'costs');
 
     // Calculate summary
-    const totalCost = filtered.reduce((sum, cost) => sum + Number(cost.cost_usd), 0);
-    const totalTokens = filtered.reduce((sum, cost) => sum + cost.total_tokens, 0);
+    const totalCost = filtered.reduce((sum, cost) => sum + Number(cost.cost_usd || 0), 0);
+    const totalTokens = filtered.reduce((sum, cost) => sum + (cost.total_tokens || 0), 0);
     const totalCalls = filtered.length;
     const avgCostPerCall = totalCalls > 0 ? totalCost / totalCalls : 0;
 
     setSummary({
+      totalCost,
+      totalTokens,
+      totalCalls,
+      avgCostPerCall
+    });
+
+    console.log('CostAnalytics: Summary calculated:', {
       totalCost,
       totalTokens,
       totalCalls,
@@ -247,6 +306,24 @@ const CostAnalytics = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Debug Info */}
+      {costs.length === 0 && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="pt-6">
+            <div className="text-yellow-800">
+              <p className="font-medium">Debug Info:</p>
+              <p>No cost data found. This could be due to:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>RLS policies preventing data access</li>
+                <li>No data in the api_costs table</li>
+                <li>User permissions issues</li>
+              </ul>
+              <p className="mt-2">Check the browser console for detailed error messages.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>
@@ -383,11 +460,11 @@ const CostAnalytics = () => {
                     <span className="text-sm">{cost.model_used}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono text-sm">{cost.total_tokens.toLocaleString()}</span>
+                    <span className="font-mono text-sm">{(cost.total_tokens || 0).toLocaleString()}</span>
                   </TableCell>
                   <TableCell>
                     <span className="font-mono text-sm font-medium">
-                      {formatCurrency(Number(cost.cost_usd))}
+                      {formatCurrency(Number(cost.cost_usd || 0))}
                     </span>
                   </TableCell>
                   <TableCell>
