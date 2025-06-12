@@ -33,8 +33,11 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   // Get pending analyses for the current user
   const { 
     pendingAnalyses, 
-    refetch: refetchAnalyses 
+    refetch: refetchAnalyses,
+    loading: analysesLoading 
   } = usePendingAnalyses(user?.id);
+
+  console.log('SidebarLayout - Pending analyses:', pendingAnalyses?.length || 0);
 
   return (
     <SidebarProvider open={open} onOpenChange={setOpen}>
@@ -52,11 +55,13 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
               <SidebarTrigger className="text-green-700 hover:bg-green-50" />
             </div>
             <div className="flex items-center gap-2">
-              {/* Analysis Status Indicator */}
-              <AnalysisStatusIndicator 
-                analyses={pendingAnalyses} 
-                onRetry={refetchAnalyses}
-              />
+              {/* Analysis Status Indicator - Only show if there are analyses */}
+              {!analysesLoading && pendingAnalyses && pendingAnalyses.length > 0 && (
+                <AnalysisStatusIndicator 
+                  analyses={pendingAnalyses} 
+                  onRetry={refetchAnalyses}
+                />
+              )}
               
               {/* Notification Bell */}
               <NotificationBell />
