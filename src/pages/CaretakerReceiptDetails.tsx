@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +10,7 @@ import { ArrowLeft, FileText, Calendar, User, MapPin, CreditCard } from "lucide-
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 import PermissionStatusIndicator from "@/components/caretaker/PermissionStatusIndicator";
+import { ImageModal } from "@/components/ui/image-modal";
 import { format } from 'date-fns';
 
 interface Receipt {
@@ -239,10 +239,10 @@ const CaretakerReceiptDetails = () => {
             
             {receipt.image_url && (
               <CardContent>
-                <img 
-                  src={receipt.image_url} 
-                  alt="Receipt" 
-                  className="w-full max-w-md mx-auto rounded-lg border"
+                <ImageModal
+                  src={receipt.image_url}
+                  alt="Receipt"
+                  className="w-full max-w-md mx-auto"
                 />
               </CardContent>
             )}
