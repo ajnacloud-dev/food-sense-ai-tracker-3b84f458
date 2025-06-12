@@ -27,6 +27,18 @@ serve(async (req) => {
 
     console.log('Processing completed analysis:', { pendingAnalysisId, category })
 
+    // Get the pending analysis to find the user_id
+    const { data: pendingAnalysis } = await supabaseClient
+      .from('pending_analyses')
+      .select('user_id')
+      .eq('id', pendingAnalysisId)
+      .single()
+
+    if (!pendingAnalysis) {
+      throw new Error('Pending analysis not found')
+    }
+
+    // Process the specific category
     if (category === 'food' && analysisResult) {
       await processFoodAnalysis(supabaseClient, analysisResult, pendingAnalysisId)
     } else if (category === 'receipt' && analysisResult) {
@@ -35,21 +47,22 @@ serve(async (req) => {
       await processWorkoutAnalysis(supabaseClient, analysisResult, pendingAnalysisId)
     }
 
-    // Create notification
-    const { data: pendingAnalysis } = await supabaseClient
-      .from('pending_analyses')
-      .select('user_id')
-      .eq('id', pendingAnalysisId)
-      .single()
-
-    if (pendingAnalysis) {
-      await supabaseClient.from('user_notifications').insert({
+    // Create notification in the user_notifications table
+    const { error: notificationError } = await supabaseClient
+      .from('user_notifications')
+      .insert({
         user_id: pendingAnalysis.user_id,
         title: `${category.charAt(0).toUpperCase() + category.slice(1)} Analysis Complete`,
         message: `Your ${category} analysis has been completed and added to your dashboard.`,
         notification_type: 'analysis_complete',
-        analysis_id: pendingAnalysisId
+        analysis_id: pendingAnalysisId,
+        metadata: { category }
       })
+
+    if (notificationError) {
+      console.error('Error creating notification:', notificationError)
+    } else {
+      console.log('Notification created successfully for user:', pendingAnalysis.user_id)
     }
 
     return new Response(
@@ -59,6 +72,41 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error processing completed analysis:', error)
+    
+    // Try to create a failure notification if we have the analysis info
+    try {
+      const { pendingAnalysisId, category } = await req.json()
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      )
+      
+      const { data: pendingAnalysis } = await supabaseClient
+        .from('pending_analyses')
+        .select('user_id')
+        .eq('id', pendingAnalysisId)
+        .single()
+
+      if (pendingAnalysis) {
+        await supabaseClient.from('user_notifications').insert({
+          user_id: pendingAnalysis.user_id,
+          title: `${category?.charAt(0).toUpperCase() + category?.slice(1)} Analysis Failed`,
+          message: `Your ${category} analysis failed to process. Please try again.`,
+          notification_type: 'analysis_failed',
+          analysis_id: pendingAnalysisId,
+          metadata: { category, error: error.message }
+        })
+      }
+    } catch (notificationError) {
+      console.error('Error creating failure notification:', notificationError)
+    }
+
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
