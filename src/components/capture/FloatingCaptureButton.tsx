@@ -9,6 +9,11 @@ export const FloatingCaptureButton = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  const handleAnalysisStarted = () => {
+    // Optionally refresh the page or trigger other actions
+    window.location.reload();
+  };
+
   return (
     <>
       <Button
@@ -29,6 +34,7 @@ export const FloatingCaptureButton = () => {
       <QuickCaptureModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
+        onAnalysisStarted={handleAnalysisStarted}
       />
     </>
   );

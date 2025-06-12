@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -187,7 +186,7 @@ class OptimizedLangGraphWorkflow {
 
   async executeWorkflow(description: string, fileUrl: string | null, workflowConfig: any): Promise<any> {
     const workflowStartTime = Date.now();
-    console.log('Starting optimized LangGraph workflow');
+    console.log('Starting optimized LangGraph workflow with description:', description?.substring(0, 100));
     
     try {
       // Detect content complexity for smart model selection
@@ -248,7 +247,7 @@ class OptimizedLangGraphWorkflow {
   async directAnalysis(description: string, fileUrl: string | null): Promise<any> {
     console.log('Using direct analysis for simple content');
     
-    // Smart category detection from content
+    // Enhanced category detection from content
     const text = description?.toLowerCase() || '';
     let category = 'food'; // default
     
@@ -301,34 +300,42 @@ class OptimizedLangGraphWorkflow {
       }
     }
 
-    const prompt = `You are an AI classifier for health and lifestyle content.
+    // Enhanced classification prompt that combines description and file content
+    const classificationPrompt = `You are an AI classifier for health and lifestyle content.
 
 Analyze and classify into: food, receipt, or workout
 
 Current time: ${currentTime}
 
-Input:
-${description ? `Description: ${description}` : 'No description provided'}
+User Input:
+${description ? `Description: "${description}"` : 'No description provided'}
 ${fileUrl ? `File: ${isPDF ? 'PDF document' : 'Image'} provided` : 'No file provided'}
-${fileContent ? `Content: ${fileContent.substring(0, 500)}...` : ''}
+${fileContent ? `Extracted Content: ${fileContent.substring(0, 500)}...` : ''}
+
+INSTRUCTIONS:
+- Use BOTH the user description AND file content to make the classification
+- If description mentions food/eating/meal/nutrition AND image shows food, classify as "food"  
+- If description mentions receipt/purchase/shopping OR extracted content shows prices/store names, classify as "receipt"
+- If description mentions workout/exercise/fitness OR image shows gym equipment, classify as "workout"
+- Consider the description as primary context and file content as supporting evidence
 
 Return valid JSON only:
 {
   "category": "food|receipt|workout",
   "confidence": 0.95,
-  "reasoning": "Brief explanation"
+  "reasoning": "Brief explanation of why this category was chosen based on description and/or file content"
 }`;
 
     const messages = [
       { role: 'system', content: 'You are a precise content classifier. Always respond with valid JSON only.' },
-      { role: 'user', content: prompt }
+      { role: 'user', content: classificationPrompt }
     ];
 
     if (fileUrl && !isPDF) {
       try {
         const base64Image = await imageUrlToBase64(fileUrl);
         messages[1].content = [
-          { type: 'text', text: prompt },
+          { type: 'text', text: classificationPrompt },
           { type: 'image_url', image_url: { url: base64Image } }
         ];
       } catch (error) {
@@ -359,7 +366,12 @@ Return valid JSON only:
     const now = new Date();
     const timeContext = `Current time: ${now.toLocaleString()}`;
 
-    let enhancedPrompt = prompt.user_prompt_template.replace('{description}', description || 'No description provided');
+    // Enhanced prompt substitution that properly handles description
+    let enhancedPrompt = prompt.user_prompt_template;
+    
+    // Replace {description} placeholder with actual description or indicate no description
+    const descriptionText = description?.trim() || 'No description provided';
+    enhancedPrompt = enhancedPrompt.replace('{description}', descriptionText);
     
     let fileContent = '';
     let isPDF = false;
@@ -380,39 +392,48 @@ Return valid JSON only:
     if (category === 'food') {
       enhancedPrompt += `${timeContext}
 
+USER CONTEXT: ${descriptionText}
+
 CRITICAL INSTRUCTIONS:
-1. Analyze all visible food items and estimate nutrition accurately
-2. Determine meal type from current time: breakfast (5-10 AM), lunch (10 AM-2 PM), snack (2-5 PM), dinner (5-10 PM), late night (10 PM-5 AM)
-3. Provide detailed nutritional breakdown with realistic estimates
-4. Structure response to match database schema exactly`;
+1. Use the user's description to understand what they're analyzing
+2. If description mentions specific foods, focus analysis on those items
+3. Determine meal type from current time: breakfast (5-10 AM), lunch (10 AM-2 PM), snack (2-5 PM), dinner (5-10 PM), late night (10 PM-5 AM)
+4. Provide detailed nutritional breakdown with realistic estimates
+5. Structure response to match database schema exactly`;
     } else if (category === 'receipt') {
       enhancedPrompt += `
 
+USER CONTEXT: ${descriptionText}
+
 CRITICAL RECEIPT ANALYSIS REQUIREMENTS:
-1. Extract ONLY line items that are clearly visible and readable
-2. NEVER add items that are not explicitly shown on the receipt
-3. NEVER enrich item names with generic descriptions like "organic" or "fresh"
-4. If any text is unclear or illegible, skip that item completely
-5. Double-check that each item name matches exactly what is written
-6. Verify prices and quantities against what is visible
-7. Identify correct final total (after taxes/discounts)
-8. Extract merchant information and purchase date only if clearly visible
-9. Be conservative - it is better to miss an item than to add a wrong one
-10. ONLY process what is available and clearly readable on the receipt`;
+1. The user described: "${descriptionText}" - use this context to understand what type of receipt this might be
+2. Extract ONLY line items that are clearly visible and readable
+3. NEVER add items that are not explicitly shown on the receipt
+4. NEVER enrich item names with generic descriptions like "organic" or "fresh"
+5. If any text is unclear or illegible, skip that item completely
+6. Double-check that each item name matches exactly what is written
+7. Verify prices and quantities against what is visible
+8. Identify correct final total (after taxes/discounts)
+9. Extract merchant information and purchase date only if clearly visible
+10. Be conservative - it is better to miss an item than to add a wrong one
+11. ONLY process what is available and clearly readable on the receipt`;
     } else if (category === 'workout') {
       enhancedPrompt += `
 
+USER CONTEXT: ${descriptionText}
+
 WORKOUT ANALYSIS REQUIREMENTS:
-1. Identify specific exercises, sets, reps, and weights
-2. Estimate calories burned based on activity intensity
-3. Determine workout type and duration
-4. Structure exercise data for database storage`;
+1. Use the user's description to understand the type of workout they're tracking
+2. Identify specific exercises, sets, reps, and weights mentioned or shown
+3. Estimate calories burned based on activity intensity and user context
+4. Determine workout type and duration from description and/or image
+5. Structure exercise data for database storage`;
     }
 
-    enhancedPrompt += '\n\nIMPORTANT: Return ONLY valid JSON (no markdown, no code blocks). Never hallucinate or add information not explicitly visible.';
+    enhancedPrompt += '\n\nIMPORTANT: Return ONLY valid JSON (no markdown, no code blocks). Never hallucinate or add information not explicitly visible. Use the user description as important context for your analysis.';
     
     const messages = [
-      { role: 'system', content: `${prompt.system_prompt}\n\nAlways respond with valid JSON only. NEVER hallucinate or add items/information not explicitly visible.` },
+      { role: 'system', content: `${prompt.system_prompt}\n\nAlways respond with valid JSON only. Use the user's description as important context. NEVER hallucinate or add items/information not explicitly visible.` },
       { role: 'user', content: enhancedPrompt }
     ];
 
@@ -446,7 +467,7 @@ WORKOUT ANALYSIS REQUIREMENTS:
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0, // Changed from 0.2 to 0 for deterministic results
+          temperature: 0,
           max_tokens: maxTokens,
         }),
       });
@@ -544,7 +565,7 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    console.log(`Starting optimized workflow for user ${user.id}`);
+    console.log(`Starting optimized workflow for user ${user.id} with description: "${description?.substring(0, 100) || 'No description'}"`);
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
