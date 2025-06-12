@@ -94,7 +94,7 @@ const EnhancedPWAUpdatePrompt = () => {
     if (updateServiceWorker && !isUpdating) {
       setIsUpdating(true);
       try {
-        await updateServiceWorker(true);
+        await updateServiceWorker();
         toast.success('App updated successfully!');
       } catch (error) {
         console.error('Update failed:', error);

@@ -107,7 +107,7 @@ const PWAUpdateChecker = ({ className }: PWAUpdateCheckerProps) => {
     if (updateServiceWorker && !isUpdating) {
       setIsUpdating(true);
       try {
-        await updateServiceWorker(true);
+        await updateServiceWorker();
         toast.success('App updated successfully!');
         setNeedRefresh(false);
       } catch (error) {
