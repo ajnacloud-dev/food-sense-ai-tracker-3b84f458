@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { DollarSign, Users, Activity, Calendar, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
-import { toast } from "sonner";
 
 interface CostEntry {
   id: string;
@@ -19,8 +19,7 @@ interface CostEntry {
   cost_usd: number;
   category: string;
   created_at: string;
-  user_email?: string;
-  user_full_name?: string;
+  users?: { email: string; full_name: string } | null;
 }
 
 interface CostSummary {
@@ -64,102 +63,53 @@ const CostAnalytics = () => {
   const fetchCostData = async () => {
     try {
       setLoading(true);
-      console.log('CostAnalytics: Starting to fetch cost data...');
 
-      // First fetch cost data
-      const { data: costData, error: costError } = await supabase
+      // Fetch cost entries with user info
+      const { data: costData } = await supabase
         .from('api_costs')
-        .select('*')
+        .select(`
+          *,
+          users:user_id (email, full_name)
+        `)
         .order('created_at', { ascending: false })
         .limit(1000);
 
-      if (costError) {
-        console.error('CostAnalytics: Error fetching cost data:', costError);
-        toast.error(`Failed to fetch cost data: ${costError.message}`);
-        return;
-      }
-
-      console.log('CostAnalytics: Cost data fetched:', costData?.length || 0, 'records');
-
-      if (!costData || costData.length === 0) {
-        console.log('CostAnalytics: No cost data found');
-        setCosts([]);
-        return;
-      }
-
-      // Get unique user IDs from cost data
-      const userIds = [...new Set(costData.map(cost => cost.user_id))];
-      console.log('CostAnalytics: Unique user IDs found:', userIds.length);
-
-      // Fetch user information separately
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, email, full_name')
-        .in('id', userIds);
-
-      if (userError) {
-        console.error('CostAnalytics: Error fetching user data:', userError);
-        // Continue without user data
-      }
-
-      console.log('CostAnalytics: User data fetched:', userData?.length || 0, 'records');
-
-      // Create a map of user ID to user info
-      const userMap = new Map();
-      if (userData) {
-        userData.forEach(user => {
-          userMap.set(user.id, user);
-        });
-      }
-
-      // Combine cost data with user information
-      const enrichedCosts: CostEntry[] = costData.map(cost => {
-        const user = userMap.get(cost.user_id);
-        return {
+      if (costData) {
+        const validCosts: CostEntry[] = costData.map(cost => ({
           id: cost.id,
           user_id: cost.user_id,
           function_name: cost.function_name,
           model_used: cost.model_used,
-          total_tokens: cost.total_tokens || 0,
-          cost_usd: cost.cost_usd || 0,
+          total_tokens: cost.total_tokens,
+          cost_usd: cost.cost_usd,
           category: cost.category || 'unknown',
           created_at: cost.created_at,
-          user_email: user?.email || 'Unknown',
-          user_full_name: user?.full_name || 'Unknown'
-        };
-      });
+          users: Array.isArray(cost.users) ? cost.users[0] : cost.users
+        }));
 
-      setCosts(enrichedCosts);
-      console.log('CostAnalytics: Enriched cost data set:', enrichedCosts.length, 'records');
+        setCosts(validCosts);
 
-      // Extract unique values for filters
-      const users = enrichedCosts
-        .filter(cost => cost.user_email && cost.user_email !== 'Unknown')
-        .map(cost => ({
-          id: cost.user_id,
-          email: cost.user_email!,
-          name: cost.user_full_name || cost.user_email!
-        }))
-        .filter((user, index, self) => 
-          self.findIndex(u => u.id === user.id) === index
-        );
+        // Extract unique values for filters
+        const users = validCosts
+          .filter(cost => cost.users)
+          .map(cost => ({
+            id: cost.user_id,
+            email: cost.users!.email,
+            name: cost.users!.full_name || cost.users!.email
+          }))
+          .filter((user, index, self) => 
+            self.findIndex(u => u.id === user.id) === index
+          );
 
-      const categories = [...new Set(enrichedCosts.map(cost => cost.category))];
-      const models = [...new Set(enrichedCosts.map(cost => cost.model_used))];
+        const categories = [...new Set(validCosts.map(cost => cost.category))];
+        const models = [...new Set(validCosts.map(cost => cost.model_used))];
 
-      setUniqueUsers(users);
-      setUniqueCategories(categories);
-      setUniqueModels(models);
-
-      console.log('CostAnalytics: Filter options set:', {
-        users: users.length,
-        categories: categories.length,
-        models: models.length
-      });
-
+        setUniqueUsers(users);
+        setUniqueCategories(categories);
+        setUniqueModels(models);
+      }
     } catch (error) {
-      console.error('CostAnalytics: Unexpected error fetching cost data:', error);
-      toast.error('Failed to load cost analytics');
+      console.error('Error fetching cost data:', error);
     } finally {
       setLoading(false);
     }
@@ -167,7 +117,6 @@ const CostAnalytics = () => {
 
   const applyFilters = () => {
     let filtered = [...costs];
-    console.log('CostAnalytics: Applying filters to', costs.length, 'costs');
 
     // User filter
     if (selectedUser !== "all") {
@@ -209,28 +158,20 @@ const CostAnalytics = () => {
     // Email search filter
     if (searchEmail) {
       filtered = filtered.filter(cost => 
-        cost.user_email?.toLowerCase().includes(searchEmail.toLowerCase()) ||
-        cost.user_full_name?.toLowerCase().includes(searchEmail.toLowerCase())
+        cost.users?.email.toLowerCase().includes(searchEmail.toLowerCase()) ||
+        cost.users?.full_name?.toLowerCase().includes(searchEmail.toLowerCase())
       );
     }
 
     setFilteredCosts(filtered);
-    console.log('CostAnalytics: Filtered to', filtered.length, 'costs');
 
     // Calculate summary
-    const totalCost = filtered.reduce((sum, cost) => sum + Number(cost.cost_usd || 0), 0);
-    const totalTokens = filtered.reduce((sum, cost) => sum + (cost.total_tokens || 0), 0);
+    const totalCost = filtered.reduce((sum, cost) => sum + Number(cost.cost_usd), 0);
+    const totalTokens = filtered.reduce((sum, cost) => sum + cost.total_tokens, 0);
     const totalCalls = filtered.length;
     const avgCostPerCall = totalCalls > 0 ? totalCost / totalCalls : 0;
 
     setSummary({
-      totalCost,
-      totalTokens,
-      totalCalls,
-      avgCostPerCall
-    });
-
-    console.log('CostAnalytics: Summary calculated:', {
       totalCost,
       totalTokens,
       totalCalls,
@@ -306,24 +247,6 @@ const CostAnalytics = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Debug Info */}
-      {costs.length === 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="pt-6">
-            <div className="text-yellow-800">
-              <p className="font-medium">Debug Info:</p>
-              <p>No cost data found. This could be due to:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>RLS policies preventing data access</li>
-                <li>No data in the api_costs table</li>
-                <li>User permissions issues</li>
-              </ul>
-              <p className="mt-2">Check the browser console for detailed error messages.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Filters */}
       <Card>
@@ -444,8 +367,8 @@ const CostAnalytics = () => {
                 <TableRow key={cost.id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{cost.user_full_name || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{cost.user_email || 'Unknown'}</div>
+                      <div className="font-medium">{cost.users?.full_name || 'Unknown'}</div>
+                      <div className="text-sm text-gray-500">{cost.users?.email || 'Unknown'}</div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -460,11 +383,11 @@ const CostAnalytics = () => {
                     <span className="text-sm">{cost.model_used}</span>
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono text-sm">{(cost.total_tokens || 0).toLocaleString()}</span>
+                    <span className="font-mono text-sm">{cost.total_tokens.toLocaleString()}</span>
                   </TableCell>
                   <TableCell>
                     <span className="font-mono text-sm font-medium">
-                      {formatCurrency(Number(cost.cost_usd || 0))}
+                      {formatCurrency(Number(cost.cost_usd))}
                     </span>
                   </TableCell>
                   <TableCell>

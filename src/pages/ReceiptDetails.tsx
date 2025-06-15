@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import ReceiptAnalysisDebug from "@/components/receipts/ReceiptAnalysisDebug";
 import { ReceiptItemCorrection } from "@/components/receipts/ReceiptItemCorrection";
-import { ImageModal } from "@/components/ui/image-modal";
 
 interface ReceiptEntry {
   id: string;
@@ -199,10 +198,10 @@ const ReceiptDetails = () => {
               {receipt.image_url && (
                 <Card>
                   <CardContent className="p-4">
-                    <ImageModal
+                    <img
                       src={receipt.image_url}
                       alt="Receipt"
-                      className="w-full"
+                      className="w-full rounded-lg shadow-sm"
                     />
                   </CardContent>
                 </Card>

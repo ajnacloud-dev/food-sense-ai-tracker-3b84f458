@@ -45,7 +45,7 @@ export const NotificationBell = () => {
     try {
       setLoading(true);
       
-      // Fetch only from the user_notifications table
+      // Fetch from the new persistent notifications table
       const { data: notificationData, error } = await supabase
         .from('user_notifications')
         .select('*')
@@ -53,12 +53,9 @@ export const NotificationBell = () => {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        return;
-      }
+      if (error) throw error;
 
-      const notificationList = notificationData?.map(notification => ({
+      const notificationList: Notification[] = notificationData?.map(notification => ({
         id: notification.id,
         notification_type: notification.notification_type,
         title: notification.title,
@@ -83,9 +80,7 @@ export const NotificationBell = () => {
   const setupRealtimeSubscription = () => {
     if (!user) return;
 
-    console.log('Setting up notification real-time subscription for user:', user.id);
-
-    // Listen for user_notifications table changes
+    // Listen for new notifications
     const notificationChannel = supabase
       .channel('user-notifications')
       .on(
@@ -98,51 +93,51 @@ export const NotificationBell = () => {
         },
         (payload) => {
           const newNotification = payload.new as Notification;
-          console.log('New notification received:', newNotification);
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
-          toast.info(newNotification.title, {
-            description: newNotification.message
-          });
+          toast.info(newNotification.title);
         }
       )
+      .subscribe();
+
+    // Also listen for analysis completions and trigger notification processing
+    const analysisChannel = supabase
+      .channel('analysis-completions')
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'user_notifications',
+          table: 'pending_analyses',
           filter: `user_id=eq.${user.id}`
         },
-        (payload) => {
-          const updatedNotification = payload.new as Notification;
-          console.log('Notification updated:', updatedNotification);
-          setNotifications(prev => 
-            prev.map(notification => 
-              notification.id === updatedNotification.id 
-                ? updatedNotification
-                : notification
-            )
-          );
-          // Recalculate unread count
-          setNotifications(currentNotifications => {
-            const updated = currentNotifications.map(notification => 
-              notification.id === updatedNotification.id 
-                ? updatedNotification
-                : notification
-            );
-            setUnreadCount(updated.filter(n => !n.read).length);
-            return updated;
-          });
+        async (payload) => {
+          const analysis = payload.new;
+          if (analysis.status === 'completed' || analysis.status === 'failed') {
+            console.log('Analysis completed, triggering processing:', analysis.id);
+            
+            // Trigger the processing function
+            try {
+              const { data, error } = await supabase.functions.invoke('process-completed-analysis', {
+                body: { analysisId: analysis.id }
+              });
+              
+              if (error) {
+                console.error('Error processing analysis:', error);
+              } else {
+                console.log('Analysis processed successfully:', data);
+              }
+            } catch (error) {
+              console.error('Error invoking process function:', error);
+            }
+          }
         }
       )
-      .subscribe((status) => {
-        console.log('Notification subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('Cleaning up notification subscriptions');
       supabase.removeChannel(notificationChannel);
+      supabase.removeChannel(analysisChannel);
     };
   };
 
@@ -155,7 +150,6 @@ export const NotificationBell = () => {
 
       if (error) throw error;
 
-      // Update local state optimistically
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId 
@@ -180,7 +174,6 @@ export const NotificationBell = () => {
 
       if (error) throw error;
 
-      // Update local state optimistically
       setNotifications(prev => 
         prev.map(notification => ({ ...notification, read: true }))
       );

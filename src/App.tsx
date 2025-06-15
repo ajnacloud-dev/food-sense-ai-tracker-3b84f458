@@ -8,7 +8,7 @@ import { UserTypeProvider } from "./contexts/UserTypeContext";
 import { RoleProvider } from "./contexts/RoleContext";
 import { CaretakerDataProvider } from "./contexts/CaretakerDataContext";
 import EnhancedPWAInstallPrompt from "./components/pwa/EnhancedPWAInstallPrompt";
-import EnhancedPWAUpdatePrompt from "./components/pwa/EnhancedPWAUpdatePrompt";
+import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
 import OfflineIndicator from "./components/pwa/OfflineIndicator";
 
 import SimplifiedIndex from "./pages/SimplifiedIndex";
@@ -53,7 +53,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <EnhancedPWAInstallPrompt />
-              <EnhancedPWAUpdatePrompt />
+              <PWAUpdatePrompt />
               <OfflineIndicator />
               <BrowserRouter>
                 <Routes>

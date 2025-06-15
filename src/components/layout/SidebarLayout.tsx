@@ -15,29 +15,16 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
-import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
 import { MainSidebar } from "./MainSidebar";
 import ModernCaretakerSidebar from "./ModernCaretakerSidebar";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { AnalysisStatusIndicator } from "@/components/dashboard/AnalysisStatusIndicator";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
 }
 
 const SidebarLayout = ({ children }: SidebarLayoutProps) => {
-  const { user } = useAuth();
   const { userType } = useUserType();
   const [open, setOpen] = useState(true);
-
-  // Get pending analyses for the current user
-  const { 
-    pendingAnalyses, 
-    refetch: refetchAnalyses,
-    loading: analysesLoading 
-  } = usePendingAnalyses(user?.id);
-
-  console.log('SidebarLayout - Pending analyses:', pendingAnalyses?.length || 0);
 
   return (
     <SidebarProvider open={open} onOpenChange={setOpen}>
@@ -50,22 +37,8 @@ const SidebarLayout = ({ children }: SidebarLayoutProps) => {
           )}
         </Sidebar>
         <SidebarInset className="flex-1">
-          <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-green-200/50 bg-white/80 backdrop-blur-sm px-4">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="text-green-700 hover:bg-green-50" />
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Analysis Status Indicator - Only show if there are analyses */}
-              {!analysesLoading && pendingAnalyses && pendingAnalyses.length > 0 && (
-                <AnalysisStatusIndicator 
-                  analyses={pendingAnalyses} 
-                  onRetry={refetchAnalyses}
-                />
-              )}
-              
-              {/* Notification Bell */}
-              <NotificationBell />
-            </div>
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b border-green-200/50 bg-white/80 backdrop-blur-sm px-4">
+            <SidebarTrigger className="text-green-700 hover:bg-green-50" />
           </header>
           <main className="flex-1 overflow-auto">
             {children}

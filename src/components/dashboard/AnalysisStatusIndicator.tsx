@@ -1,9 +1,9 @@
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, Eye } from 'lucide-react';
+import { Clock, RefreshCw, AlertCircle, CheckCircle2, Loader2, X, Eye } from 'lucide-react';
 import { PendingAnalysis, retryFailedAnalysis } from '@/utils/pendingAnalysisService';
-import { navigateToCategory } from '@/utils/navigationUtils';
 import { toast } from "sonner";
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
@@ -18,13 +18,9 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
-  console.log('AnalysisStatusIndicator - Received analyses:', analyses?.length || 0);
-
-  // Get only the latest analysis per status type with better filtering
+  // Get only the latest analysis per status type
   const getLatestAnalyses = () => {
-    if (!analyses || analyses.length === 0) return [];
-    
-    console.log('All analyses:', analyses.map(a => ({ id: a.id, status: a.status, created_at: a.created_at })));
+    if (!analyses.length) return [];
     
     // Sort by created_at descending to get most recent first
     const sortedAnalyses = [...analyses].sort((a, b) => 
@@ -52,8 +48,6 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
       return isActive || isRecentlyCompleted || isRecentlyFailed;
     });
 
-    console.log('Relevant analyses:', relevantStatuses.map(a => ({ id: a.id, status: a.status })));
-
     // If we have multiple, prioritize by importance: processing > failed > pending > completed
     if (relevantStatuses.length > 1) {
       const priorityOrder = { 'processing': 1, 'failed': 2, 'pending': 3, 'completed': 4 };
@@ -70,12 +64,7 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
   const relevantAnalyses = getLatestAnalyses();
 
   // Don't show indicator if no relevant analyses
-  if (relevantAnalyses.length === 0) {
-    console.log('No relevant analyses to show');
-    return null;
-  }
-
-  console.log('Showing indicator for analyses:', relevantAnalyses.map(a => ({ id: a.id, status: a.status })));
+  if (relevantAnalyses.length === 0) return null;
 
   const pendingCount = relevantAnalyses.filter(a => 
     (a.status === 'pending' && !a.completed_at) || a.status === 'processing'
@@ -102,8 +91,13 @@ export const AnalysisStatusIndicator = ({ analyses, onRetry }: AnalysisStatusInd
   };
 
   const handleViewResult = (analysis: PendingAnalysis) => {
-    console.log('Navigating to category:', analysis.category);
-    navigateToCategory(navigate, analysis.category || 'food');
+    if (analysis.category === 'food') {
+      navigate('/food');
+    } else if (analysis.category === 'receipt') {
+      navigate('/receipts');
+    } else if (analysis.category === 'workout') {
+      navigate('/workouts');
+    }
   };
 
   const getStatusIcon = (status: string) => {

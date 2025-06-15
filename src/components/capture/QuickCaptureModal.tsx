@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { FileUpload } from "./FileUpload";
 import { ProcessingIndicator } from "./ProcessingIndicator";
-import { VoiceRecorder } from "./VoiceRecorder";
 import { uploadFile } from "@/utils/analysisService";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
 import { useAuth } from "@/contexts/AuthContext";

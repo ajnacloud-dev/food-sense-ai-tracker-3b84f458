@@ -206,9 +206,8 @@ async function processOptimizedAnalysis(
       useSmartModelSelection: true
     };
 
-    // Updated to call the renamed function
     const { data: workflowResult, error: workflowError } = await userSupabase.functions
-      .invoke('test-langgraph-workflow', {
+      .invoke('langgraph-workflow', {
         body: {
           description,
           imageUrl,

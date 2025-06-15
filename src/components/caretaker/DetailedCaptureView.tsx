@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { ArrowLeft, Utensils, Receipt, Dumbbell, Calendar, Camera } from "lucide
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CommentsSection from "./CommentsSection";
-import { ImageModal } from "@/components/ui/image-modal";
 
 interface DetailedCaptureViewProps {
   participantId: string;
@@ -99,10 +99,10 @@ const DetailedCaptureView = ({ participantId, captureType, captureId, onBack }: 
                   <Camera className="h-4 w-4" />
                   Image
                 </h4>
-                <ImageModal
-                  src={captureData.image_url}
-                  alt="Food"
-                  className="w-full max-w-md"
+                <img 
+                  src={captureData.image_url} 
+                  alt="Food" 
+                  className="w-full max-w-md rounded-lg border"
                 />
               </div>
             )}
@@ -191,10 +191,10 @@ const DetailedCaptureView = ({ participantId, captureType, captureId, onBack }: 
                   <Camera className="h-4 w-4" />
                   Receipt Image
                 </h4>
-                <ImageModal
-                  src={captureData.image_url}
-                  alt="Receipt"
-                  className="w-full max-w-md"
+                <img 
+                  src={captureData.image_url} 
+                  alt="Receipt" 
+                  className="w-full max-w-md rounded-lg border"
                 />
               </div>
             )}

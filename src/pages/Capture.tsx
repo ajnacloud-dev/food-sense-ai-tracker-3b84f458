@@ -13,7 +13,6 @@ import { uploadFile } from "@/utils/analysisService";
 import { useUsageCheck } from "@/hooks/useUsageCheck";
 import { useAuth } from "@/contexts/AuthContext";
 import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
-import { VoiceRecorder } from "@/components/capture/VoiceRecorder";
 
 const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -31,16 +30,6 @@ const Capture = () => {
       navigate("/auth");
     }
   }, [user, navigate]);
-
-  const handleVoiceTranscription = (transcribedText: string) => {
-    if (transcribedText.trim()) {
-      // Append to existing description or replace if empty
-      const newDescription = description 
-        ? `${description} ${transcribedText}` 
-        : transcribedText;
-      setDescription(newDescription);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,7 +165,7 @@ const Capture = () => {
               Capture & Analyze
             </CardTitle>
             <CardDescription className="text-sm">
-              Upload an image or PDF, add a description, or use voice input. Advanced AI analysis will run in the background.
+              Upload an image or PDF, or describe what you want to track. Advanced AI analysis will run in the background.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -187,28 +176,17 @@ const Capture = () => {
               />
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="description" className="text-sm font-medium">
-                    Description (Optional)
-                  </label>
-                  <VoiceRecorder 
-                    onTranscription={handleVoiceTranscription}
-                    disabled={loading}
-                  />
-                </div>
+                <label htmlFor="description" className="text-sm font-medium">
+                  Description (Optional)
+                </label>
                 <Textarea
                   id="description"
-                  placeholder="Describe what you're capturing or use voice input..."
+                  placeholder="Describe what you're capturing..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   className="text-base"
                 />
-                {description && (
-                  <p className="text-xs text-gray-500">
-                    Adding a description helps the AI provide more accurate analysis
-                  </p>
-                )}
               </div>
 
               {error && (
