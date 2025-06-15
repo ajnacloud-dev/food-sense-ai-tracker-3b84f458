@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -15,6 +14,7 @@ import OfflineIndicator from "./components/pwa/OfflineIndicator";
 
 import SimplifiedIndex from "./pages/SimplifiedIndex";
 import SimplifiedAuth from "./pages/SimplifiedAuth";
+import Pricing from "./pages/Pricing";
 import Join from "./pages/Join";
 import Dashboard from "./pages/Dashboard";
 import Capture from "./pages/Capture";
@@ -69,6 +69,7 @@ const App: React.FC = () => (
                 <Routes>
                   <Route path="/" element={<SimplifiedIndex />} />
                   <Route path="/auth" element={<SimplifiedAuth />} />
+                  <Route path="/pricing" element={<Pricing />} />
                   <Route path="/join" element={<Join />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/capture" element={<Capture />} />
