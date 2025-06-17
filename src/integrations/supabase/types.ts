@@ -452,6 +452,60 @@ export type Database = {
           },
         ]
       }
+      models: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          input_cost_per_1k_tokens: number
+          is_active: boolean | null
+          is_default: boolean | null
+          max_tokens: number | null
+          model_id: string
+          name: string
+          output_cost_per_1k_tokens: number
+          provider: string
+          required_subscription_tier: string | null
+          supports_vision: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          input_cost_per_1k_tokens?: number
+          is_active?: boolean | null
+          is_default?: boolean | null
+          max_tokens?: number | null
+          model_id: string
+          name: string
+          output_cost_per_1k_tokens?: number
+          provider: string
+          required_subscription_tier?: string | null
+          supports_vision?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          input_cost_per_1k_tokens?: number
+          is_active?: boolean | null
+          is_default?: boolean | null
+          max_tokens?: number | null
+          model_id?: string
+          name?: string
+          output_cost_per_1k_tokens?: number
+          provider?: string
+          required_subscription_tier?: string | null
+          supports_vision?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       participant_comments: {
         Row: {
           author_type: string
@@ -1048,6 +1102,23 @@ export type Database = {
     Functions: {
       generate_invitation_code: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_available_models_for_user: {
+        Args: { user_subscription_tier?: string }
+        Returns: {
+          id: string
+          name: string
+          provider: string
+          model_id: string
+          description: string
+          category: string
+          supports_vision: boolean
+          is_default: boolean
+        }[]
+      }
+      get_default_model_for_user: {
+        Args: { user_subscription_tier?: string }
         Returns: string
       }
       has_category_permission: {
