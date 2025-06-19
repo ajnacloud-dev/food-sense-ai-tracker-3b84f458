@@ -61,7 +61,7 @@ const EnhancedCaretakerFoodView = () => {
   }, []);
 
   // Filter and sort logic
-  const { filteredEntries, mealTypeCounts, dietTypeCounts, totalStats } = useMemo(() => {
+  const { filteredEntries, mealTypeCounts, dietTypeCounts, totalStats, overallVegPercentage } = useMemo(() => {
     let filtered = [...foodEntries];
 
     // Search filter
@@ -157,7 +157,7 @@ const EnhancedCaretakerFoodView = () => {
       }
     });
 
-    // Calculate total stats
+    // Calculate total stats and vegetarian percentage
     const stats = foodEntries.reduce((acc, entry) => {
       acc.totalCalories += entry.calories || 0;
       acc.totalProtein += entry.total_protein || 0;
@@ -166,11 +166,19 @@ const EnhancedCaretakerFoodView = () => {
       return acc;
     }, { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0 });
 
+    // Calculate overall vegetarian percentage
+    const vegEntries = foodEntries.filter(entry => {
+      const vegData = calculateVegetarianPercentage(entry);
+      return vegData.isVegetarian;
+    });
+    const vegPercentage = foodEntries.length > 0 ? Math.round((vegEntries.length / foodEntries.length) * 100) : 0;
+
     return {
       filteredEntries: filtered,
       mealTypeCounts: mealCounts,
       dietTypeCounts: dietCounts,
-      totalStats: stats
+      totalStats: stats,
+      overallVegPercentage: vegPercentage
     };
   }, [foodEntries, searchValue, selectedMealType, selectedDietType, startDate, endDate, sortBy, getMealTypeFromEntry]);
 
@@ -201,6 +209,9 @@ const EnhancedCaretakerFoodView = () => {
     { value: 'calories-asc', label: 'Lowest Calories' },
     { value: 'meal-type', label: 'Meal Type' },
   ];
+
+  // Calculate average calories
+  const avgCalories = foodEntries.length > 0 ? Math.round(totalStats.totalCalories / foodEntries.length) : 0;
 
   if (contextLoading || permissionLoading) {
     return (
@@ -293,9 +304,10 @@ const EnhancedCaretakerFoodView = () => {
             <CompactStatsGrid 
               totalEntries={foodEntries.length}
               totalCalories={totalStats.totalCalories}
-              averageProtein={totalStats.totalProtein}
-              averageCarbs={totalStats.totalCarbs}
-              averageFat={totalStats.totalFat}
+              avgCalories={avgCalories}
+              overallVegPercentage={overallVegPercentage}
+              isFiltered={hasActiveFilters}
+              originalCount={foodEntries.length}
             />
 
             {/* Filter Bar */}
