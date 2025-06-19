@@ -29,15 +29,25 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetchingComments, setFetchingComments] = useState(false);
   const channelRef = useRef<any>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    fetchComments();
-    subscribeToComments();
+    isMountedRef.current = true;
+    
+    const initializeComments = async () => {
+      await fetchComments();
+      subscribeToComments();
+    };
+    
+    initializeComments();
     
     // Cleanup subscription on unmount or dependency change
     return () => {
+      isMountedRef.current = false;
       if (channelRef.current) {
+        console.log('CommentsSection: Cleaning up channel subscription');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
@@ -45,9 +55,12 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
   }, [participantId, contentType, contentId]);
 
   const fetchComments = async () => {
+    if (fetchingComments) return; // Prevent multiple simultaneous fetches
+    
     try {
+      setFetchingComments(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || !isMountedRef.current) return;
 
       let query = supabase
         .from('participant_comments')
@@ -66,26 +79,41 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
 
       if (error) throw error;
       
-      const typedComments = (data || []).map(comment => ({
-        ...comment,
-        author_type: comment.author_type as 'caretaker' | 'participant'
-      }));
-      
-      setComments(typedComments);
+      if (isMountedRef.current) {
+        const typedComments = (data || []).map(comment => ({
+          ...comment,
+          author_type: comment.author_type as 'caretaker' | 'participant'
+        }));
+        
+        setComments(typedComments);
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
-      toast.error('Failed to load comments');
+      if (isMountedRef.current) {
+        toast.error('Failed to load comments');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setFetchingComments(false);
+      }
     }
   };
 
   const subscribeToComments = () => {
     // Remove existing channel if it exists
     if (channelRef.current) {
+      console.log('CommentsSection: Removing existing channel');
       supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
     }
+
+    // Only create new subscription if component is still mounted
+    if (!isMountedRef.current) return;
 
     // Create new channel with unique name
     const channelName = `comments-${participantId}-${contentType}-${contentId || 'general'}-${Date.now()}`;
+    
+    console.log('CommentsSection: Creating new channel subscription:', channelName);
     
     channelRef.current = supabase
       .channel(channelName)
@@ -97,15 +125,20 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
           table: 'participant_comments',
           filter: `participant_id=eq.${participantId}`
         },
-        () => {
-          fetchComments();
+        (payload) => {
+          console.log('CommentsSection: Received realtime update:', payload);
+          if (isMountedRef.current) {
+            fetchComments();
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('CommentsSection: Subscription status:', status);
+      });
   };
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || loading) return;
 
     try {
       setLoading(true);

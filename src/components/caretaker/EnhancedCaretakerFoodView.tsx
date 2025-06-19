@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ const EnhancedCaretakerFoodView = () => {
   
   const { foodEntries, loading, refreshing, handleRefresh } = useFoodEntries({
     selectedParticipantId,
-    hasPermission,
+    hasPermission: useCallback((category: string) => hasPermission(category), [hasPermission]),
     permissionLoading
   });
 
@@ -53,12 +53,12 @@ const EnhancedCaretakerFoodView = () => {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
-  const getMealTypeFromEntry = (entry: FoodEntry) => {
+  const getMealTypeFromEntry = useCallback((entry: FoodEntry) => {
     return entry.extracted_nutrients?.meal_summary?.meal_type || 
            entry.extracted_nutrients?.meal_type || 
            entry.meal_type || 
            'unknown';
-  };
+  }, []);
 
   // Filter and sort logic
   const { filteredEntries, mealTypeCounts, dietTypeCounts, totalStats } = useMemo(() => {
@@ -172,24 +172,24 @@ const EnhancedCaretakerFoodView = () => {
       dietTypeCounts: dietCounts,
       totalStats: stats
     };
-  }, [foodEntries, searchValue, selectedMealType, selectedDietType, startDate, endDate, sortBy]);
+  }, [foodEntries, searchValue, selectedMealType, selectedDietType, startDate, endDate, sortBy, getMealTypeFromEntry]);
 
-  const handleViewEntry = (id: string) => {
+  const handleViewEntry = useCallback((id: string) => {
     navigate(`/caretaker/food/${id}`);
-  };
+  }, [navigate]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     navigate('/caretaker');
-  };
+  }, [navigate]);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setSearchValue('');
     setSelectedMealType('all');
     setSelectedDietType('all');
     setStartDate(undefined);
     setEndDate(undefined);
     setSortBy('created_at-desc');
-  };
+  }, []);
 
   const hasActiveFilters = selectedMealType !== 'all' || selectedDietType !== 'all' || 
                           startDate || endDate || searchValue.trim();
@@ -293,9 +293,9 @@ const EnhancedCaretakerFoodView = () => {
             <CompactStatsGrid 
               totalEntries={foodEntries.length}
               totalCalories={totalStats.totalCalories}
-              totalProtein={totalStats.totalProtein}
-              totalCarbs={totalStats.totalCarbs}
-              totalFat={totalStats.totalFat}
+              averageProtein={totalStats.totalProtein}
+              averageCarbs={totalStats.totalCarbs}
+              averageFat={totalStats.totalFat}
             />
 
             {/* Filter Bar */}

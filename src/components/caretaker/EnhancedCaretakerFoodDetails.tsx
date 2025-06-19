@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,6 @@ import { format } from "date-fns";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 import { EnhancedNutritionDisplay } from "@/components/food/EnhancedNutritionDisplay";
-import { HealthImpact } from "@/components/food/HealthImpact";
 import CommentsSection from "./CommentsSection";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 
@@ -31,6 +31,43 @@ interface FoodEntry {
   food_items: any[];
 }
 
+// Simple health score calculation based on nutritional balance
+const calculateHealthScore = (entry: FoodEntry): number => {
+  const calories = entry.calories || 0;
+  const protein = entry.total_protein || 0;
+  const carbs = entry.total_carbohydrates || 0;
+  const fats = entry.total_fats || 0;
+  const fiber = entry.total_fiber || 0;
+  const sodium = entry.total_sodium || 0;
+
+  let score = 50; // Base score
+
+  // Protein balance (aim for 15-30% of calories from protein)
+  const proteinCalories = protein * 4;
+  const proteinPercentage = calories > 0 ? (proteinCalories / calories) * 100 : 0;
+  if (proteinPercentage >= 15 && proteinPercentage <= 30) score += 15;
+  else if (proteinPercentage >= 10) score += 10;
+
+  // Fiber content (good if > 3g per 100 calories)
+  const fiberDensity = calories > 0 ? (fiber / calories) * 100 : 0;
+  if (fiberDensity > 3) score += 15;
+  else if (fiberDensity > 1.5) score += 10;
+
+  // Sodium content (penalize high sodium)
+  if (sodium > 2300) score -= 20;
+  else if (sodium > 1500) score -= 10;
+  else if (sodium < 500) score += 10;
+
+  // Balance of macronutrients
+  const totalMacroCalories = (protein * 4) + (carbs * 4) + (fats * 9);
+  if (totalMacroCalories > 0) {
+    const fatPercentage = (fats * 9 / totalMacroCalories) * 100;
+    if (fatPercentage >= 20 && fatPercentage <= 35) score += 10;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
 const EnhancedCaretakerFoodDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -43,6 +80,8 @@ const EnhancedCaretakerFoodDetails = () => {
   useEffect(() => {
     if (id && selectedParticipantId && hasPermission('food_entries')) {
       fetchFoodEntry();
+    } else {
+      setLoading(false);
     }
   }, [id, selectedParticipantId, hasPermission]);
 
@@ -137,6 +176,7 @@ const EnhancedCaretakerFoodDetails = () => {
 
   const mealType = getMealTypeFromEntry(entry);
   const vegData = calculateVegetarianPercentage(entry);
+  const healthScore = calculateHealthScore(entry);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
@@ -237,9 +277,32 @@ const EnhancedCaretakerFoodDetails = () => {
             />
 
             {/* Health Impact */}
-            <HealthImpact 
-              entry={entry}
-            />
+            <Card className="border-green-200/50 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-600 text-sm font-bold">H</span>
+                  </div>
+                  Health Impact
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Overall Health Score</h3>
+                      <p className="text-sm text-gray-600">Based on nutritional balance</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600">{healthScore}/100</div>
+                      <div className="text-xs text-gray-500">
+                        {healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Needs Improvement'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
@@ -266,23 +329,23 @@ const EnhancedCaretakerFoodDetails = () => {
                         <div className="font-medium text-gray-900 mb-1">
                           {item.name || `Item ${index + 1}`}
                         </div>
-                        {item.quantity && (
+                        {item.serving_size && (
                           <div className="text-sm text-gray-600 mb-2">
-                            Quantity: {item.quantity}
+                            Serving: {item.serving_size}
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="text-orange-600 font-medium">
-                            {Math.round((item.calories || 0) * (item.quantity || 1))} cal
+                            {Math.round(item.calories || 0)} cal
                           </div>
                           <div className="text-blue-600 font-medium">
-                            {Math.round((item.proteins || 0) * (item.quantity || 1))}g protein
+                            {Math.round(item.proteins || 0)}g protein
                           </div>
                           <div className="text-green-600 font-medium">
-                            {Math.round((item.carbohydrates || 0) * (item.quantity || 1))}g carbs
+                            {Math.round(item.carbohydrates || 0)}g carbs
                           </div>
                           <div className="text-purple-600 font-medium">
-                            {Math.round((item.fats || 0) * (item.quantity || 1))}g fat
+                            {Math.round(item.fats || 0)}g fat
                           </div>
                         </div>
                       </div>
