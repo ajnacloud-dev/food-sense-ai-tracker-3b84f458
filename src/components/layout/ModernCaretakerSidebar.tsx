@@ -7,16 +7,16 @@ import CaretakerSidebarFooter from "./CaretakerSidebarFooter";
 
 const ModernCaretakerSidebar = () => {
   return (
-    <>
+    <div className="h-full bg-gradient-to-b from-green-50 to-emerald-50">
       <CaretakerSidebarHeader />
       
-      <SidebarContent className="px-2 py-2 group-data-[collapsible=icon]:px-1">
+      <SidebarContent className="px-3 py-4 group-data-[collapsible=icon]:px-2">
         <CaretakerPatientSelector />
         <CaretakerNavigationMenu />
       </SidebarContent>
 
       <CaretakerSidebarFooter />
-    </>
+    </div>
   );
 };
 
