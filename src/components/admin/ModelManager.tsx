@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -440,7 +439,6 @@ const ModelManager = () => {
                       <Switch
                         checked={model.is_active}
                         onCheckedChange={(checked) => handleToggleActive(model.id, checked)}
-                        size="sm"
                       />
                       <span className="text-sm">
                         {model.is_active ? 'Active' : 'Inactive'}

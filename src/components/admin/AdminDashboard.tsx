@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import UserTable from "./UserTable";
+import AdminUserTable from "./AdminUserTable";
 import CostAnalytics from "./CostAnalytics";
 import PromptManager from "./PromptManager";
 import ModelManager from "./ModelManager";
@@ -36,7 +36,7 @@ const AdminDashboard = () => {
         </TabsList>
 
         <TabsContent value="users">
-          <UserTable />
+          <AdminUserTable />
         </TabsContent>
 
         <TabsContent value="costs">
