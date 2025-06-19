@@ -112,7 +112,7 @@ const EnhancedCaretakerFoodView = () => {
           case 'non-vegetarian':
             return !vegData.isVegetarian;
           case 'mixed':
-            return vegData.vegetarianPercentage > 0 && vegData.vegetarianPercentage < 100;
+            return vegData.percentage > 0 && vegData.percentage < 100;
           default:
             return true;
         }
@@ -150,7 +150,7 @@ const EnhancedCaretakerFoodView = () => {
         dietCounts.vegan = (dietCounts.vegan || 0) + 1;
       } else if (vegData.isVegetarian) {
         dietCounts.vegetarian = (dietCounts.vegetarian || 0) + 1;
-      } else if (vegData.vegetarianPercentage > 0 && vegData.vegetarianPercentage < 100) {
+      } else if (vegData.percentage > 0 && vegData.percentage < 100) {
         dietCounts.mixed = (dietCounts.mixed || 0) + 1;
       } else {
         dietCounts['non-vegetarian'] = (dietCounts['non-vegetarian'] || 0) + 1;
@@ -291,7 +291,7 @@ const EnhancedCaretakerFoodView = () => {
           <>
             {/* Stats Overview */}
             <CompactStatsGrid 
-              entries={foodEntries}
+              totalEntries={foodEntries.length}
               totalCalories={totalStats.totalCalories}
               totalProtein={totalStats.totalProtein}
               totalCarbs={totalStats.totalCarbs}

@@ -1,17 +1,43 @@
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Flame, Droplets, Wheat, Apple, TrendingUp, Leaf } from "lucide-react";
 
-interface EnhancedNutritionDisplayProps {
-  nutritionData: any;
+interface FoodEntry {
+  id: string;
+  description: string;
+  calories: number;
+  total_protein: number;
+  total_carbohydrates: number;
+  total_fats: number;
+  total_fiber: number;
+  total_sodium: number;
+  meal_type: string;
+  image_url: string;
+  created_at: string;
+  extracted_nutrients: any;
+  user_id: string;
+  food_items: any[];
 }
 
-export const EnhancedNutritionDisplay = ({ nutritionData }: EnhancedNutritionDisplayProps) => {
-  if (!nutritionData) return null;
+interface EnhancedNutritionDisplayProps {
+  entry: FoodEntry;
+  showDetailedBreakdown?: boolean;
+}
 
-  const nutrition = nutritionData.meal_summary?.total_nutrition;
-  if (!nutrition) return null;
+export const EnhancedNutritionDisplay = ({ entry, showDetailedBreakdown = false }: EnhancedNutritionDisplayProps) => {
+  if (!entry) return null;
+
+  // Use direct entry values or extracted nutrients
+  const nutrition = {
+    calories: entry.calories || entry.extracted_nutrients?.meal_summary?.total_nutrition?.calories || 0,
+    proteins: entry.total_protein || entry.extracted_nutrients?.meal_summary?.total_nutrition?.proteins || 0,
+    carbohydrates: entry.total_carbohydrates || entry.extracted_nutrients?.meal_summary?.total_nutrition?.carbohydrates || 0,
+    fats: entry.total_fats || entry.extracted_nutrients?.meal_summary?.total_nutrition?.fats || 0,
+    fiber: entry.total_fiber || entry.extracted_nutrients?.meal_summary?.total_nutrition?.fiber || 0,
+    sodium: entry.total_sodium || entry.extracted_nutrients?.meal_summary?.total_nutrition?.sodium || 0,
+  };
 
   // Daily value percentages (these are rough estimates for a 2000 calorie diet)
   const dailyValues = {
@@ -30,7 +56,7 @@ export const EnhancedNutritionDisplay = ({ nutritionData }: EnhancedNutritionDis
           {icon}
           <div className="flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold" style={{ color }}>{value || 0}</span>
+              <span className="text-2xl font-bold" style={{ color }}>{Math.round(value || 0)}</span>
               <span className="text-sm text-gray-600">{unit}</span>
             </div>
             <div className="text-sm text-gray-500">{label}</div>
@@ -52,7 +78,7 @@ export const EnhancedNutritionDisplay = ({ nutritionData }: EnhancedNutritionDis
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="border-green-200/50 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-blue-500" />
@@ -114,19 +140,19 @@ export const EnhancedNutritionDisplay = ({ nutritionData }: EnhancedNutritionDis
       </Card>
 
       {/* Individual Food Items */}
-      {nutritionData.food_items && Array.isArray(nutritionData.food_items) && (
-        <Card>
+      {showDetailedBreakdown && entry.food_items && Array.isArray(entry.food_items) && entry.food_items.length > 0 && (
+        <Card className="border-green-200/50 shadow-lg">
           <CardHeader>
-            <CardTitle>Individual Food Items ({nutritionData.food_items.length})</CardTitle>
+            <CardTitle>Individual Food Items ({entry.food_items.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
-              {nutritionData.food_items.map((item: any, index: number) => (
+              {entry.food_items.map((item: any, index: number) => (
                 <div key={index} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
                       <h4 className="font-semibold text-lg">{item.name}</h4>
-                      <p className="text-sm text-gray-600 mb-2">{item.serving_size}</p>
+                      <p className="text-sm text-gray-600 mb-2">{item.serving_size || item.quantity}</p>
                       <div className="flex gap-2 flex-wrap">
                         {item.flags?.vegetarian && (
                           <Badge className="bg-green-100 text-green-700 text-xs">
@@ -149,23 +175,21 @@ export const EnhancedNutritionDisplay = ({ nutritionData }: EnhancedNutritionDis
                     </div>
                   </div>
                   
-                  {item.nutrition_values && (
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                      {[
-                        { label: 'Cal', value: item.nutrition_values.calories, color: 'text-orange-600' },
-                        { label: 'Protein', value: `${item.nutrition_values.proteins}g`, color: 'text-blue-600' },
-                        { label: 'Carbs', value: `${item.nutrition_values.carbohydrates}g`, color: 'text-yellow-600' },
-                        { label: 'Fat', value: `${item.nutrition_values.fats}g`, color: 'text-purple-600' },
-                        { label: 'Fiber', value: `${item.nutrition_values.fiber}g`, color: 'text-green-600' },
-                        { label: 'Sodium', value: `${item.nutrition_values.sodium}mg`, color: 'text-red-600' },
-                      ].map((nutrient, idx) => (
-                        <div key={idx} className="text-center p-2 bg-white rounded border">
-                          <div className={`font-bold ${nutrient.color}`}>{nutrient.value || 0}</div>
-                          <div className="text-xs text-gray-500">{nutrient.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                    {[
+                      { label: 'Cal', value: Math.round((item.calories || 0) * (item.quantity || 1)), color: 'text-orange-600' },
+                      { label: 'Protein', value: `${Math.round((item.proteins || 0) * (item.quantity || 1))}g`, color: 'text-blue-600' },
+                      { label: 'Carbs', value: `${Math.round((item.carbohydrates || 0) * (item.quantity || 1))}g`, color: 'text-yellow-600' },
+                      { label: 'Fat', value: `${Math.round((item.fats || 0) * (item.quantity || 1))}g`, color: 'text-purple-600' },
+                      { label: 'Fiber', value: `${Math.round((item.fiber || 0) * (item.quantity || 1))}g`, color: 'text-green-600' },
+                      { label: 'Sodium', value: `${Math.round((item.sodium || 0) * (item.quantity || 1))}mg`, color: 'text-red-600' },
+                    ].map((nutrient, idx) => (
+                      <div key={idx} className="text-center p-2 bg-white rounded border">
+                        <div className={`font-bold ${nutrient.color}`}>{nutrient.value || 0}</div>
+                        <div className="text-xs text-gray-500">{nutrient.label}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

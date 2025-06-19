@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,10 +29,19 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     fetchComments();
     subscribeToComments();
+    
+    // Cleanup subscription on unmount or dependency change
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
   }, [participantId, contentType, contentId]);
 
   const fetchComments = async () => {
@@ -57,7 +66,6 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
 
       if (error) throw error;
       
-      // Type assertion to ensure author_type is properly typed
       const typedComments = (data || []).map(comment => ({
         ...comment,
         author_type: comment.author_type as 'caretaker' | 'participant'
@@ -71,8 +79,16 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
   };
 
   const subscribeToComments = () => {
-    const channel = supabase
-      .channel('comments')
+    // Remove existing channel if it exists
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+
+    // Create new channel with unique name
+    const channelName = `comments-${participantId}-${contentType}-${contentId || 'general'}-${Date.now()}`;
+    
+    channelRef.current = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -86,10 +102,6 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
         }
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   };
 
   const handleSubmitComment = async () => {

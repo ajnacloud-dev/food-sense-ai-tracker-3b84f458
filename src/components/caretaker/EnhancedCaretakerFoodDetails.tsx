@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -239,12 +238,7 @@ const EnhancedCaretakerFoodDetails = () => {
 
             {/* Health Impact */}
             <HealthImpact 
-              calories={entry.calories || 0}
-              protein={entry.total_protein || 0}
-              carbs={entry.total_carbohydrates || 0}
-              fat={entry.total_fats || 0}
-              fiber={entry.total_fiber || 0}
-              sodium={entry.total_sodium || 0}
+              entry={entry}
             />
           </div>
 
