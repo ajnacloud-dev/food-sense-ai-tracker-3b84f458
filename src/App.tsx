@@ -1,111 +1,87 @@
-import React from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { UserTypeProvider } from "./contexts/UserTypeContext";
-import { RoleProvider } from "./contexts/RoleContext";
-import { CaretakerDataProvider } from "./contexts/CaretakerDataContext";
-import EnhancedPWAInstallPrompt from "./components/pwa/EnhancedPWAInstallPrompt";
-import PWAUpdatePrompt from "./components/pwa/PWAUpdatePrompt";
-import OfflineIndicator from "./components/pwa/OfflineIndicator";
-
-import SimplifiedIndex from "./pages/SimplifiedIndex";
-import SimplifiedAuth from "./pages/SimplifiedAuth";
-import Pricing from "./pages/Pricing";
-import Join from "./pages/Join";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { UserTypeProvider } from "@/contexts/UserTypeContext";
+import { RoleProvider } from "@/contexts/RoleContext";
+import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import PWAUpdateManager from "@/components/pwa/PWAUpdateManager";
+import { PWAUpdatePrompt } from "@/components/pwa/PWAUpdatePrompt";
+import NotificationPanel from "@/components/notifications/NotificationPanel";
+import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import Dashboard from "./pages/Dashboard";
-import Capture from "./pages/Capture";
-import Food from "./pages/Food";
-import FoodDetails from "./pages/FoodDetails";
-import Receipts from "./pages/Receipts";
-import ReceiptDetails from "./pages/ReceiptDetails";
-import Workouts from "./pages/Workouts";
-import WorkoutDetails from "./pages/WorkoutDetails";
-import Insights from "./pages/Insights";
-import Billing from "./pages/Billing";
-import Admin from "./pages/Admin";
-import AdminTestWorkflow from "./pages/AdminTestWorkflow";
-import SimplifiedCaretaker from "./pages/SimplifiedCaretaker";
+import Auth from "./pages/Auth";
+import CaretakerDashboard from "./pages/CaretakerDashboard";
 import CaretakerFood from "./pages/CaretakerFood";
 import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
 import CaretakerReceipts from "./pages/CaretakerReceipts";
 import CaretakerReceiptDetails from "./pages/CaretakerReceiptDetails";
-import CaretakerWorkouts from "./pages/CaretakerWorkouts";
-import CaretakerWorkoutDetails from "./pages/CaretakerWorkoutDetails";
-import CaretakerInsights from "./pages/CaretakerInsights";
-import InviteCaretakers from "./pages/InviteCaretakers";
-import Participant from "./pages/Participant";
-import ParticipantPermissions from "./pages/ParticipantPermissions";
-import ParticipantInvitations from "./pages/ParticipantInvitations";
-import Privacy from "./pages/Privacy";
-import NotFound from "./pages/NotFound";
+import CaretakerPermissions from "./pages/CaretakerPermissions";
+import Settings from "./pages/Settings";
+import Food from "./pages/Food";
+import FoodDetails from "./pages/FoodDetails";
+import Workout from "./pages/Workout";
+import WorkoutDetails from "./pages/WorkoutDetails";
+import Receipts from "./pages/Receipts";
+import ReceiptDetails from "./pages/ReceiptDetails";
+import PermissionRequests from "./pages/PermissionRequests";
+import PublicRoute from "./components/routes/PublicRoute";
+import PrivateRoute from "./components/routes/PrivateRoute";
+import RoleBasedRoute from "./components/routes/RoleBasedRoute";
 
-// Create QueryClient with proper configuration
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
-const App: React.FC = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <UserTypeProvider>
-        <RoleProvider>
-          <CaretakerDataProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <EnhancedPWAInstallPrompt />
-              <PWAUpdatePrompt />
-              <OfflineIndicator />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<SimplifiedIndex />} />
-                  <Route path="/auth" element={<SimplifiedAuth />} />
-                  <Route path="/pricing" element={<Pricing />} />
-                  <Route path="/join" element={<Join />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/capture" element={<Capture />} />
-                  <Route path="/food" element={<Food />} />
-                  <Route path="/food/:id" element={<FoodDetails />} />
-                  <Route path="/receipts" element={<Receipts />} />
-                  <Route path="/receipts/:id" element={<ReceiptDetails />} />
-                  <Route path="/workouts" element={<Workouts />} />
-                  <Route path="/workouts/:id" element={<WorkoutDetails />} />
-                  <Route path="/insights" element={<Insights />} />
-                  <Route path="/billing" element={<Billing />} />
-                  <Route path="/admin" element={<Admin />} />
-                  <Route path="/admin/test-workflow" element={<AdminTestWorkflow />} />
-                  <Route path="/caretaker" element={<SimplifiedCaretaker />} />
-                  <Route path="/caretaker/food" element={<CaretakerFood />} />
-                  <Route path="/caretaker/food/:id" element={<CaretakerFoodDetails />} />
-                  <Route path="/caretaker/receipts" element={<CaretakerReceipts />} />
-                  <Route path="/caretaker/receipts/:id" element={<CaretakerReceiptDetails />} />
-                  <Route path="/caretaker/workouts" element={<CaretakerWorkouts />} />
-                  <Route path="/caretaker/workouts/:id" element={<CaretakerWorkoutDetails />} />
-                  <Route path="/caretaker/insights" element={<CaretakerInsights />} />
-                  <Route path="/invite-caretakers" element={<InviteCaretakers />} />
-                  <Route path="/participant" element={<Participant />} />
-                  <Route path="/participant/permissions" element={<ParticipantPermissions />} />
-                  <Route path="/participant/invitations" element={<ParticipantInvitations />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
-          </CaretakerDataProvider>
-        </RoleProvider>
-      </UserTypeProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <UserTypeProvider>
+          <RoleProvider>
+            <CaretakerDataProvider>
+              <NotificationProvider>
+                <Router>
+                  <div className="min-h-screen bg-background">
+                    <PWAUpdateManager />
+                    <PWAUpdatePrompt />
+                    
+                    {/* Notification Panel - positioned globally */}
+                    <div className="fixed top-4 right-4 z-50">
+                      <NotificationPanel />
+                    </div>
+                    
+                    <Routes>
+                      <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+                      <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                      <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                      <Route path="/food" element={<PrivateRoute><Food /></PrivateRoute>} />
+                      <Route path="/food/:id" element={<PrivateRoute><FoodDetails /></PrivateRoute>} />
+                      <Route path="/workout" element={<PrivateRoute><Workout /></PrivateRoute>} />
+                      <Route path="/workout/:id" element={<PrivateRoute><WorkoutDetails /></PrivateRoute>} />
+                      <Route path="/receipts" element={<PrivateRoute><Receipts /></PrivateRoute>} />
+                      <Route path="/receipts/:id" element={<PrivateRoute><ReceiptDetails /></PrivateRoute>} />
+                      <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+                      <Route path="/permission-requests" element={<PrivateRoute><PermissionRequests /></PrivateRoute>} />
+
+                      {/* Caretaker Routes */}
+                      <Route path="/caretaker" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerDashboard /></RoleBasedRoute>} />
+                      <Route path="/caretaker/food" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerFood /></RoleBasedRoute>} />
+                      <Route path="/caretaker/food/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerFoodDetails /></RoleBasedRoute>} />
+                      <Route path="/caretaker/receipts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceipts /></RoleBasedRoute>} />
+                      <Route path="/caretaker/receipts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceiptDetails /></RoleBasedRoute>} />
+                      <Route path="/caretaker/permissions" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerPermissions /></RoleBasedRoute>} />
+                    </Routes>
+                  </div>
+                  <Toaster />
+                  <ShadcnToaster />
+                </Router>
+              </NotificationProvider>
+            </CaretakerDataProvider>
+          </RoleProvider>
+        </UserTypeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

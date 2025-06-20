@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,7 +72,7 @@ const calculateHealthScore = (entry: FoodEntry): number => {
 const EnhancedCaretakerFoodDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selectedParticipantId, participantData } = useCaretakerData();
+  const { selectedParticipantId, participantData, loading: contextLoading } = useCaretakerData();
   const { hasPermission } = usePermissionStatus(selectedParticipantId);
   
   const [entry, setEntry] = useState<FoodEntry | null>(null);
@@ -83,13 +84,13 @@ const EnhancedCaretakerFoodDetails = () => {
     return hasPermission('food_entries');
   }, [hasPermission]);
 
-  // Don't show error immediately - wait for proper loading
-  const shouldShowContent = selectedParticipantId && hasFoodPermission && !loading;
-  const shouldShowError = !loading && (!selectedParticipantId || !hasFoodPermission || (!entry && !loading));
+  // Wait for context to fully load before making any decisions
+  const isContextReady = !contextLoading && selectedParticipantId && participantData;
+  const shouldFetchData = isContextReady && hasFoodPermission && id;
 
   useEffect(() => {
     const fetchFoodEntry = async () => {
-      if (!id || !selectedParticipantId || !hasFoodPermission) {
+      if (!shouldFetchData) {
         setLoading(false);
         return;
       }
@@ -128,7 +129,7 @@ const EnhancedCaretakerFoodDetails = () => {
     };
 
     fetchFoodEntry();
-  }, [id, selectedParticipantId, hasFoodPermission]);
+  }, [shouldFetchData, id, selectedParticipantId]);
 
   const handleBack = () => {
     navigate('/caretaker/food');
@@ -136,6 +137,9 @@ const EnhancedCaretakerFoodDetails = () => {
 
   // Get error message based on the specific issue
   const getErrorMessage = () => {
+    if (contextLoading) {
+      return null; // Don't show error while context is loading
+    }
     if (!selectedParticipantId || !participantData) {
       return 'No patient selected. Please select a patient from the sidebar.';
     }
@@ -145,6 +149,11 @@ const EnhancedCaretakerFoodDetails = () => {
     return error || 'Food entry not found.';
   };
 
+  // Determine what to show
+  const shouldShowContent = isContextReady && hasFoodPermission && !loading && entry;
+  const shouldShowError = !contextLoading && !loading && (!isContextReady || !hasFoodPermission || (!entry && shouldFetchData));
+  const shouldShowLoading = contextLoading || (isContextReady && loading);
+
   return (
     <DetailPageLayout
       title="Food Entry Details"
@@ -152,7 +161,7 @@ const EnhancedCaretakerFoodDetails = () => {
       icon={Utensils}
       onBack={handleBack}
       backLabel="Back to Food List"
-      isLoading={loading}
+      isLoading={shouldShowLoading}
       error={shouldShowError ? getErrorMessage() : null}
       loadingMessage="Loading food details..."
     >
