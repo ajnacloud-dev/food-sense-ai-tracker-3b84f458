@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -199,8 +198,12 @@ const EnhancedCaretakerFoodView = () => {
     setSortBy('created_at-desc');
   }, []);
 
-  const hasActiveFilters = selectedMealType !== 'all' || selectedDietType !== 'all' || 
-                          startDate || endDate || searchValue.trim();
+  // Fix the boolean conversion for hasActiveFilters
+  const hasActiveFilters = selectedMealType !== 'all' || 
+                          selectedDietType !== 'all' || 
+                          Boolean(startDate) || 
+                          Boolean(endDate) || 
+                          Boolean(searchValue.trim());
 
   const sortOptions = [
     { value: 'created_at-desc', label: 'Newest First' },
