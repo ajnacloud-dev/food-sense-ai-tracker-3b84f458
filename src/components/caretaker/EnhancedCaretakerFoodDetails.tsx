@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { usePermissionStatus } from "@/hooks/usePermissionStatus";
 import { EnhancedNutritionDisplay } from "@/components/food/EnhancedNutritionDisplay";
 import CommentsSection from "./CommentsSection";
+import DetailPageLayout from "./DetailPageLayout";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 
 interface FoodEntry {
@@ -76,11 +76,16 @@ const EnhancedCaretakerFoodDetails = () => {
   
   const [entry, setEntry] = useState<FoodEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Memoize permission check to prevent infinite loops
   const hasFoodPermission = useMemo(() => {
     return hasPermission('food_entries');
   }, [hasPermission]);
+
+  // Don't show error immediately - wait for proper loading
+  const shouldShowContent = selectedParticipantId && hasFoodPermission && !loading;
+  const shouldShowError = !loading && (!selectedParticipantId || !hasFoodPermission || (!entry && !loading));
 
   useEffect(() => {
     const fetchFoodEntry = async () => {
@@ -91,6 +96,7 @@ const EnhancedCaretakerFoodDetails = () => {
 
       try {
         setLoading(true);
+        setError(null);
         console.log('Fetching food entry:', id, 'for participant:', selectedParticipantId);
         
         const { data, error } = await supabase
@@ -105,8 +111,7 @@ const EnhancedCaretakerFoodDetails = () => {
 
         if (error) {
           if (error.code === 'PGRST116') {
-            toast.error('Food entry not found');
-            navigate('/caretaker/food');
+            setError('Food entry not found or you don\'t have permission to view it.');
             return;
           }
           throw error;
@@ -116,113 +121,53 @@ const EnhancedCaretakerFoodDetails = () => {
         setEntry(data);
       } catch (error) {
         console.error('Error fetching food entry:', error);
-        toast.error('Failed to load food entry');
-        navigate('/caretaker/food');
+        setError('Failed to load food entry details.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchFoodEntry();
-  }, [id, selectedParticipantId, hasFoodPermission, navigate]);
-
-  const getMealTypeFromEntry = (entry: FoodEntry) => {
-    return entry.extracted_nutrients?.meal_summary?.meal_type || 
-           entry.extracted_nutrients?.meal_type || 
-           entry.meal_type || 
-           'unknown';
-  };
-
-  const getMealTypeColor = (mealType: string) => {
-    switch (mealType.toLowerCase()) {
-      case 'breakfast': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'lunch': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'dinner': return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'snack': return 'bg-green-100 text-green-700 border-green-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
-    }
-  };
+  }, [id, selectedParticipantId, hasFoodPermission]);
 
   const handleBack = () => {
     navigate('/caretaker/food');
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
-        <Card className="max-w-md bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Loading food details...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!entry || !selectedParticipantId || !hasFoodPermission) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
-        <Card className="max-w-md bg-white/80 backdrop-blur-sm border-0 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Utensils className="h-8 w-8 text-red-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Entry Not Found</h3>
-            <p className="text-gray-600 mb-6">This food entry doesn't exist or you don't have permission to view it.</p>
-            <Button onClick={handleBack} className="bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-700 hover:to-emerald-800">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Food List
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const mealType = getMealTypeFromEntry(entry);
-  const vegData = calculateVegetarianPercentage(entry);
-  const healthScore = calculateHealthScore(entry);
+  // Get error message based on the specific issue
+  const getErrorMessage = () => {
+    if (!selectedParticipantId || !participantData) {
+      return 'No patient selected. Please select a patient from the sidebar.';
+    }
+    if (!hasFoodPermission) {
+      return 'You don\'t have permission to view this patient\'s food entries.';
+    }
+    return error || 'Food entry not found.';
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <Card className="bg-gradient-to-r from-green-600 to-emerald-700 text-white border-0 shadow-xl">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <Utensils className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold mb-2">Food Entry Details</h1>
-                  <p className="text-green-100 text-lg">Patient: {participantData?.full_name}</p>
-                </div>
-              </div>
-              <Button 
-                onClick={handleBack}
-                variant="secondary"
-                className="bg-white/20 backdrop-blur-sm border-white/30 text-white hover:bg-white/30"
-              >
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                Back to List
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
+    <DetailPageLayout
+      title="Food Entry Details"
+      subtitle={participantData ? `Patient: ${participantData.full_name}` : undefined}
+      icon={Utensils}
+      onBack={handleBack}
+      backLabel="Back to Food List"
+      isLoading={loading}
+      error={shouldShowError ? getErrorMessage() : null}
+      loadingMessage="Loading food details..."
+    >
+      {shouldShowContent && entry && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Food Image and Basic Info */}
-            <Card className="border-green-200/50 shadow-lg">
+            <Card className="bg-white shadow-lg">
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Image */}
                   <div className="space-y-4">
                     {entry.image_url ? (
-                      <div className="aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 shadow-inner">
+                      <div className="aspect-square w-full overflow-hidden rounded-xl bg-gray-100">
                         <img 
                           src={entry.image_url} 
                           alt="Food" 
@@ -230,8 +175,8 @@ const EnhancedCaretakerFoodDetails = () => {
                         />
                       </div>
                     ) : (
-                      <div className="aspect-square w-full bg-gradient-to-br from-green-50 to-green-100 rounded-2xl flex items-center justify-center shadow-inner">
-                        <Utensils className="h-16 w-16 text-green-400" />
+                      <div className="aspect-square w-full bg-gray-100 rounded-xl flex items-center justify-center">
+                        <Utensils className="h-16 w-16 text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -244,13 +189,16 @@ const EnhancedCaretakerFoodDetails = () => {
                       </h2>
                       
                       <div className="flex flex-wrap gap-2 mb-4">
-                        <Badge className={`${getMealTypeColor(mealType)} font-medium`}>
-                          {mealType}
+                        <Badge variant="secondary" className="font-medium">
+                          {entry.extracted_nutrients?.meal_summary?.meal_type || 
+                           entry.extracted_nutrients?.meal_type || 
+                           entry.meal_type || 
+                           'unknown'}
                         </Badge>
-                        {vegData.isVegetarian && (
-                          <Badge className="bg-green-100 text-green-700 border-green-200 font-medium">
+                        {calculateVegetarianPercentage(entry).isVegetarian && (
+                          <Badge variant="outline" className="text-green-700 border-green-200 font-medium">
                             <Leaf className="w-3 h-3 mr-1" />
-                            {vegData.isVegan ? 'Vegan' : 'Vegetarian'}
+                            {calculateVegetarianPercentage(entry).isVegan ? 'Vegan' : 'Vegetarian'}
                           </Badge>
                         )}
                       </div>
@@ -263,7 +211,7 @@ const EnhancedCaretakerFoodDetails = () => {
                           </span>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-green-600">
+                        <div className="flex items-center gap-2 text-blue-600">
                           <Zap className="h-4 w-4" />
                           <span className="font-semibold">
                             {Math.round(entry.calories || 0)} calories
@@ -283,7 +231,7 @@ const EnhancedCaretakerFoodDetails = () => {
             />
 
             {/* Health Impact */}
-            <Card className="border-green-200/50 shadow-lg">
+            <Card className="bg-white shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -294,15 +242,17 @@ const EnhancedCaretakerFoodDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <h3 className="font-semibold text-gray-900">Overall Health Score</h3>
                       <p className="text-sm text-gray-600">Based on nutritional balance</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-600">{healthScore}/100</div>
+                      <div className="text-2xl font-bold text-blue-600">{calculateHealthScore(entry)}/100</div>
                       <div className="text-xs text-gray-500">
-                        {healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Needs Improvement'}
+                        {calculateHealthScore(entry) >= 80 ? 'Excellent' : 
+                         calculateHealthScore(entry) >= 60 ? 'Good' : 
+                         calculateHealthScore(entry) >= 40 ? 'Fair' : 'Needs Improvement'}
                       </div>
                     </div>
                   </div>
@@ -323,7 +273,7 @@ const EnhancedCaretakerFoodDetails = () => {
 
             {/* Food Items Details */}
             {entry.food_items && entry.food_items.length > 0 && (
-              <Card className="border-green-200/50 shadow-lg">
+              <Card className="bg-white shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-lg">Food Items</CardTitle>
                   <CardDescription>Individual items in this meal</CardDescription>
@@ -362,8 +312,8 @@ const EnhancedCaretakerFoodDetails = () => {
             )}
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </DetailPageLayout>
   );
 };
 
