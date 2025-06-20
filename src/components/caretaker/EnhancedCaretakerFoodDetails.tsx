@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,48 +77,54 @@ const EnhancedCaretakerFoodDetails = () => {
   const [entry, setEntry] = useState<FoodEntry | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Memoize permission check to prevent infinite loops
+  const hasFoodPermission = useMemo(() => {
+    return hasPermission('food_entries');
+  }, [hasPermission]);
+
   useEffect(() => {
-    if (id && selectedParticipantId && hasPermission('food_entries')) {
-      fetchFoodEntry();
-    } else {
-      setLoading(false);
-    }
-  }, [id, selectedParticipantId, hasPermission]);
-
-  const fetchFoodEntry = async () => {
-    if (!id || !selectedParticipantId) return;
-
-    try {
-      setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('food_entries')
-        .select(`
-          *,
-          food_items (*)
-        `)
-        .eq('id', id)
-        .eq('user_id', selectedParticipantId)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          toast.error('Food entry not found');
-          navigate('/caretaker/food');
-          return;
-        }
-        throw error;
+    const fetchFoodEntry = async () => {
+      if (!id || !selectedParticipantId || !hasFoodPermission) {
+        setLoading(false);
+        return;
       }
 
-      setEntry(data);
-    } catch (error) {
-      console.error('Error fetching food entry:', error);
-      toast.error('Failed to load food entry');
-      navigate('/caretaker/food');
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        setLoading(true);
+        console.log('Fetching food entry:', id, 'for participant:', selectedParticipantId);
+        
+        const { data, error } = await supabase
+          .from('food_entries')
+          .select(`
+            *,
+            food_items (*)
+          `)
+          .eq('id', id)
+          .eq('user_id', selectedParticipantId)
+          .single();
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            toast.error('Food entry not found');
+            navigate('/caretaker/food');
+            return;
+          }
+          throw error;
+        }
+
+        console.log('Successfully fetched food entry:', data);
+        setEntry(data);
+      } catch (error) {
+        console.error('Error fetching food entry:', error);
+        toast.error('Failed to load food entry');
+        navigate('/caretaker/food');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFoodEntry();
+  }, [id, selectedParticipantId, hasFoodPermission, navigate]);
 
   const getMealTypeFromEntry = (entry: FoodEntry) => {
     return entry.extracted_nutrients?.meal_summary?.meal_type || 
@@ -154,7 +160,7 @@ const EnhancedCaretakerFoodDetails = () => {
     );
   }
 
-  if (!entry || !selectedParticipantId || !hasPermission('food_entries')) {
+  if (!entry || !selectedParticipantId || !hasFoodPermission) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
         <Card className="max-w-md bg-white/80 backdrop-blur-sm border-0 shadow-xl">
