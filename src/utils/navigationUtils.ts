@@ -12,7 +12,18 @@ export const navigateToCategory = (navigate: NavigateFunction, category: string,
     case 'workout':
       navigate(entryId ? `/workouts/${entryId}` : '/workouts');
       break;
+    case 'capture':
+      navigate('/capture');
+      break;
     default:
       navigate('/dashboard');
   }
+};
+
+export const navigateToCapture = (navigate: NavigateFunction) => {
+  navigate('/capture');
+};
+
+export const navigateToPricing = (navigate: NavigateFunction) => {
+  navigate('/pricing');
 };

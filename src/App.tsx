@@ -29,6 +29,8 @@ import WorkoutDetails from "./pages/WorkoutDetails";
 import Receipts from "./pages/Receipts";
 import ReceiptDetails from "./pages/ReceiptDetails";
 import ParticipantPermissions from "./pages/ParticipantPermissions";
+import Pricing from "./pages/Pricing";
+import Capture from "./pages/Capture";
 import PublicRoute from "./components/routes/PublicRoute";
 import PrivateRoute from "./components/routes/PrivateRoute";
 import RoleBasedRoute from "./components/routes/RoleBasedRoute";
@@ -56,7 +58,9 @@ function App() {
                     <Routes>
                       <Route path="/" element={<PublicRoute><SimplifiedIndex /></PublicRoute>} />
                       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+                      <Route path="/pricing" element={<Pricing />} />
                       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                      <Route path="/capture" element={<PrivateRoute><Capture /></PrivateRoute>} />
                       <Route path="/food" element={<PrivateRoute><Food /></PrivateRoute>} />
                       <Route path="/food/:id" element={<PrivateRoute><FoodDetails /></PrivateRoute>} />
                       <Route path="/workout" element={<PrivateRoute><Workouts /></PrivateRoute>} />
