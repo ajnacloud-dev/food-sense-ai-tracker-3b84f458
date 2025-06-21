@@ -8,6 +8,9 @@ interface ParticipantData {
   id: string;
   full_name: string;
   email: string;
+  caretaker_type: string;
+  status: string;
+  health_score: number;
 }
 
 interface CaretakerDataContextType {
@@ -53,6 +56,8 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
         .from('care_relationships')
         .select(`
           user_id,
+          caretaker_type,
+          status,
           users!care_relationships_user_id_fkey (
             id,
             full_name,
@@ -60,7 +65,7 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
           )
         `)
         .eq('caretaker_id', user.id)
-        .eq('status', 'approved');
+        .eq('status', 'active');
 
       if (relationshipError) {
         console.error('Error fetching relationships:', relationshipError);
@@ -70,7 +75,10 @@ export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({
       const participantList: ParticipantData[] = relationships?.map(rel => ({
         id: rel.users.id,
         full_name: rel.users.full_name || 'Unknown',
-        email: rel.users.email
+        email: rel.users.email,
+        caretaker_type: rel.caretaker_type || 'family_member',
+        status: rel.status || 'active',
+        health_score: 85 // Default health score
       })) || [];
 
       console.log('Fetched participants:', participantList);

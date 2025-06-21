@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -7,25 +8,24 @@ import { RoleProvider } from "@/contexts/RoleContext";
 import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import PWAUpdateManager from "@/components/pwa/PWAUpdateManager";
-import { PWAUpdatePrompt } from "@/components/pwa/PWAUpdatePrompt";
+import PWAUpdatePrompt from "@/components/pwa/PWAUpdatePrompt";
 import NotificationPanel from "@/components/notifications/NotificationPanel";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
-import CaretakerDashboard from "./pages/CaretakerDashboard";
+import SimplifiedCaretaker from "./pages/SimplifiedCaretaker";
 import CaretakerFood from "./pages/CaretakerFood";
 import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
 import CaretakerReceipts from "./pages/CaretakerReceipts";
 import CaretakerReceiptDetails from "./pages/CaretakerReceiptDetails";
-import CaretakerPermissions from "./pages/CaretakerPermissions";
-import Settings from "./pages/Settings";
+import CaretakerWorkouts from "./pages/CaretakerWorkouts";
 import Food from "./pages/Food";
 import FoodDetails from "./pages/FoodDetails";
-import Workout from "./pages/Workout";
+import Workouts from "./pages/Workouts";
 import WorkoutDetails from "./pages/WorkoutDetails";
 import Receipts from "./pages/Receipts";
 import ReceiptDetails from "./pages/ReceiptDetails";
-import PermissionRequests from "./pages/PermissionRequests";
+import ParticipantPermissions from "./pages/ParticipantPermissions";
 import PublicRoute from "./components/routes/PublicRoute";
 import PrivateRoute from "./components/routes/PrivateRoute";
 import RoleBasedRoute from "./components/routes/RoleBasedRoute";
@@ -56,20 +56,19 @@ function App() {
                       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                       <Route path="/food" element={<PrivateRoute><Food /></PrivateRoute>} />
                       <Route path="/food/:id" element={<PrivateRoute><FoodDetails /></PrivateRoute>} />
-                      <Route path="/workout" element={<PrivateRoute><Workout /></PrivateRoute>} />
+                      <Route path="/workout" element={<PrivateRoute><Workouts /></PrivateRoute>} />
                       <Route path="/workout/:id" element={<PrivateRoute><WorkoutDetails /></PrivateRoute>} />
                       <Route path="/receipts" element={<PrivateRoute><Receipts /></PrivateRoute>} />
                       <Route path="/receipts/:id" element={<PrivateRoute><ReceiptDetails /></PrivateRoute>} />
-                      <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-                      <Route path="/permission-requests" element={<PrivateRoute><PermissionRequests /></PrivateRoute>} />
+                      <Route path="/permissions" element={<PrivateRoute><ParticipantPermissions /></PrivateRoute>} />
 
                       {/* Caretaker Routes */}
-                      <Route path="/caretaker" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerDashboard /></RoleBasedRoute>} />
+                      <Route path="/caretaker" element={<RoleBasedRoute allowedRoles={['caretaker']}><SimplifiedCaretaker /></RoleBasedRoute>} />
                       <Route path="/caretaker/food" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerFood /></RoleBasedRoute>} />
                       <Route path="/caretaker/food/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerFoodDetails /></RoleBasedRoute>} />
                       <Route path="/caretaker/receipts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceipts /></RoleBasedRoute>} />
                       <Route path="/caretaker/receipts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceiptDetails /></RoleBasedRoute>} />
-                      <Route path="/caretaker/permissions" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerPermissions /></RoleBasedRoute>} />
+                      <Route path="/caretaker/workouts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkouts /></RoleBasedRoute>} />
                     </Routes>
                   </div>
                   <Toaster />
