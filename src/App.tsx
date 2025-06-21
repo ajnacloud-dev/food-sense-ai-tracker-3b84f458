@@ -31,6 +31,11 @@ import ReceiptDetails from "./pages/ReceiptDetails";
 import ParticipantPermissions from "./pages/ParticipantPermissions";
 import Pricing from "./pages/Pricing";
 import Capture from "./pages/Capture";
+import Admin from "./pages/Admin";
+import Insights from "./pages/Insights";
+import Billing from "./pages/Billing";
+import InviteCaretakers from "./pages/InviteCaretakers";
+import NotFound from "./pages/NotFound";
 import PublicRoute from "./components/routes/PublicRoute";
 import PrivateRoute from "./components/routes/PrivateRoute";
 import RoleBasedRoute from "./components/routes/RoleBasedRoute";
@@ -63,11 +68,16 @@ function App() {
                       <Route path="/capture" element={<PrivateRoute><Capture /></PrivateRoute>} />
                       <Route path="/food" element={<PrivateRoute><Food /></PrivateRoute>} />
                       <Route path="/food/:id" element={<PrivateRoute><FoodDetails /></PrivateRoute>} />
-                      <Route path="/workout" element={<PrivateRoute><Workouts /></PrivateRoute>} />
-                      <Route path="/workout/:id" element={<PrivateRoute><WorkoutDetails /></PrivateRoute>} />
+                      <Route path="/workouts" element={<PrivateRoute><Workouts /></PrivateRoute>} />
+                      <Route path="/workouts/:id" element={<PrivateRoute><WorkoutDetails /></PrivateRoute>} />
                       <Route path="/receipts" element={<PrivateRoute><Receipts /></PrivateRoute>} />
                       <Route path="/receipts/:id" element={<PrivateRoute><ReceiptDetails /></PrivateRoute>} />
                       <Route path="/permissions" element={<PrivateRoute><ParticipantPermissions /></PrivateRoute>} />
+                      <Route path="/insights" element={<PrivateRoute><Insights /></PrivateRoute>} />
+                      <Route path="/billing" element={<PrivateRoute><Billing /></PrivateRoute>} />
+                      <Route path="/invite-caretakers" element={<PrivateRoute><InviteCaretakers /></PrivateRoute>} />
+                      <Route path="/participant" element={<PrivateRoute><ParticipantPermissions /></PrivateRoute>} />
+                      <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
 
                       {/* Caretaker Routes */}
                       <Route path="/caretaker" element={<RoleBasedRoute allowedRoles={['caretaker']}><SimplifiedCaretaker /></RoleBasedRoute>} />
@@ -78,6 +88,9 @@ function App() {
                       <Route path="/caretaker/workouts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkouts /></RoleBasedRoute>} />
                       <Route path="/caretaker/workouts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkoutDetailsPage /></RoleBasedRoute>} />
                       <Route path="/caretaker/insights" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerInsights /></RoleBasedRoute>} />
+                      
+                      {/* 404 Catch-all route */}
+                      <Route path="*" element={<NotFound />} />
                     </Routes>
                   </div>
                   <Toaster />
