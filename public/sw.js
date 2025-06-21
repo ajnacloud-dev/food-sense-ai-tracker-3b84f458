@@ -1,12 +1,15 @@
 
-const CACHE_NAME = 'nutriwealth-v2.0.0';
-const ASSETS_CACHE = 'nutriwealth-assets-v2.0.0';
-const DATA_CACHE = 'nutriwealth-data-v2.0.0';
+// Dynamic cache versioning based on timestamp
+const CACHE_VERSION = Date.now();
+const CACHE_NAME = `nutriwealth-v${CACHE_VERSION}`;
+const ASSETS_CACHE = `nutriwealth-assets-v${CACHE_VERSION}`;
+const DATA_CACHE = `nutriwealth-data-v${CACHE_VERSION}`;
 
 const urlsToCache = [
   '/',
   '/auth',
   '/dashboard',
+  '/capture',
   '/manifest.json',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
@@ -15,7 +18,7 @@ const urlsToCache = [
 
 // Install event - cache resources and skip waiting
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
+  console.log('Service Worker installing with version:', CACHE_VERSION);
   event.waitUntil(
     Promise.all([
       caches.open(CACHE_NAME)
@@ -41,13 +44,12 @@ self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
   event.waitUntil(
     Promise.all([
-      // Clean up old caches
+      // Clean up old caches more aggressively
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME && 
-                cacheName !== ASSETS_CACHE && 
-                cacheName !== DATA_CACHE) {
+            // Delete any cache that doesn't match current version
+            if (!cacheName.includes(`v${CACHE_VERSION}`)) {
               console.log('Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -63,7 +65,8 @@ self.addEventListener('activate', (event) => {
         clients.forEach(client => {
           client.postMessage({
             type: 'SW_UPDATED',
-            message: 'Service Worker updated successfully'
+            message: 'Service Worker updated successfully',
+            version: CACHE_VERSION
           });
         });
       });
@@ -71,7 +74,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - implement cache strategies
+// Fetch event - implement cache strategies with force refresh capability
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -97,21 +100,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle static assets with cache-first strategy
+  // Handle static assets with cache-first strategy but allow force refresh
   if (request.destination === 'image' || 
       request.destination === 'script' || 
       request.destination === 'style') {
+    
+    // Check for cache-bust parameter
+    const isForcedRefresh = url.searchParams.has('cache-bust') || 
+                           request.headers.get('cache-control') === 'no-cache';
+    
     event.respondWith(
       caches.open(ASSETS_CACHE).then(cache => {
-        return cache.match(request).then(response => {
-          if (response) {
-            return response;
-          }
+        if (isForcedRefresh) {
+          // Force fetch from network for refreshes
           return fetch(request).then(fetchResponse => {
             cache.put(request, fetchResponse.clone());
             return fetchResponse;
+          }).catch(() => cache.match(request));
+        } else {
+          // Normal cache-first strategy
+          return cache.match(request).then(response => {
+            if (response) {
+              return response;
+            }
+            return fetch(request).then(fetchResponse => {
+              cache.put(request, fetchResponse.clone());
+              return fetchResponse;
+            });
           });
-        });
+        }
       })
     );
     return;
@@ -148,32 +165,49 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Listen for skip waiting message
+// Enhanced skip waiting message handler
 self.addEventListener('message', (event) => {
+  console.log('Service Worker received message:', event.data);
+  
   if (event.data && event.data.type === 'SKIP_WAITING') {
     console.log('Received SKIP_WAITING message');
     self.skipWaiting();
+  } else if (event.data && event.data.type === 'FORCE_UPDATE') {
+    console.log('Received FORCE_UPDATE message');
+    // Clear all caches and force update
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => caches.delete(cacheName))
+      );
+    }).then(() => {
+      self.skipWaiting();
+    });
   }
 });
 
-// Notify clients when new service worker is ready to take over
+// Enhanced update detection
 self.addEventListener('updatefound', () => {
   console.log('New service worker update found');
-  const newWorker = self.registration.installing;
+  const newWorker = self.registration?.installing;
   
   if (newWorker) {
     newWorker.addEventListener('statechange', () => {
-      if (newWorker.state === 'installed' && self.registration.active) {
+      if (newWorker.state === 'installed') {
         console.log('New service worker installed, notifying clients');
-        // New update available
-        self.clients.matchAll().then(clients => {
-          clients.forEach(client => {
-            client.postMessage({
-              type: 'UPDATE_AVAILABLE',
-              message: 'A new version of the app is available'
+        
+        // Check if there's already an active service worker
+        if (self.registration?.active) {
+          // New update available
+          self.clients.matchAll().then(clients => {
+            clients.forEach(client => {
+              client.postMessage({
+                type: 'UPDATE_AVAILABLE',
+                message: 'A new version of the app is available',
+                version: CACHE_VERSION
+              });
             });
           });
-        });
+        }
       }
     });
   }
@@ -210,3 +244,20 @@ self.addEventListener('push', (event) => {
     );
   }
 });
+
+// Force refresh detection
+self.addEventListener('fetch', (event) => {
+  // Detect hard refresh (Ctrl+F5 or Cmd+Shift+R)
+  if (event.request.cache === 'reload') {
+    console.log('Hard refresh detected, clearing caches');
+    event.waitUntil(
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+      })
+    );
+  }
+});
+
+console.log('Service Worker loaded with cache version:', CACHE_VERSION);

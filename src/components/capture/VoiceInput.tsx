@@ -3,6 +3,7 @@ import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Square } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VoiceInputProps {
   onTranscription: (text: string) => void;
@@ -18,8 +19,20 @@ const VoiceInput = ({ onTranscription, disabled = false, placeholder = "Click to
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 24000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -67,22 +80,17 @@ const VoiceInput = ({ onTranscription, disabled = false, placeholder = "Click to
       reader.onloadend = async () => {
         const base64Audio = (reader.result as string).split(',')[1];
         
-        // Call speech-to-text service (you'll need to implement this endpoint)
-        const response = await fetch('/api/speech-to-text', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ audio: base64Audio }),
+        // Call our Supabase Edge Function for speech-to-text
+        const { data, error } = await supabase.functions.invoke('speech-to-text', {
+          body: { audio: base64Audio },
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to transcribe audio');
+        if (error) {
+          throw new Error(error.message || 'Failed to transcribe audio');
         }
 
-        const result = await response.json();
-        if (result.text) {
-          onTranscription(result.text);
+        if (data?.text) {
+          onTranscription(data.text);
           toast.success('Audio transcribed successfully!');
         } else {
           toast.error('No speech detected in the recording');

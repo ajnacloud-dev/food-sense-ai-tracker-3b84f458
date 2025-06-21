@@ -1,13 +1,20 @@
 
 import { useEffect } from 'react';
-import { usePWAUpdate } from '@/hooks/usePWAUpdate';
+import { useEnhancedPWAUpdate } from '@/hooks/useEnhancedPWAUpdate';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Download, X } from 'lucide-react';
+import { RefreshCw, Download, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PWAUpdateManager = () => {
-  const { updateAvailable, isUpdating, applyUpdate, dismissUpdate } = usePWAUpdate();
+  const { 
+    updateAvailable, 
+    isUpdating, 
+    isCheckingForUpdates,
+    applyUpdate, 
+    dismissUpdate, 
+    forceCheckForUpdates 
+  } = useEnhancedPWAUpdate();
 
   useEffect(() => {
     // Show persistent notification when update is available
@@ -18,14 +25,31 @@ const PWAUpdateManager = () => {
           label: 'Update Now',
           onClick: applyUpdate,
         },
-        duration: Infinity, // Keep showing until dismissed
+        duration: Infinity,
         id: 'pwa-update',
       });
     }
   }, [updateAvailable, applyUpdate]);
 
   if (!updateAvailable) {
-    return null;
+    return (
+      <div className="fixed bottom-4 right-4 z-40">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={forceCheckForUpdates}
+          disabled={isCheckingForUpdates}
+          className="bg-white/90 backdrop-blur-sm shadow-lg"
+        >
+          {isCheckingForUpdates ? (
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Zap className="h-4 w-4 mr-2" />
+          )}
+          {isCheckingForUpdates ? 'Checking...' : 'Force Update'}
+        </Button>
+      </div>
+    );
   }
 
   return (
