@@ -23,7 +23,7 @@ const CaretakerWorkoutContent = () => {
       if (!participantData?.id) throw new Error('No participant selected');
       
       const { data, error } = await supabase
-        .from('workout_entries')
+        .from('workouts')
         .select('*')
         .eq('user_id', participantData.id)
         .order('created_at', { ascending: false });
@@ -84,16 +84,16 @@ const CaretakerWorkoutContent = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                      <CardTitle className="text-lg">{workout.type}</CardTitle>
+                      <CardTitle className="text-lg">{workout.workout_type}</CardTitle>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           {format(new Date(workout.created_at), 'MMM d, yyyy')}
                         </div>
-                        {workout.duration_minutes && (
+                        {workout.duration && (
                           <div className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
-                            {workout.duration_minutes} min
+                            {workout.duration} min
                           </div>
                         )}
                       </div>
@@ -117,9 +117,9 @@ const CaretakerWorkoutContent = () => {
                           {workout.calories_burned} calories
                         </Badge>
                       )}
-                      {workout.intensity && (
+                      {workout.intensity_level && (
                         <Badge variant="outline">
-                          {workout.intensity} intensity
+                          {workout.intensity_level} intensity
                         </Badge>
                       )}
                     </div>
