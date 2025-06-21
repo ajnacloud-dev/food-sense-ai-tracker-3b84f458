@@ -8,7 +8,7 @@ import { RoleProvider } from "@/contexts/RoleContext";
 import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import PWAUpdateManager from "@/components/pwa/PWAUpdateManager";
-import PWAUpdatePrompt from "@/components/pwa/PWAUpdatePrompt";
+import EnhancedPWAInstallPrompt from "@/components/pwa/EnhancedPWAInstallPrompt";
 import NotificationPanel from "@/components/notifications/NotificationPanel";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import Dashboard from "./pages/Dashboard";
@@ -19,7 +19,7 @@ import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
 import CaretakerReceipts from "./pages/CaretakerReceipts";
 import CaretakerReceiptDetails from "./pages/CaretakerReceiptDetails";
 import CaretakerWorkouts from "./pages/CaretakerWorkouts";
-import CaretakerWorkoutDetails from "./pages/CaretakerWorkoutDetails";
+import CaretakerWorkoutDetailsPage from "./pages/CaretakerWorkoutDetails";
 import CaretakerInsights from "./pages/CaretakerInsights";
 import Food from "./pages/Food";
 import FoodDetails from "./pages/FoodDetails";
@@ -45,7 +45,7 @@ function App() {
                 <Router>
                   <div className="min-h-screen bg-background w-full">
                     <PWAUpdateManager />
-                    <PWAUpdatePrompt />
+                    <EnhancedPWAInstallPrompt />
                     
                     {/* Notification Panel - positioned globally */}
                     <div className="fixed top-4 right-4 z-50">
@@ -71,7 +71,7 @@ function App() {
                       <Route path="/caretaker/receipts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceipts /></RoleBasedRoute>} />
                       <Route path="/caretaker/receipts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceiptDetails /></RoleBasedRoute>} />
                       <Route path="/caretaker/workouts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkouts /></RoleBasedRoute>} />
-                      <Route path="/caretaker/workouts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkoutDetails /></RoleBasedRoute>} />
+                      <Route path="/caretaker/workouts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkoutDetailsPage /></RoleBasedRoute>} />
                       <Route path="/caretaker/insights" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerInsights /></RoleBasedRoute>} />
                     </Routes>
                   </div>

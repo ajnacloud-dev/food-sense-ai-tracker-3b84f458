@@ -5,8 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
 import CaretakerPageLayout from "@/components/caretaker/CaretakerPageLayout";
 import CaretakerLoadingState from "@/components/caretaker/CaretakerLoadingState";
+import CaretakerWorkoutDetails from "@/components/caretaker/CaretakerWorkoutDetails";
 
-const CaretakerWorkoutDetails = () => {
+const CaretakerWorkoutDetailsPage = () => {
   const { user, loading: authLoading } = useAuth();
   const { userType, isLoading: userTypeLoading } = useUserType();
   const navigate = useNavigate();
@@ -34,13 +35,9 @@ const CaretakerWorkoutDetails = () => {
 
   return (
     <CaretakerPageLayout>
-      {/* TODO: Implement CaretakerWorkoutDetailsContent component */}
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">Workout Details</h1>
-        <p className="text-gray-600 mt-2">Workout details implementation coming soon...</p>
-      </div>
+      <CaretakerWorkoutDetails />
     </CaretakerPageLayout>
   );
 };
 
-export default CaretakerWorkoutDetails;
+export default CaretakerWorkoutDetailsPage;

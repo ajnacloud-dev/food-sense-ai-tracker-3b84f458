@@ -67,35 +67,48 @@ export const usePWAUpdate = () => {
 
   const dismissUpdate = () => {
     setState(prev => ({ ...prev, updateAvailable: false }));
+    toast.dismiss('pwa-update');
   };
 
-  // Check for updates every 30 minutes
+  // Check for updates every 10 minutes for better responsiveness
   useEffect(() => {
-    // Initial check
-    checkForUpdates();
+    // Initial check after 5 seconds
+    const initialTimeout = setTimeout(() => {
+      checkForUpdates();
+    }, 5000);
 
-    // Set up periodic checking
+    // Set up periodic checking every 10 minutes
     const interval = setInterval(() => {
       checkForUpdates();
-    }, 30 * 60 * 1000); // 30 minutes
+    }, 10 * 60 * 1000); // 10 minutes
 
     // Listen for service worker updates
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
+      const handleMessage = (event: MessageEvent) => {
         if (event.data?.type === 'UPDATE_AVAILABLE') {
           setState(prev => ({ ...prev, updateAvailable: true }));
           toast.info('A new version is available!', {
+            id: 'pwa-update',
             action: {
               label: 'Update',
               onClick: applyUpdate,
             },
-            duration: 10000,
+            duration: Infinity,
           });
         }
-      });
+      };
+
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+
+      return () => {
+        clearTimeout(initialTimeout);
+        clearInterval(interval);
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      };
     }
 
     return () => {
+      clearTimeout(initialTimeout);
       clearInterval(interval);
     };
   }, []);
