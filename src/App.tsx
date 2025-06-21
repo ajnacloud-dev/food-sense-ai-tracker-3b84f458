@@ -13,6 +13,7 @@ import NotificationPanel from "@/components/notifications/NotificationPanel";
 import { Toaster as ShadcnToaster } from "@/components/ui/toaster";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import SimplifiedIndex from "./pages/SimplifiedIndex";
 import SimplifiedCaretaker from "./pages/SimplifiedCaretaker";
 import CaretakerFood from "./pages/CaretakerFood";
 import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
@@ -53,8 +54,8 @@ function App() {
                     </div>
                     
                     <Routes>
+                      <Route path="/" element={<PublicRoute><SimplifiedIndex /></PublicRoute>} />
                       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
-                      <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                       <Route path="/food" element={<PrivateRoute><Food /></PrivateRoute>} />
                       <Route path="/food/:id" element={<PrivateRoute><FoodDetails /></PrivateRoute>} />
