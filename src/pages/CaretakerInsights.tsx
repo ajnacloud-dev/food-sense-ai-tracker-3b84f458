@@ -1,71 +1,49 @@
 
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3, User } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
+import CaretakerPageLayout from "@/components/caretaker/CaretakerPageLayout";
+import CaretakerPageHeader from "@/components/caretaker/CaretakerPageHeader";
+import CaretakerLoadingState from "@/components/caretaker/CaretakerLoadingState";
 
 const CaretakerInsights = () => {
   const navigate = useNavigate();
   const { selectedParticipantId, participantData, loading } = useCaretakerData();
 
   if (loading) {
-    return (
-      <SimpleRoleBasedLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p>Loading participant insights...</p>
-          </div>
-        </div>
-      </SimpleRoleBasedLayout>
-    );
+    return <CaretakerLoadingState message="Loading participant insights..." fullHeight />;
   }
 
   if (!selectedParticipantId || !participantData) {
     return (
-      <SimpleRoleBasedLayout>
-        <Card>
-          <CardHeader>
-            <CardTitle>No Participant Selected</CardTitle>
-            <CardDescription>
-              Please select a participant from the sidebar to view their insights.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </SimpleRoleBasedLayout>
+      <CaretakerPageLayout>
+        <div className="p-6">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+            <CardHeader>
+              <CardTitle>No Participant Selected</CardTitle>
+              <CardDescription>
+                Please select a participant from the sidebar to view their insights.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </CaretakerPageLayout>
     );
   }
 
   return (
-    <SimpleRoleBasedLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="h-8 w-8 text-green-600" />
-              Insights
-            </h1>
-            <div className="flex items-center gap-2 text-gray-600 mt-1">
-              <User className="h-4 w-4" />
-              <span>{participantData.full_name}</span>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/caretaker')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
-        </div>
+    <CaretakerPageLayout>
+      <CaretakerPageHeader
+        title="Insights"
+        subtitle="Comprehensive health analytics"
+        icon={BarChart3}
+        onBack={() => navigate('/caretaker')}
+        backLabel="Back to Dashboard"
+      />
 
-        <Card>
+      <div className="p-6">
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
           <CardHeader>
             <CardTitle>Health Analytics</CardTitle>
             <CardDescription>
@@ -86,7 +64,7 @@ const CaretakerInsights = () => {
           </CardContent>
         </Card>
       </div>
-    </SimpleRoleBasedLayout>
+    </CaretakerPageLayout>
   );
 };
 

@@ -19,6 +19,8 @@ import CaretakerFoodDetails from "./pages/CaretakerFoodDetails";
 import CaretakerReceipts from "./pages/CaretakerReceipts";
 import CaretakerReceiptDetails from "./pages/CaretakerReceiptDetails";
 import CaretakerWorkouts from "./pages/CaretakerWorkouts";
+import CaretakerWorkoutDetails from "./pages/CaretakerWorkoutDetails";
+import CaretakerInsights from "./pages/CaretakerInsights";
 import Food from "./pages/Food";
 import FoodDetails from "./pages/FoodDetails";
 import Workouts from "./pages/Workouts";
@@ -41,7 +43,7 @@ function App() {
             <CaretakerDataProvider>
               <NotificationProvider>
                 <Router>
-                  <div className="min-h-screen bg-background">
+                  <div className="min-h-screen bg-background w-full">
                     <PWAUpdateManager />
                     <PWAUpdatePrompt />
                     
@@ -69,6 +71,8 @@ function App() {
                       <Route path="/caretaker/receipts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceipts /></RoleBasedRoute>} />
                       <Route path="/caretaker/receipts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerReceiptDetails /></RoleBasedRoute>} />
                       <Route path="/caretaker/workouts" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkouts /></RoleBasedRoute>} />
+                      <Route path="/caretaker/workouts/:id" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerWorkoutDetails /></RoleBasedRoute>} />
+                      <Route path="/caretaker/insights" element={<RoleBasedRoute allowedRoles={['caretaker']}><CaretakerInsights /></RoleBasedRoute>} />
                     </Routes>
                   </div>
                   <Toaster />

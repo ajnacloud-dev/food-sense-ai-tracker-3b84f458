@@ -1,11 +1,10 @@
 
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
-import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserType } from "@/contexts/UserTypeContext";
+import CaretakerPageLayout from "@/components/caretaker/CaretakerPageLayout";
+import CaretakerLoadingState from "@/components/caretaker/CaretakerLoadingState";
 import CaretakerFoodContent from "@/components/caretaker/CaretakerFoodContent";
 
 const CaretakerFood = () => {
@@ -27,18 +26,7 @@ const CaretakerFood = () => {
   }, [user, authLoading, userTypeLoading, userType, navigate]);
 
   if (authLoading || userTypeLoading) {
-    return (
-      <SimpleRoleBasedLayout>
-        <div className="nw-page-container flex items-center justify-center">
-          <Card className="nw-card-modern max-w-md">
-            <CardContent className="p-8 text-center">
-              <div className="nw-loading-spinner h-12 w-12 mx-auto mb-4"></div>
-              <p className="text-gray-600 font-medium">Loading participant food entries...</p>
-            </CardContent>
-          </Card>
-        </div>
-      </SimpleRoleBasedLayout>
-    );
+    return <CaretakerLoadingState message="Loading participant food entries..." fullHeight />;
   }
 
   if (!user || userType !== 'caretaker') {
@@ -46,11 +34,9 @@ const CaretakerFood = () => {
   }
 
   return (
-    <CaretakerDataProvider>
-      <SimpleRoleBasedLayout>
-        <CaretakerFoodContent />
-      </SimpleRoleBasedLayout>
-    </CaretakerDataProvider>
+    <CaretakerPageLayout>
+      <CaretakerFoodContent />
+    </CaretakerPageLayout>
   );
 };
 
