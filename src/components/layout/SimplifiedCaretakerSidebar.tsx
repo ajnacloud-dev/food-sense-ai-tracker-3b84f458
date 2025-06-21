@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCaretakerData } from "@/contexts/CaretakerDataContext";
 import { Badge } from "@/components/ui/badge";
+import PWAUpdateIcon from "@/components/pwa/PWAUpdateIcon";
 
 interface SimplifiedCaretakerSidebarProps {
   onItemClick?: () => void;
@@ -54,11 +55,12 @@ const SimplifiedCaretakerSidebar = ({ onItemClick }: SimplifiedCaretakerSidebarP
   return (
     <div className="flex h-full flex-col bg-white border-r border-gray-200">
       {/* Header */}
-      <div className="flex h-14 items-center border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-blue-600 to-blue-700">
+      <div className="flex h-14 items-center justify-between border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-blue-600 to-blue-700">
         <Link to="/caretaker" className="flex items-center gap-2 font-bold text-white">
           <Brain className="h-6 w-6" />
           <span>NutriWealth</span>
         </Link>
+        <PWAUpdateIcon />
       </div>
 
       {/* Patient Selector */}

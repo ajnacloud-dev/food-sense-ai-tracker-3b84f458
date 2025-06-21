@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import PWAUpdateIcon from "@/components/pwa/PWAUpdateIcon";
 
 const navigationItems = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -82,11 +82,12 @@ const SimplifiedParticipantSidebar = ({ onItemClick }: SimplifiedParticipantSide
   return (
     <div className="flex h-full flex-col bg-white border-r border-gray-200">
       {/* Header */}
-      <div className="flex h-14 items-center border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-green-600 to-green-700">
+      <div className="flex h-14 items-center justify-between border-b border-gray-200 px-6 lg:h-[60px] bg-gradient-to-r from-green-600 to-green-700">
         <Link to="/dashboard" className="flex items-center gap-2 font-bold text-white">
           <Brain className="h-6 w-6" />
           <span>NutriWealth</span>
         </Link>
+        <PWAUpdateIcon />
       </div>
       
       <ScrollArea className="flex-1 px-3 py-4">

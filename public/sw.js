@@ -1,4 +1,3 @@
-
 // Dynamic cache versioning based on timestamp
 const CACHE_VERSION = Date.now();
 const CACHE_NAME = `nutriwealth-v${CACHE_VERSION}`;
@@ -10,11 +9,15 @@ const urlsToCache = [
   '/auth',
   '/dashboard',
   '/capture',
+  '/caretaker',
   '/manifest.json',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
   '/apple-touch-icon.png'
 ];
+
+// Critical pages that should always be fresh
+const criticalPages = ['/capture', '/dashboard', '/caretaker'];
 
 // Install event - cache resources and skip waiting
 self.addEventListener('install', (event) => {
@@ -33,7 +36,6 @@ self.addEventListener('install', (event) => {
         })
     ]).then(() => {
       console.log('Service Worker installed successfully');
-      // Force the waiting service worker to become the active service worker
       return self.skipWaiting();
     })
   );
@@ -44,11 +46,9 @@ self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
   event.waitUntil(
     Promise.all([
-      // Clean up old caches more aggressively
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            // Delete any cache that doesn't match current version
             if (!cacheName.includes(`v${CACHE_VERSION}`)) {
               console.log('Deleting old cache:', cacheName);
               return caches.delete(cacheName);
@@ -56,11 +56,9 @@ self.addEventListener('activate', (event) => {
           })
         );
       }),
-      // Take control of all clients immediately
       self.clients.claim()
     ]).then(() => {
       console.log('Service Worker activated and took control');
-      // Notify all clients about the update
       return self.clients.matchAll().then(clients => {
         clients.forEach(client => {
           client.postMessage({
@@ -74,7 +72,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - implement cache strategies with force refresh capability
+// Enhanced fetch event with better critical page handling
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -85,14 +83,12 @@ self.addEventListener('fetch', (event) => {
       caches.open(DATA_CACHE).then(cache => {
         return fetch(request)
           .then(response => {
-            // Only cache successful responses
             if (response.status === 200) {
               cache.put(request, response.clone());
             }
             return response;
           })
           .catch(() => {
-            // Return cached version if network fails
             return cache.match(request);
           });
       })
@@ -100,25 +96,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle static assets with cache-first strategy but allow force refresh
+  // Handle static assets with cache-first strategy
   if (request.destination === 'image' || 
       request.destination === 'script' || 
       request.destination === 'style') {
     
-    // Check for cache-bust parameter
     const isForcedRefresh = url.searchParams.has('cache-bust') || 
                            request.headers.get('cache-control') === 'no-cache';
     
     event.respondWith(
       caches.open(ASSETS_CACHE).then(cache => {
         if (isForcedRefresh) {
-          // Force fetch from network for refreshes
           return fetch(request).then(fetchResponse => {
             cache.put(request, fetchResponse.clone());
             return fetchResponse;
           }).catch(() => cache.match(request));
         } else {
-          // Normal cache-first strategy
           return cache.match(request).then(response => {
             if (response) {
               return response;
@@ -134,12 +127,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle navigation requests with network-first, fallback to cache
+  // Enhanced navigation request handling with critical page support
   if (request.mode === 'navigate') {
+    const isCriticalPage = criticalPages.some(page => url.pathname.startsWith(page));
+    
     event.respondWith(
       fetch(request)
         .then(response => {
-          // Cache successful navigation responses
           if (response.status === 200) {
             caches.open(CACHE_NAME).then(cache => {
               cache.put(request, response.clone());
@@ -148,7 +142,10 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Fallback to cached version
+          // For critical pages, try harder to serve fresh content
+          if (isCriticalPage) {
+            console.log('Critical page failed to load fresh, trying cache:', url.pathname);
+          }
           return caches.match(request).then(response => {
             return response || caches.match('/');
           });
