@@ -127,72 +127,167 @@ async function imageUrlToBase64(imageUrl: string): Promise<string> {
   }
 }
 
-// Content complexity detector for smart model selection
-function detectContentComplexity(description: string, fileUrl: string | null): 'simple' | 'moderate' | 'complex' {
-  const text = description?.toLowerCase() || '';
-  
-  // Simple patterns (can use cheaper models)
-  const simplePatterns = [
-    /receipt|bill|invoice|purchase/,
-    /\$\d+|\d+\.\d+|total|subtotal/,
-    /walmart|target|costco|amazon/i
-  ];
-  
-  // Complex patterns (need powerful models)
-  const complexPatterns = [
-    /nutrition|calories|protein|carbs|vitamins/,
-    /workout|exercise|fitness|training/,
-    /analyze|detailed|breakdown|comprehensive/
-  ];
-  
-  const isPDF = fileUrl?.toLowerCase().includes('.pdf');
-  const isLongText = text.length > 200;
-  
-  if (complexPatterns.some(pattern => pattern.test(text)) || isPDF) {
-    return 'complex';
+// Dynamic model selection service
+class ModelSelectionService {
+  private supabaseClient: any;
+  private modelsCache: any[] = [];
+  private cacheTimestamp = 0;
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  constructor(supabaseClient: any) {
+    this.supabaseClient = supabaseClient;
   }
-  
-  if (simplePatterns.some(pattern => pattern.test(text)) && !isLongText) {
-    return 'simple';
+
+  async getAvailableModels(userTier: string = 'free') {
+    await this.refreshCacheIfNeeded();
+    
+    return this.modelsCache.filter(model => {
+      if (userTier === 'free') return model.required_subscription_tier === 'free';
+      if (userTier === 'pro') return ['free', 'pro'].includes(model.required_subscription_tier);
+      if (userTier === 'enterprise') return ['free', 'pro', 'enterprise'].includes(model.required_subscription_tier);
+      return false;
+    });
   }
-  
-  return 'moderate';
+
+  async getOptimalModel(userTier: string, complexity: string, requiresVision: boolean = false) {
+    const availableModels = await this.getAvailableModels(userTier);
+    
+    // Filter by vision requirement
+    const visionFiltered = requiresVision 
+      ? availableModels.filter(model => model.supports_vision)
+      : availableModels;
+
+    if (visionFiltered.length === 0) {
+      throw new Error('No suitable models available for your subscription tier');
+    }
+
+    // Smart model selection based on complexity
+    switch (complexity) {
+      case 'simple':
+        return this.findModelByCategory(visionFiltered, 'efficient') ||
+               visionFiltered.find(model => model.is_default) ||
+               visionFiltered[0];
+
+      case 'moderate':
+        return this.findModelByCategory(visionFiltered, 'powerful') ||
+               this.findModelByCategory(visionFiltered, 'general') ||
+               visionFiltered[0];
+
+      case 'complex':
+        return this.findModelByCategory(visionFiltered, 'flagship') ||
+               this.findModelByCategory(visionFiltered, 'reasoning') ||
+               this.findModelByCategory(visionFiltered, 'powerful') ||
+               visionFiltered[0];
+
+      default:
+        return visionFiltered.find(model => model.is_default) || visionFiltered[0];
+    }
+  }
+
+  async getFallbackChain(userTier: string, primaryModel: string) {
+    const availableModels = await this.getAvailableModels(userTier);
+    const chain = [primaryModel];
+    
+    // Add efficient models as fallbacks
+    const fallbacks = availableModels
+      .filter(model => model.model_id !== primaryModel)
+      .sort((a, b) => a.input_cost_per_1k_tokens - b.input_cost_per_1k_tokens)
+      .map(model => model.model_id);
+    
+    return [...chain, ...fallbacks];
+  }
+
+  detectContentComplexity(description: string, fileUrl: string | null): string {
+    const text = description?.toLowerCase() || '';
+    
+    // Complex patterns (need powerful models)
+    const complexPatterns = [
+      /nutrition|calories|protein|carbs|vitamins|detailed|comprehensive|analyze/,
+      /workout|exercise|fitness|training|complex|advanced/,
+      /medical|health|assessment|diagnosis|clinical/
+    ];
+    
+    // Simple patterns (can use cheaper models)
+    const simplePatterns = [
+      /receipt|bill|invoice|purchase|simple|basic/,
+      /\$\d+|\d+\.\d+|total|subtotal/,
+      /walmart|target|costco|amazon/i
+    ];
+    
+    const isPDF = fileUrl?.toLowerCase().includes('.pdf');
+    const isLongText = text.length > 200;
+    
+    if (complexPatterns.some(pattern => pattern.test(text)) || isPDF) {
+      return 'complex';
+    }
+    
+    if (simplePatterns.some(pattern => pattern.test(text)) && !isLongText) {
+      return 'simple';
+    }
+    
+    return 'moderate';
+  }
+
+  private async refreshCacheIfNeeded() {
+    const now = Date.now();
+    if (now - this.cacheTimestamp > this.CACHE_TTL || this.modelsCache.length === 0) {
+      await this.refreshCache();
+    }
+  }
+
+  private async refreshCache() {
+    try {
+      const { data, error } = await this.supabaseClient
+        .from('models')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      
+      this.modelsCache = data || [];
+      this.cacheTimestamp = Date.now();
+      console.log(`Model cache refreshed with ${this.modelsCache.length} models`);
+    } catch (error) {
+      console.error('Failed to refresh model cache:', error);
+      // Keep existing cache on error
+    }
+  }
+
+  private findModelByCategory(models: any[], category: string) {
+    return models.find(model => model.category === category) || null;
+  }
 }
 
 class OptimizedLangGraphWorkflow {
   private supabaseClient: any;
   private openaiApiKey: string;
-  private primaryModel: string;
-  private fallbackModel: string;
+  private modelService: ModelSelectionService;
   private totalTokens: number = 0;
   private totalCost: number = 0;
+  private selectedModel: any = null;
 
   constructor(supabaseClient: any, openaiApiKey: string) {
     this.supabaseClient = supabaseClient;
     this.openaiApiKey = openaiApiKey;
+    this.modelService = new ModelSelectionService(supabaseClient);
     
-    // Use LLM_MODEL_TO_USE secret with intelligent fallbacks
-    const configuredModel = Deno.env.get('LLM_MODEL_TO_USE') || 'gpt-4o-mini';
-    this.primaryModel = this.validateModel(configuredModel);
-    this.fallbackModel = this.primaryModel === 'gpt-4o' ? 'gpt-4o-mini' : 'gpt-4o-mini';
-    
-    console.log(`Initialized with primary model: ${this.primaryModel}, fallback: ${this.fallbackModel}`);
+    console.log('Initialized OptimizedLangGraphWorkflow with dynamic model selection');
   }
 
-  private validateModel(model: string): string {
-    const validModels = ['gpt-4o', 'gpt-4o-mini'];
-    return validModels.includes(model) ? model : 'gpt-4o-mini';
-  }
-
-  async executeWorkflow(description: string, fileUrl: string | null, workflowConfig: any): Promise<any> {
+  async executeWorkflow(description: string, fileUrl: string | null, workflowConfig: any, userTier: string = 'free'): Promise<any> {
     const workflowStartTime = Date.now();
-    console.log('Starting optimized LangGraph workflow');
+    console.log('Starting optimized LangGraph workflow with dynamic model selection');
     
     try {
-      // Detect content complexity for smart model selection
-      const complexity = detectContentComplexity(description, fileUrl);
-      const useSimplifiedFlow = complexity === 'simple' && workflowConfig?.simplifiedFlow !== false;
+      // Detect content complexity and select optimal model
+      const complexity = this.modelService.detectContentComplexity(description, fileUrl);
+      const requiresVision = fileUrl && !fileUrl.toLowerCase().includes('.pdf');
       
+      this.selectedModel = await this.modelService.getOptimalModel(userTier, complexity, requiresVision);
+      console.log(`Selected model: ${this.selectedModel.name} (${this.selectedModel.model_id}) for ${complexity} complexity`);
+
+      const useSimplifiedFlow = complexity === 'simple' && workflowConfig?.simplifiedFlow !== false;
       console.log(`Content complexity: ${complexity}, simplified flow: ${useSimplifiedFlow}`);
 
       if (useSimplifiedFlow) {
@@ -208,7 +303,8 @@ class OptimizedLangGraphWorkflow {
             totalTokens: this.totalTokens,
             totalCost: this.totalCost,
             processingTime: Date.now() - workflowStartTime,
-            workflow: 'simplified'
+            workflow: 'simplified',
+            modelUsed: this.selectedModel.model_id
           }
         };
       } else {
@@ -223,7 +319,8 @@ class OptimizedLangGraphWorkflow {
             totalTokens: this.totalTokens,
             totalCost: this.totalCost,
             processingTime: Date.now() - workflowStartTime,
-            workflow: 'full'
+            workflow: 'full',
+            modelUsed: this.selectedModel.model_id
           }
         };
       }
@@ -335,7 +432,7 @@ Return valid JSON only:
       }
     }
 
-    const response = await this.callOpenAI(messages, this.primaryModel, 300);
+    const response = await this.callOpenAI(messages, this.selectedModel.model_id, 300);
     return this.safeJsonParse(response.content, 'classification');
   }
 
@@ -427,7 +524,7 @@ WORKOUT ANALYSIS REQUIREMENTS:
       }
     }
 
-    const model = category === 'receipt' ? this.primaryModel : this.primaryModel;
+    const model = category === 'receipt' ? this.selectedModel.model_id : this.selectedModel.model_id;
     const response = await this.callOpenAI(messages, model, 1500);
     return this.safeJsonParse(response.content, 'analysis');
   }
@@ -445,7 +542,7 @@ WORKOUT ANALYSIS REQUIREMENTS:
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0, // Changed from 0.2 to 0 for deterministic results
+          temperature: 0,
           max_tokens: maxTokens,
         }),
       });
@@ -454,10 +551,18 @@ WORKOUT ANALYSIS REQUIREMENTS:
         const errorText = await response.text();
         console.error('OpenAI API error:', errorText);
         
-        // Try fallback model if primary fails
-        if (model !== this.fallbackModel && response.status === 404) {
-          console.log(`Falling back to ${this.fallbackModel}`);
-          return this.callOpenAI(messages, this.fallbackModel, maxTokens);
+        // Try fallback models if primary fails
+        if (response.status === 404) {
+          const fallbackChain = await this.modelService.getFallbackChain('free', model);
+          for (const fallbackModel of fallbackChain.slice(1)) {
+            console.log(`Trying fallback model: ${fallbackModel}`);
+            try {
+              return await this.callOpenAI(messages, fallbackModel, maxTokens);
+            } catch (fallbackError) {
+              console.error(`Fallback model ${fallbackModel} also failed:`, fallbackError);
+              continue;
+            }
+          }
         }
         
         if (errorText.includes('insufficient_quota')) {
@@ -472,14 +577,11 @@ WORKOUT ANALYSIS REQUIREMENTS:
 
       const data = await response.json();
       
-      // Enhanced usage tracking
-      if (data.usage) {
+      // Enhanced usage tracking with model-specific pricing
+      if (data.usage && this.selectedModel) {
         this.totalTokens += data.usage.total_tokens;
-        const pricing = model === 'gpt-4o' ? 
-          { input: 0.0025, output: 0.01 } : 
-          { input: 0.00015, output: 0.0006 };
-        this.totalCost += (data.usage.prompt_tokens / 1000 * pricing.input) + 
-                         (data.usage.completion_tokens / 1000 * pricing.output);
+        this.totalCost += (data.usage.prompt_tokens / 1000 * this.selectedModel.input_cost_per_1k_tokens) + 
+                         (data.usage.completion_tokens / 1000 * this.selectedModel.output_cost_per_1k_tokens);
       }
 
       return {
@@ -550,8 +652,11 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
+    // TODO: Get actual user tier from subscription data
+    const userTier = 'free'; // Default for now
+
     const workflow = new OptimizedLangGraphWorkflow(supabaseClient, openaiApiKey);
-    const result = await workflow.executeWorkflow(description, imageUrl, workflowConfig || {});
+    const result = await workflow.executeWorkflow(description, imageUrl, workflowConfig || {}, userTier);
 
     if (!result.success) {
       console.log(`Workflow failed: ${result.errorType}`);
@@ -561,7 +666,7 @@ serve(async (req) => {
       });
     }
 
-    // Enhanced usage logging
+    // Enhanced usage logging with model information
     if (result.metadata?.totalTokens > 0) {
       await supabaseClient
         .from('api_costs')
@@ -572,13 +677,13 @@ serve(async (req) => {
           completion_tokens: Math.floor(result.metadata.totalTokens * 0.3),
           total_tokens: result.metadata.totalTokens,
           cost_usd: result.metadata.totalCost,
-          model_used: Deno.env.get('LLM_MODEL_TO_USE') || 'gpt-4o-mini',
+          model_used: result.metadata.modelUsed || 'gpt-4o-mini',
           category: result.result.classification?.category || 'unknown'
         });
     }
 
     const processingTime = Date.now() - startTime;
-    console.log(`Optimized workflow completed in ${processingTime}ms using ${result.metadata.workflow} flow`);
+    console.log(`Optimized workflow completed in ${processingTime}ms using ${result.metadata.workflow} flow with model ${result.metadata.modelUsed}`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
