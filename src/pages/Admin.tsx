@@ -4,7 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AdminDashboard from "@/components/admin/AdminDashboard";
+import SimpleModelManager from "@/components/admin/SimpleModelManager";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -60,7 +62,29 @@ const Admin = () => {
 
   return (
     <SidebarLayout>
-      <AdminDashboard />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage users, models, and system settings
+          </p>
+        </div>
+
+        <Tabs defaultValue="dashboard" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="models">AI Models</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="dashboard">
+            <AdminDashboard />
+          </TabsContent>
+          
+          <TabsContent value="models">
+            <SimpleModelManager />
+          </TabsContent>
+        </Tabs>
+      </div>
     </SidebarLayout>
   );
 };

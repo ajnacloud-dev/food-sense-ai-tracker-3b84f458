@@ -8,13 +8,12 @@ export interface ModelInfo {
   category: string;
   supports_vision: boolean;
   is_default: boolean;
-  required_subscription_tier: string;
   input_cost_per_1k_tokens: number;
   output_cost_per_1k_tokens: number;
 }
 
 export type ContentComplexity = 'simple' | 'moderate' | 'complex';
-export type UserTier = 'free' | 'pro' | 'enterprise';
+export type UserTier = 'free' | 'pro';
 
 export class ModelSelectionService {
   private static instance: ModelSelectionService;
@@ -29,69 +28,27 @@ export class ModelSelectionService {
     return ModelSelectionService.instance;
   }
 
-  async getAvailableModels(userTier: UserTier = 'free'): Promise<ModelInfo[]> {
+  async getDefaultModel(): Promise<ModelInfo | null> {
     await this.refreshCacheIfNeeded();
-    
-    return this.modelsCache.filter(model => {
-      if (userTier === 'free') return model.required_subscription_tier === 'free';
-      if (userTier === 'pro') return ['free', 'pro'].includes(model.required_subscription_tier);
-      if (userTier === 'enterprise') return ['free', 'pro', 'enterprise'].includes(model.required_subscription_tier);
-      return false;
-    });
+    return this.modelsCache.find(model => model.is_default) || this.modelsCache[0] || null;
   }
 
-  async getDefaultModel(userTier: UserTier = 'free'): Promise<ModelInfo | null> {
-    const availableModels = await this.getAvailableModels(userTier);
-    return availableModels.find(model => model.is_default) || availableModels[0] || null;
+  async getAvailableModels(): Promise<ModelInfo[]> {
+    await this.refreshCacheIfNeeded();
+    return this.modelsCache.filter(model => model.is_default);
   }
 
-  async selectOptimalModel(
-    userTier: UserTier,
-    complexity: ContentComplexity,
-    category?: string,
-    requiresVision?: boolean
-  ): Promise<ModelInfo | null> {
-    const availableModels = await this.getAvailableModels(userTier);
-    
-    // Filter by vision requirement if specified
-    const visionFiltered = requiresVision 
-      ? availableModels.filter(model => model.supports_vision)
-      : availableModels;
-
-    if (visionFiltered.length === 0) return null;
-
-    // Smart model selection based on complexity and tier
-    switch (complexity) {
-      case 'simple':
-        // For simple tasks, prefer efficient models
-        return this.findModelByCategory(visionFiltered, 'efficient') ||
-               this.findModelByCategory(visionFiltered, 'general') ||
-               visionFiltered[0];
-
-      case 'moderate':
-        // For moderate tasks, prefer powerful or general models
-        return this.findModelByCategory(visionFiltered, 'powerful') ||
-               this.findModelByCategory(visionFiltered, 'general') ||
-               visionFiltered[0];
-
-      case 'complex':
-        // For complex tasks, prefer flagship or reasoning models
-        return this.findModelByCategory(visionFiltered, 'flagship') ||
-               this.findModelByCategory(visionFiltered, 'reasoning') ||
-               this.findModelByCategory(visionFiltered, 'powerful') ||
-               visionFiltered[0];
-
-      default:
-        return visionFiltered.find(model => model.is_default) || visionFiltered[0];
-    }
+  // Simplified - everyone uses the same model
+  async selectOptimalModel(): Promise<ModelInfo | null> {
+    return await this.getDefaultModel();
   }
 
-  async getFallbackChain(userTier: UserTier, primaryModel: string): Promise<string[]> {
-    const availableModels = await this.getAvailableModels(userTier);
+  async getFallbackChain(primaryModel: string): Promise<string[]> {
+    await this.refreshCacheIfNeeded();
     const chain = [primaryModel];
     
-    // Add efficient models as fallbacks
-    const fallbacks = availableModels
+    // Add other active models as fallbacks
+    const fallbacks = this.modelsCache
       .filter(model => model.model_id !== primaryModel)
       .sort((a, b) => a.input_cost_per_1k_tokens - b.input_cost_per_1k_tokens)
       .map(model => model.model_id);
@@ -102,14 +59,14 @@ export class ModelSelectionService {
   detectContentComplexity(description: string, fileUrl: string | null): ContentComplexity {
     const text = description?.toLowerCase() || '';
     
-    // Complex patterns (need powerful models)
+    // Complex patterns (need more careful processing)
     const complexPatterns = [
       /nutrition|calories|protein|carbs|vitamins|detailed|comprehensive|analyze/,
       /workout|exercise|fitness|training|complex|advanced/,
       /medical|health|assessment|diagnosis|clinical/
     ];
     
-    // Simple patterns (can use cheaper models)
+    // Simple patterns (straightforward processing)
     const simplePatterns = [
       /receipt|bill|invoice|purchase|simple|basic/,
       /\$\d+|\d+\.\d+|total|subtotal/,
@@ -154,10 +111,6 @@ export class ModelSelectionService {
       console.error('Failed to refresh model cache:', error);
       // Keep existing cache on error
     }
-  }
-
-  private findModelByCategory(models: ModelInfo[], category: string): ModelInfo | null {
-    return models.find(model => model.category === category) || null;
   }
 
   // Clear cache manually if needed
