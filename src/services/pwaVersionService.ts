@@ -10,7 +10,8 @@ interface ServerVersionInfo {
 class PWAVersionService {
   private currentVersion: string | null = null;
   private lastServerCheck: number = 0;
-  private readonly CHECK_INTERVAL = 30000; // 30 seconds for version checks
+  private readonly CHECK_INTERVAL = 60000; // Increased to 60 seconds to prevent spam
+  private lastKnownServerVersion: string | null = null;
 
   constructor() {
     this.currentVersion = this.getStoredVersion();
@@ -67,26 +68,35 @@ class PWAVersionService {
       return false;
     }
 
+    // Prevent duplicate notifications for the same server version
+    if (this.lastKnownServerVersion === serverInfo.version) {
+      return false;
+    }
+
     console.log('Server version check:', {
       serverVersion: serverInfo.version,
       currentVersion: this.currentVersion,
+      lastKnownServerVersion: this.lastKnownServerVersion,
       forceUpdate: serverInfo.forceUpdate
     });
 
     // Always force update if versions don't match (default behavior)
     if (this.currentVersion && this.currentVersion !== serverInfo.version) {
       console.log('Version mismatch detected, forcing update');
+      this.lastKnownServerVersion = serverInfo.version;
       return true;
     }
 
     // Force update if server explicitly requests it (though it's true by default now)
-    if (serverInfo.forceUpdate) {
+    if (serverInfo.forceUpdate && !this.currentVersion) {
+      this.lastKnownServerVersion = serverInfo.version;
       return true;
     }
 
     // Store server version if we don't have one
     if (!this.currentVersion) {
       this.setStoredVersion(serverInfo.version);
+      this.lastKnownServerVersion = serverInfo.version;
     }
 
     return false;
@@ -94,10 +104,16 @@ class PWAVersionService {
 
   updateCurrentVersion(version: string): void {
     this.setStoredVersion(version);
+    this.lastKnownServerVersion = version;
   }
 
   getCurrentVersion(): string | null {
     return this.currentVersion;
+  }
+
+  // Reset state after successful update
+  resetUpdateState(): void {
+    this.lastKnownServerVersion = this.currentVersion;
   }
 }
 

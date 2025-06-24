@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { pwaVersionService } from '@/services/pwaVersionService';
 import { toast } from 'sonner';
 
@@ -17,6 +17,10 @@ export const useForceUpdate = () => {
     lastVersionCheck: null,
     currentVersion: pwaVersionService.getCurrentVersion(),
   });
+
+  const checkInProgress = useRef(false);
+  const lastNotificationTime = useRef(0);
+  const NOTIFICATION_COOLDOWN = 60000; // 1 minute cooldown between notifications
 
   const clearAllCaches = async () => {
     try {
@@ -67,8 +71,11 @@ export const useForceUpdate = () => {
   }, []);
 
   const checkForForceUpdate = useCallback(async () => {
-    if (state.isCheckingVersion) return;
+    if (checkInProgress.current || state.isCheckingVersion) {
+      return;
+    }
 
+    checkInProgress.current = true;
     setState(prev => ({ ...prev, isCheckingVersion: true }));
 
     try {
@@ -81,32 +88,23 @@ export const useForceUpdate = () => {
         currentVersion: pwaVersionService.getCurrentVersion(),
       }));
 
-      if (shouldUpdate) {
+      const now = Date.now();
+      
+      if (shouldUpdate && (now - lastNotificationTime.current) > NOTIFICATION_COOLDOWN) {
         console.log('Force update required');
+        lastNotificationTime.current = now;
         
-        // Show mandatory update dialog
-        toast.error('🚨 Critical Update Required', {
-          id: 'force-update',
-          description: 'A new version is available and must be installed now.',
-          duration: Infinity,
-          action: {
-            label: 'Update Now',
-            onClick: executeForceUpdate,
-          },
-        });
-
-        // Auto-execute after 10 seconds if user doesn't click
-        setTimeout(() => {
-          executeForceUpdate();
-        }, 10000);
+        // Don't show toast here - let PWAUpdateManager handle it
+        // Just update the state
       }
 
     } catch (error) {
       console.error('Error checking for force update:', error);
     } finally {
       setState(prev => ({ ...prev, isCheckingVersion: false }));
+      checkInProgress.current = false;
     }
-  }, [state.isCheckingVersion, executeForceUpdate]);
+  }, [state.isCheckingVersion]);
 
   useEffect(() => {
     // Initial check after 5 seconds
@@ -114,16 +112,17 @@ export const useForceUpdate = () => {
       checkForForceUpdate();
     }, 5000);
 
-    // Check every 30 seconds
+    // Check every 60 seconds (reduced from 30 seconds to prevent spam)
     const interval = setInterval(() => {
-      if (navigator.onLine) {
+      if (navigator.onLine && !checkInProgress.current) {
         checkForForceUpdate();
       }
-    }, 30000);
+    }, 60000);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(interval);
+      checkInProgress.current = false;
     };
   }, [checkForForceUpdate]);
 
