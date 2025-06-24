@@ -26,7 +26,8 @@ Deno.serve(async (req) => {
 
     // Generate version based on current timestamp (you can customize this)
     const version = Deno.env.get('APP_VERSION') || `v${Date.now()}`;
-    const forceUpdate = Deno.env.get('FORCE_UPDATE') === 'true';
+    // Force update is now always true by default, unless explicitly set to false
+    const forceUpdate = Deno.env.get('FORCE_UPDATE') !== 'false';
 
     const response: AppVersionResponse = {
       version,
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
       error: 'Internal server error',
       version: 'unknown',
       timestamp: Date.now(),
-      forceUpdate: false
+      forceUpdate: true // Default to force update even on error
     }), {
       status: 500,
       headers: {

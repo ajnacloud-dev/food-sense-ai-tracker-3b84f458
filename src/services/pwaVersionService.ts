@@ -73,14 +73,14 @@ class PWAVersionService {
       forceUpdate: serverInfo.forceUpdate
     });
 
-    // Force update if server explicitly requests it
-    if (serverInfo.forceUpdate) {
+    // Always force update if versions don't match (default behavior)
+    if (this.currentVersion && this.currentVersion !== serverInfo.version) {
+      console.log('Version mismatch detected, forcing update');
       return true;
     }
 
-    // Force update if versions don't match
-    if (this.currentVersion && this.currentVersion !== serverInfo.version) {
-      console.log('Version mismatch detected, forcing update');
+    // Force update if server explicitly requests it (though it's true by default now)
+    if (serverInfo.forceUpdate) {
       return true;
     }
 

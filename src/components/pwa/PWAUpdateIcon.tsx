@@ -21,15 +21,12 @@ const PWAUpdateIcon = () => {
   } = useForceUpdate();
 
   const handleClick = () => {
-    if (shouldForceUpdate) {
-      executeForceUpdate();
+    // All updates are now treated as critical/mandatory
+    if (shouldForceUpdate || updateAvailable) {
+      const updateAction = shouldForceUpdate ? executeForceUpdate : applyUpdate;
+      updateAction();
       toast.success('Applying critical update...', {
         description: 'The app will refresh automatically.',
-      });
-    } else if (updateAvailable) {
-      applyUpdate();
-      toast.success('Installing update...', {
-        description: 'The app will refresh automatically when complete.',
       });
     } else {
       forceCheckForUpdates();
@@ -38,11 +35,9 @@ const PWAUpdateIcon = () => {
   };
 
   const getIcon = () => {
-    if (shouldForceUpdate) {
+    // All available updates are now treated as critical
+    if (shouldForceUpdate || updateAvailable) {
       return <AlertTriangle className={`h-4 w-4 ${isUpdating ? 'animate-pulse' : 'animate-bounce'}`} />;
-    }
-    if (updateAvailable) {
-      return <Download className={`h-4 w-4 ${isUpdating ? 'animate-pulse' : ''}`} />;
     }
     return (
       <RefreshCw 
@@ -54,14 +49,13 @@ const PWAUpdateIcon = () => {
   };
 
   const getTitle = () => {
-    if (shouldForceUpdate) return 'Critical update required - click to install';
-    if (updateAvailable) return 'Update available - click to install';
+    if (shouldForceUpdate || updateAvailable) return 'Critical update required - click to install';
     return 'Check for updates';
   };
 
   const getBadgeColor = () => {
-    if (shouldForceUpdate) return 'bg-red-500';
-    if (updateAvailable) return 'bg-yellow-400';
+    // All updates now show as critical (red)
+    if (shouldForceUpdate || updateAvailable) return 'bg-red-500';
     return '';
   };
 

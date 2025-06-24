@@ -18,28 +18,38 @@ const PWAUpdateManager = () => {
   } = useForceUpdate();
 
   useEffect(() => {
-    // Handle force updates with highest priority
-    if (shouldForceUpdate) {
-      console.log('Force update detected by PWAUpdateManager');
-      return; // Force update hook handles the UI
-    }
-
-    // Show non-blocking notification when update is available
-    if (updateAvailable) {
-      toast.info('🎉 App update available!', {
-        description: 'A new version is ready to install. Look for the update icon in the sidebar header.',
-        duration: 8000,
-        id: 'pwa-update',
+    // All updates are now treated as force updates
+    if (shouldForceUpdate || updateAvailable) {
+      console.log('Force update or update available detected by PWAUpdateManager');
+      
+      // Show mandatory update dialog for all updates
+      toast.error('🚨 App Update Required', {
+        id: 'force-update',
+        description: 'A new version is available and must be installed now.',
+        duration: Infinity,
         action: {
           label: 'Update Now',
           onClick: () => {
-            applyUpdate();
-            toast.dismiss('pwa-update');
+            if (shouldForceUpdate) {
+              executeForceUpdate();
+            } else {
+              applyUpdate();
+            }
+            toast.dismiss('force-update');
           },
         },
       });
+
+      // Auto-execute after 8 seconds if user doesn't click
+      setTimeout(() => {
+        if (shouldForceUpdate) {
+          executeForceUpdate();
+        } else {
+          applyUpdate();
+        }
+      }, 8000);
     }
-  }, [updateAvailable, shouldForceUpdate, applyUpdate]);
+  }, [updateAvailable, shouldForceUpdate, applyUpdate, executeForceUpdate]);
 
   useEffect(() => {
     if (isUpdating) {
