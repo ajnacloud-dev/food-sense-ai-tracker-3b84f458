@@ -1,3 +1,4 @@
+
 // Dynamic cache versioning based on timestamp
 const CACHE_VERSION = Date.now();
 const CACHE_NAME = `nutriwealth-v${CACHE_VERSION}`;
@@ -162,7 +163,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Enhanced skip waiting message handler
+// Enhanced skip waiting message handler with force update support
 self.addEventListener('message', (event) => {
   console.log('Service Worker received message:', event.data);
   
@@ -170,14 +171,22 @@ self.addEventListener('message', (event) => {
     console.log('Received SKIP_WAITING message');
     self.skipWaiting();
   } else if (event.data && event.data.type === 'FORCE_UPDATE') {
-    console.log('Received FORCE_UPDATE message');
+    console.log('Received FORCE_UPDATE message - clearing all caches');
     // Clear all caches and force update
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => caches.delete(cacheName))
       );
     }).then(() => {
+      console.log('All caches cleared for force update');
       self.skipWaiting();
+    });
+  } else if (event.data && event.data.type === 'VERSION_CHECK') {
+    // Send current version info back to client
+    event.ports[0].postMessage({
+      type: 'VERSION_RESPONSE',
+      version: CACHE_VERSION,
+      timestamp: Date.now()
     });
   }
 });
@@ -242,7 +251,7 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Force refresh detection
+// Force refresh detection with enhanced handling
 self.addEventListener('fetch', (event) => {
   // Detect hard refresh (Ctrl+F5 or Cmd+Shift+R)
   if (event.request.cache === 'reload') {

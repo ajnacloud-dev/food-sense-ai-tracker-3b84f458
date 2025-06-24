@@ -1,6 +1,7 @@
 
 import { useEffect } from 'react';
 import { useEnhancedPWAUpdate } from '@/hooks/useEnhancedPWAUpdate';
+import { useForceUpdate } from '@/hooks/useForceUpdate';
 import { toast } from 'sonner';
 
 const PWAUpdateManager = () => {
@@ -10,7 +11,19 @@ const PWAUpdateManager = () => {
     applyUpdate
   } = useEnhancedPWAUpdate();
 
+  const {
+    shouldForceUpdate,
+    isCheckingVersion,
+    executeForceUpdate
+  } = useForceUpdate();
+
   useEffect(() => {
+    // Handle force updates with highest priority
+    if (shouldForceUpdate) {
+      console.log('Force update detected by PWAUpdateManager');
+      return; // Force update hook handles the UI
+    }
+
     // Show non-blocking notification when update is available
     if (updateAvailable) {
       toast.info('🎉 App update available!', {
@@ -26,7 +39,7 @@ const PWAUpdateManager = () => {
         },
       });
     }
-  }, [updateAvailable, applyUpdate]);
+  }, [updateAvailable, shouldForceUpdate, applyUpdate]);
 
   useEffect(() => {
     if (isUpdating) {
@@ -38,6 +51,12 @@ const PWAUpdateManager = () => {
       toast.dismiss('pwa-updating');
     }
   }, [isUpdating]);
+
+  useEffect(() => {
+    if (isCheckingVersion) {
+      console.log('Checking for server version updates...');
+    }
+  }, [isCheckingVersion]);
 
   // No UI rendered - this component only handles background update logic
   return null;
