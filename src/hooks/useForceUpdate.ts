@@ -20,7 +20,7 @@ export const useForceUpdate = () => {
 
   const checkInProgress = useRef(false);
   const lastNotificationTime = useRef(0);
-  const NOTIFICATION_COOLDOWN = 180000; // 3 minutes cooldown between notifications
+  const NOTIFICATION_COOLDOWN = 300000; // 5 minutes cooldown between notifications
 
   const clearAllCaches = async () => {
     try {
@@ -123,17 +123,20 @@ export const useForceUpdate = () => {
     // Reset update state on component mount (after page refresh)
     pwaVersionService.resetUpdateState();
 
-    // Initial check after 8 seconds (longer delay to allow for proper initialization)
+    // Debug: Log current status
+    console.log('PWA Update Status:', pwaVersionService.getUpdateStatus());
+
+    // Initial check after 10 seconds (longer delay to allow for proper initialization)
     const initialTimeout = setTimeout(() => {
       checkForForceUpdate();
-    }, 8000);
+    }, 10000);
 
-    // Check every 90 seconds (longer interval to reduce server load)
+    // Check every 120 seconds (longer interval to reduce server load)
     const interval = setInterval(() => {
       if (navigator.onLine && !checkInProgress.current && !pwaVersionService.isUpdateInProgress()) {
         checkForForceUpdate();
       }
-    }, 90000);
+    }, 120000);
 
     return () => {
       clearTimeout(initialTimeout);

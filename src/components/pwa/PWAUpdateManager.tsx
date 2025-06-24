@@ -21,14 +21,18 @@ const PWAUpdateManager = () => {
   const isUpdatingRef = useRef(false);
   const currentNotificationId = useRef<string | null>(null);
   const lastNotificationVersion = useRef<string | null>(null);
+  const componentMounted = useRef(false);
 
   useEffect(() => {
     // Reset notification state on component mount
-    updateNotificationShown.current = false;
-    isUpdatingRef.current = false;
-    currentNotificationId.current = null;
-    lastNotificationVersion.current = null;
-    console.log('PWAUpdateManager initialized');
+    if (!componentMounted.current) {
+      updateNotificationShown.current = false;
+      isUpdatingRef.current = false;
+      currentNotificationId.current = null;
+      lastNotificationVersion.current = null;
+      componentMounted.current = true;
+      console.log('PWAUpdateManager initialized');
+    }
   }, []);
 
   useEffect(() => {
@@ -44,16 +48,16 @@ const PWAUpdateManager = () => {
       // Create a unique identifier for this update notification
       const notificationId = `update-${Date.now()}`;
       
-      // Dismiss any existing notification first
-      if (currentNotificationId.current) {
-        toast.dismiss(currentNotificationId.current);
-      }
-
       // Prevent duplicate notifications
       if (lastNotificationVersion.current && 
           lastNotificationVersion.current === notificationId) {
         console.log('Preventing duplicate notification for same update');
         return;
+      }
+
+      // Dismiss any existing notification first
+      if (currentNotificationId.current) {
+        toast.dismiss(currentNotificationId.current);
       }
 
       // Mark that we've shown the notification
@@ -92,7 +96,7 @@ const PWAUpdateManager = () => {
         },
       });
 
-      // Auto-execute after 12 seconds if user doesn't click (longer delay)
+      // Auto-execute after 15 seconds if user doesn't click (longer delay)
       setTimeout(async () => {
         if (currentNotificationId.current === notificationId) {
           try {
@@ -114,7 +118,7 @@ const PWAUpdateManager = () => {
             lastNotificationVersion.current = null;
           }
         }
-      }, 12000);
+      }, 15000);
     }
   }, [updateAvailable, shouldForceUpdate, applyUpdate, executeForceUpdate]);
 
@@ -151,6 +155,7 @@ const PWAUpdateManager = () => {
       isUpdatingRef.current = false;
       currentNotificationId.current = null;
       lastNotificationVersion.current = null;
+      componentMounted.current = false;
     };
   }, []);
 
