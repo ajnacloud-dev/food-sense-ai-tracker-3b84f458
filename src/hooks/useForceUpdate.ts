@@ -26,11 +26,11 @@ export const useForceUpdate = () => {
     try {
       if ('caches' in window) {
         const cacheNames = await caches.keys();
-        console.log('Force clearing all caches:', cacheNames);
+        console.log('🧹 Force clearing all caches:', cacheNames);
         await Promise.all(
           cacheNames.map(cacheName => caches.delete(cacheName))
         );
-        console.log('All caches force cleared');
+        console.log('✅ All caches force cleared');
       }
     } catch (error) {
       console.error('Error force clearing caches:', error);
@@ -38,20 +38,19 @@ export const useForceUpdate = () => {
   };
 
   const executeForceUpdate = useCallback(async () => {
-    console.log('Executing force update...');
+    console.log('🚀 Executing force update...');
     
     try {
       // Get the target version before starting update
       const serverInfo = await pwaVersionService.checkServerVersion();
       if (serverInfo) {
-        console.log('Starting update process to version:', serverInfo.version);
+        console.log('🎯 Starting update process to version:', serverInfo.version);
         
         // CRITICAL: Start the update process which stores the target version
         pwaVersionService.startUpdate(serverInfo.version);
         
-        // Store current version info for post-refresh validation
-        console.log('Current version before update:', pwaVersionService.getCurrentVersion());
-        console.log('Target version for update:', serverInfo.version);
+        console.log('📝 Current version before update:', pwaVersionService.getCurrentVersion());
+        console.log('🎯 Target version for update:', serverInfo.version);
       }
 
       // Clear all caches aggressively
@@ -62,7 +61,7 @@ export const useForceUpdate = () => {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration) {
           await registration.unregister();
-          console.log('Service worker unregistered for force update');
+          console.log('🔄 Service worker unregistered for force update');
         }
       }
 
@@ -74,12 +73,12 @@ export const useForceUpdate = () => {
 
       // Force hard refresh after brief delay
       setTimeout(() => {
-        console.log('Initiating page refresh for update');
+        console.log('🔄 Initiating page refresh for update');
         window.location.reload();
       }, 1500);
 
     } catch (error) {
-      console.error('Error during force update:', error);
+      console.error('❌ Error during force update:', error);
       toast.error('Update failed. Please refresh manually.');
       // Reset update state on error
       pwaVersionService.resetUpdateState();
@@ -107,12 +106,12 @@ export const useForceUpdate = () => {
       const now = Date.now();
       
       if (shouldUpdate && (now - lastNotificationTime.current) > NOTIFICATION_COOLDOWN) {
-        console.log('Force update required, showing notification');
+        console.log('🚨 Force update required, showing notification');
         lastNotificationTime.current = now;
       }
 
     } catch (error) {
-      console.error('Error checking for force update:', error);
+      console.error('❌ Error checking for force update:', error);
     } finally {
       setState(prev => ({ ...prev, isCheckingVersion: false }));
       checkInProgress.current = false;
@@ -124,7 +123,7 @@ export const useForceUpdate = () => {
     pwaVersionService.resetUpdateState();
 
     // Debug: Log current status
-    console.log('PWA Update Status:', pwaVersionService.getUpdateStatus());
+    console.log('📊 PWA Update Status:', pwaVersionService.getUpdateStatus());
 
     // Initial check after 10 seconds (longer delay to allow for proper initialization)
     const initialTimeout = setTimeout(() => {

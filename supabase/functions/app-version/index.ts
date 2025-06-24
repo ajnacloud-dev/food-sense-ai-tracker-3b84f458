@@ -12,6 +12,9 @@ interface AppVersionResponse {
   forceUpdate: boolean;
 }
 
+// Use a static version instead of generating new timestamps
+const CURRENT_APP_VERSION = Deno.env.get('APP_VERSION') || 'v1.0.0';
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -24,13 +27,11 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Generate version based on current timestamp (you can customize this)
-    const version = Deno.env.get('APP_VERSION') || `v${Date.now()}`;
-    // Force update is now always true by default, unless explicitly set to false
-    const forceUpdate = Deno.env.get('FORCE_UPDATE') !== 'false';
+    // Return consistent version - only change when there's a real update
+    const forceUpdate = Deno.env.get('FORCE_UPDATE') === 'true';
 
     const response: AppVersionResponse = {
-      version,
+      version: CURRENT_APP_VERSION,
       timestamp: Date.now(),
       forceUpdate
     };
@@ -49,9 +50,9 @@ Deno.serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      version: 'unknown',
+      version: CURRENT_APP_VERSION,
       timestamp: Date.now(),
-      forceUpdate: true // Default to force update even on error
+      forceUpdate: false
     }), {
       status: 500,
       headers: {
