@@ -19,6 +19,14 @@ const PWAUpdateManager = () => {
 
   const updateNotificationShown = useRef(false);
   const isUpdatingRef = useRef(false);
+  const currentNotificationId = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Reset notification state on component mount
+    updateNotificationShown.current = false;
+    isUpdatingRef.current = false;
+    currentNotificationId.current = null;
+  }, []);
 
   useEffect(() => {
     // Prevent showing notification if we're already updating or if notification was already shown
@@ -30,9 +38,15 @@ const PWAUpdateManager = () => {
     if (shouldForceUpdate || updateAvailable) {
       console.log('Force update or update available detected by PWAUpdateManager');
       
+      // Dismiss any existing notification first
+      if (currentNotificationId.current) {
+        toast.dismiss(currentNotificationId.current);
+      }
+
       // Mark that we've shown the notification
       updateNotificationShown.current = true;
       isUpdatingRef.current = true;
+      currentNotificationId.current = 'force-update';
 
       // Show mandatory update dialog for all updates
       toast.error('🚨 App Update Required', {
@@ -43,17 +57,20 @@ const PWAUpdateManager = () => {
           label: 'Update Now',
           onClick: async () => {
             try {
+              toast.dismiss('force-update');
+              currentNotificationId.current = null;
+              
               if (shouldForceUpdate) {
                 await executeForceUpdate();
               } else {
                 await applyUpdate();
               }
-              toast.dismiss('force-update');
             } catch (error) {
               console.error('Update failed:', error);
               // Reset flags on error so user can retry
               updateNotificationShown.current = false;
               isUpdatingRef.current = false;
+              currentNotificationId.current = null;
             }
           },
         },
@@ -61,18 +78,23 @@ const PWAUpdateManager = () => {
 
       // Auto-execute after 8 seconds if user doesn't click
       setTimeout(async () => {
-        try {
-          if (shouldForceUpdate) {
-            await executeForceUpdate();
-          } else {
-            await applyUpdate();
+        if (currentNotificationId.current === 'force-update') {
+          try {
+            toast.dismiss('force-update');
+            currentNotificationId.current = null;
+            
+            if (shouldForceUpdate) {
+              await executeForceUpdate();
+            } else {
+              await applyUpdate();
+            }
+          } catch (error) {
+            console.error('Auto-update failed:', error);
+            // Reset flags on error
+            updateNotificationShown.current = false;
+            isUpdatingRef.current = false;
+            currentNotificationId.current = null;
           }
-          toast.dismiss('force-update');
-        } catch (error) {
-          console.error('Auto-update failed:', error);
-          // Reset flags on error
-          updateNotificationShown.current = false;
-          isUpdatingRef.current = false;
         }
       }, 8000);
     }
@@ -86,8 +108,8 @@ const PWAUpdateManager = () => {
       });
     } else {
       toast.dismiss('pwa-updating');
-      // Reset the notification flag when update is complete
-      if (isUpdatingRef.current) {
+      // Only reset notification flags if we're not in the middle of showing a notification
+      if (isUpdatingRef.current && !currentNotificationId.current) {
         updateNotificationShown.current = false;
         isUpdatingRef.current = false;
       }
@@ -100,11 +122,15 @@ const PWAUpdateManager = () => {
     }
   }, [isCheckingVersion]);
 
-  // Reset flags when component unmounts
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (currentNotificationId.current) {
+        toast.dismiss(currentNotificationId.current);
+      }
       updateNotificationShown.current = false;
       isUpdatingRef.current = false;
+      currentNotificationId.current = null;
     };
   }, []);
 

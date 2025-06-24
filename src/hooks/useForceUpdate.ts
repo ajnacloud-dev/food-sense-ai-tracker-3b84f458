@@ -20,7 +20,7 @@ export const useForceUpdate = () => {
 
   const checkInProgress = useRef(false);
   const lastNotificationTime = useRef(0);
-  const NOTIFICATION_COOLDOWN = 60000; // 1 minute cooldown between notifications
+  const NOTIFICATION_COOLDOWN = 120000; // 2 minutes cooldown between notifications
 
   const clearAllCaches = async () => {
     try {
@@ -41,6 +41,12 @@ export const useForceUpdate = () => {
     console.log('Executing force update...');
     
     try {
+      // Get the target version before starting update
+      const serverInfo = await pwaVersionService.checkServerVersion();
+      if (serverInfo) {
+        pwaVersionService.startUpdate(serverInfo.version);
+      }
+
       // Clear all caches aggressively
       await clearAllCaches();
 
@@ -71,7 +77,7 @@ export const useForceUpdate = () => {
   }, []);
 
   const checkForForceUpdate = useCallback(async () => {
-    if (checkInProgress.current || state.isCheckingVersion) {
+    if (checkInProgress.current || state.isCheckingVersion || pwaVersionService.isUpdateInProgress()) {
       return;
     }
 
@@ -93,9 +99,6 @@ export const useForceUpdate = () => {
       if (shouldUpdate && (now - lastNotificationTime.current) > NOTIFICATION_COOLDOWN) {
         console.log('Force update required');
         lastNotificationTime.current = now;
-        
-        // Don't show toast here - let PWAUpdateManager handle it
-        // Just update the state
       }
 
     } catch (error) {
@@ -107,14 +110,17 @@ export const useForceUpdate = () => {
   }, [state.isCheckingVersion]);
 
   useEffect(() => {
+    // Reset update state on component mount (after page refresh)
+    pwaVersionService.resetUpdateState();
+
     // Initial check after 5 seconds
     const initialTimeout = setTimeout(() => {
       checkForForceUpdate();
     }, 5000);
 
-    // Check every 60 seconds (reduced from 30 seconds to prevent spam)
+    // Check every 60 seconds
     const interval = setInterval(() => {
-      if (navigator.onLine && !checkInProgress.current) {
+      if (navigator.onLine && !checkInProgress.current && !pwaVersionService.isUpdateInProgress()) {
         checkForForceUpdate();
       }
     }, 60000);
