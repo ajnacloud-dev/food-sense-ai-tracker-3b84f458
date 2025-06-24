@@ -20,12 +20,15 @@ const PWAUpdateManager = () => {
   const updateNotificationShown = useRef(false);
   const isUpdatingRef = useRef(false);
   const currentNotificationId = useRef<string | null>(null);
+  const lastNotificationVersion = useRef<string | null>(null);
 
   useEffect(() => {
     // Reset notification state on component mount
     updateNotificationShown.current = false;
     isUpdatingRef.current = false;
     currentNotificationId.current = null;
+    lastNotificationVersion.current = null;
+    console.log('PWAUpdateManager initialized');
   }, []);
 
   useEffect(() => {
@@ -38,26 +41,38 @@ const PWAUpdateManager = () => {
     if (shouldForceUpdate || updateAvailable) {
       console.log('Force update or update available detected by PWAUpdateManager');
       
+      // Create a unique identifier for this update notification
+      const notificationId = `update-${Date.now()}`;
+      
       // Dismiss any existing notification first
       if (currentNotificationId.current) {
         toast.dismiss(currentNotificationId.current);
       }
 
+      // Prevent duplicate notifications
+      if (lastNotificationVersion.current && 
+          lastNotificationVersion.current === notificationId) {
+        console.log('Preventing duplicate notification for same update');
+        return;
+      }
+
       // Mark that we've shown the notification
       updateNotificationShown.current = true;
       isUpdatingRef.current = true;
-      currentNotificationId.current = 'force-update';
+      currentNotificationId.current = notificationId;
+      lastNotificationVersion.current = notificationId;
 
       // Show mandatory update dialog for all updates
       toast.error('🚨 App Update Required', {
-        id: 'force-update',
+        id: notificationId,
         description: 'A new version is available and must be installed now.',
         duration: Infinity,
         action: {
           label: 'Update Now',
           onClick: async () => {
             try {
-              toast.dismiss('force-update');
+              console.log('User clicked Update Now');
+              toast.dismiss(notificationId);
               currentNotificationId.current = null;
               
               if (shouldForceUpdate) {
@@ -71,16 +86,18 @@ const PWAUpdateManager = () => {
               updateNotificationShown.current = false;
               isUpdatingRef.current = false;
               currentNotificationId.current = null;
+              lastNotificationVersion.current = null;
             }
           },
         },
       });
 
-      // Auto-execute after 8 seconds if user doesn't click
+      // Auto-execute after 12 seconds if user doesn't click (longer delay)
       setTimeout(async () => {
-        if (currentNotificationId.current === 'force-update') {
+        if (currentNotificationId.current === notificationId) {
           try {
-            toast.dismiss('force-update');
+            console.log('Auto-executing update after timeout');
+            toast.dismiss(notificationId);
             currentNotificationId.current = null;
             
             if (shouldForceUpdate) {
@@ -94,9 +111,10 @@ const PWAUpdateManager = () => {
             updateNotificationShown.current = false;
             isUpdatingRef.current = false;
             currentNotificationId.current = null;
+            lastNotificationVersion.current = null;
           }
         }
-      }, 8000);
+      }, 12000);
     }
   }, [updateAvailable, shouldForceUpdate, applyUpdate, executeForceUpdate]);
 
@@ -112,6 +130,7 @@ const PWAUpdateManager = () => {
       if (isUpdatingRef.current && !currentNotificationId.current) {
         updateNotificationShown.current = false;
         isUpdatingRef.current = false;
+        lastNotificationVersion.current = null;
       }
     }
   }, [isUpdating]);
@@ -131,6 +150,7 @@ const PWAUpdateManager = () => {
       updateNotificationShown.current = false;
       isUpdatingRef.current = false;
       currentNotificationId.current = null;
+      lastNotificationVersion.current = null;
     };
   }, []);
 

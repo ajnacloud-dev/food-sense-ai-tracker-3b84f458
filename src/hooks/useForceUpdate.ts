@@ -20,7 +20,7 @@ export const useForceUpdate = () => {
 
   const checkInProgress = useRef(false);
   const lastNotificationTime = useRef(0);
-  const NOTIFICATION_COOLDOWN = 120000; // 2 minutes cooldown between notifications
+  const NOTIFICATION_COOLDOWN = 180000; // 3 minutes cooldown between notifications
 
   const clearAllCaches = async () => {
     try {
@@ -44,7 +44,14 @@ export const useForceUpdate = () => {
       // Get the target version before starting update
       const serverInfo = await pwaVersionService.checkServerVersion();
       if (serverInfo) {
+        console.log('Starting update process to version:', serverInfo.version);
+        
+        // CRITICAL: Start the update process which stores the target version
         pwaVersionService.startUpdate(serverInfo.version);
+        
+        // Store current version info for post-refresh validation
+        console.log('Current version before update:', pwaVersionService.getCurrentVersion());
+        console.log('Target version for update:', serverInfo.version);
       }
 
       // Clear all caches aggressively
@@ -67,12 +74,15 @@ export const useForceUpdate = () => {
 
       // Force hard refresh after brief delay
       setTimeout(() => {
+        console.log('Initiating page refresh for update');
         window.location.reload();
       }, 1500);
 
     } catch (error) {
       console.error('Error during force update:', error);
       toast.error('Update failed. Please refresh manually.');
+      // Reset update state on error
+      pwaVersionService.resetUpdateState();
     }
   }, []);
 
@@ -97,7 +107,7 @@ export const useForceUpdate = () => {
       const now = Date.now();
       
       if (shouldUpdate && (now - lastNotificationTime.current) > NOTIFICATION_COOLDOWN) {
-        console.log('Force update required');
+        console.log('Force update required, showing notification');
         lastNotificationTime.current = now;
       }
 
@@ -113,17 +123,17 @@ export const useForceUpdate = () => {
     // Reset update state on component mount (after page refresh)
     pwaVersionService.resetUpdateState();
 
-    // Initial check after 5 seconds
+    // Initial check after 8 seconds (longer delay to allow for proper initialization)
     const initialTimeout = setTimeout(() => {
       checkForForceUpdate();
-    }, 5000);
+    }, 8000);
 
-    // Check every 60 seconds
+    // Check every 90 seconds (longer interval to reduce server load)
     const interval = setInterval(() => {
       if (navigator.onLine && !checkInProgress.current && !pwaVersionService.isUpdateInProgress()) {
         checkForForceUpdate();
       }
-    }, 60000);
+    }, 90000);
 
     return () => {
       clearTimeout(initialTimeout);
