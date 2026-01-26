@@ -3,7 +3,8 @@ import re
 # Import handlers - use fixed version directly
 from handlers import data_fixed as data
 
-from handlers import auth, ai, storage, queue
+from handlers import auth, ai, storage, analyze_direct
+# Note: queue removed - using simpler analyze_direct approach
 
 # Route Definition
 # (Method, PathPattern, Handler)
@@ -15,13 +16,9 @@ ROUTES = [
     ('GET', r'^/v1/auth/config$', auth.get_config),
     ('POST', r'^/v1/auth/invitations/redeem$', auth.redeem_invitation),
 
-    # AI
-    ('POST', r'^/v1/ai/analyze$', ai.analyze),
-
-    # Queue System
-    ('POST', r'^/v1/queue/analysis$', queue.queue_analysis),
-    ('GET', r'^/v1/queue/status/(?P<job_id>[a-zA-Z0-9-]+)$', queue.get_job_status),
-    ('GET', r'^/v1/queue/jobs$', queue.get_user_jobs),
+    # AI - Simple direct analysis (no complex queue)
+    ('POST', r'^/v1/analyze$', analyze_direct.analyze_food),
+    ('POST', r'^/v1/ai/analyze$', analyze_direct.analyze_food),  # Keep old route for compatibility
 
     # Storage
     ('POST', r'^/storage/upload$', storage.upload_file),

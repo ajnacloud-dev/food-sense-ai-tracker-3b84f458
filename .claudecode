@@ -1,0 +1,60 @@
+# Claude Code Instructions
+
+## Testing Guidelines
+
+### ❌ DO NOT CREATE .py TEST FILES
+- **NEVER** create Python test scripts (test_*.py) in the root directory
+- **NEVER** create standalone Python scripts for testing APIs
+- All test files have been archived to `archive/test_scripts/`
+
+### ✅ PREFERRED TESTING APPROACH
+1. **Use Insomnia Collection**: Import and use the existing Insomnia collection for API testing
+2. **Use Newman**: Run tests via Newman CLI for automated testing
+3. **Use Docker Compose**: Test the full stack with `docker-compose up`
+
+### Testing Commands
+```bash
+# Run API tests with Newman
+newman run insomnia-collection.json
+
+# Test with Docker Compose
+docker-compose up
+
+# Manual testing via curl
+curl -X POST http://localhost:8000/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"description": "chicken biryani"}'
+```
+
+## Architecture Guidelines
+
+### Multi-Tenancy
+- Tenant configuration is in `tenants.json` (NOT hardcoded)
+- Each organization gets their own tenant_id and namespace
+- User isolation within tenants via user_id
+
+### Database
+- Using Ibex Cloud Database (https://smartlink.ajna.cloud/ibexdb)
+- All tables use `app_` prefix
+- Tenant isolation at namespace level
+
+### AI Service
+- Using GPT-5.2 model (OpenAI)
+- NO MOCKING - always use real API
+- Background queue processing for analysis
+
+## Development Setup
+- Use `uv` for Python package management
+- Docker Compose for local development
+- Environment variables in `.env` file
+
+## Key Features
+1. Background queue system for food analysis
+2. Multi-tenant architecture with namespace isolation
+3. Real OpenAI GPT-5.2 integration
+4. Ibex database for persistent storage
+
+## Important Notes
+- **NO MOCK DATA**: All services must use real APIs
+- **NO TEST FILES**: Use Newman/Insomnia for testing
+- **TENANT CONFIG**: Use tenants.json, not hardcoded values

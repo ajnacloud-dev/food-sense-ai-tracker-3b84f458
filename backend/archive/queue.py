@@ -52,16 +52,15 @@ def queue_analysis(event, context):
         if result.get('success'):
             print(f"✅ Queued analysis job: {job_id}")
 
-            # Start background processor if not running
-            global queue_processor
-            if queue_processor is None or not queue_processor.is_alive():
-                queue_processor = threading.Thread(
-                    target=process_queue,
-                    args=(context,),
-                    daemon=True
-                )
-                queue_processor.start()
-                print("🚀 Started background queue processor")
+            # Start background processor (always start a new one for now)
+            # This ensures correct tenant context
+            processor = threading.Thread(
+                target=process_queue,
+                args=(context,),
+                daemon=True
+            )
+            processor.start()
+            print(f"🚀 Started background queue processor for job {job_id}")
 
             return respond(200, {
                 "success": True,
@@ -176,16 +175,22 @@ def process_queue(context):
     """Background thread to process queued analysis jobs"""
     db = context['db']
     ai_service = context['ai_service']
+    tenant_config = context.get('tenant', {})
+    tenant_id = tenant_config.get('tenant_id', 'test-tenant')
 
-    print("📊 Queue processor started")
+    # Track jobs we've already tried to fail to avoid infinite loops
+    failed_jobs = set()
+
+    print(f"📊 Queue processor started for tenant: {tenant_id}")
 
     while True:
         try:
             # Get pending jobs (use full table name with prefix)
+            # Get multiple jobs to find one that's not failed
             result = db.query("app_analysis_queue",
                             filters=[{"field": "status", "operator": "eq", "value": "pending"}],
                             sort=[{"field": "created_at", "order": "asc"}],
-                            limit=1)
+                            limit=10)  # Get more jobs to find a valid one
 
             print(f"Query result: {result}")
             if result.get('success'):
@@ -193,32 +198,72 @@ def process_queue(context):
                 data = result.get('data', {})
                 jobs = data.get('records', []) if isinstance(data, dict) else data
 
-                if jobs:
-                    job = jobs[0]
+                # Find the first job that's not in our failed list
+                job_to_process = None
+                for job in jobs:
                     job_id = job['id']
-                    print(f"📋 Processing job: {job_id}")
+                    if job_id not in failed_jobs:
+                        job_to_process = job
+                        break
+                    else:
+                        print(f"⏭️ Skipping already-failed job: {job_id}")
 
-                    # Update status to processing (need all fields for Ibex)
-                    job['status'] = "processing"
-                    job['progress'] = 25
+                if not job_to_process:
+                    # No valid jobs to process, wait
+                    time.sleep(5)
+                    continue
+
+                job = job_to_process
+                job_id = job['id']
+
+                # Verify job belongs to current tenant context
+                job_tenant = job.get('_tenant_id', '')
+                if job_tenant and job_tenant != tenant_id:
+                    print(f"⚠️ Skipping job from different tenant: {job_id} (tenant: {job_tenant})")
+                    failed_jobs.add(job_id)  # Mark as failed to avoid retrying
+                    continue
+
+                # Check if job is stuck (older than 10 minutes and still pending)
+                created_at = job.get('created_at', '')
+                if created_at:
+                    try:
+                        job_age = (datetime.utcnow() - datetime.fromisoformat(created_at.replace('Z', ''))).total_seconds()
+                        if job_age > 600:  # 10 minutes
+                            print(f"⚠️ Marking stuck job as failed: {job_id} (age: {int(job_age)}s)")
+                            job['status'] = "failed"
+                            job['error'] = f"Job timed out after {int(job_age)} seconds"
+                            job['updated_at'] = datetime.utcnow().isoformat()
+                            db.write("app_analysis_queue", [job])
+                            failed_jobs.add(job_id)  # Track that we've tried to fail this job
+                            continue
+                    except Exception as e:
+                        print(f"Error checking job age: {e}")
+                        failed_jobs.add(job_id)  # Skip this job in future iterations
+                        continue
+
+                print(f"📋 Processing job: {job_id} for tenant: {tenant_id}")
+
+                # Update status to processing (need all fields for Ibex)
+                job['status'] = "processing"
+                job['progress'] = 25
+                job['updated_at'] = datetime.utcnow().isoformat()
+                db.write("app_analysis_queue", [job])
+
+                try:
+                    # Perform AI analysis
+                    print(f"🤖 Analyzing with GPT-5.2...")
+                    analysis_result = ai_service.process_request(
+                        job['user_id'],
+                        job.get('description'),
+                        job.get('image_url')
+                    )
+
+                    # Update progress
+                    job['progress'] = 75
                     job['updated_at'] = datetime.utcnow().isoformat()
                     db.write("app_analysis_queue", [job])
 
-                    try:
-                        # Perform AI analysis
-                        print(f"🤖 Analyzing with GPT-5.2...")
-                        analysis_result = ai_service.process_request(
-                            job['user_id'],
-                            job.get('description'),
-                            job.get('image_url')
-                        )
-
-                        # Update progress
-                        job['progress'] = 75
-                        job['updated_at'] = datetime.utcnow().isoformat()
-                        db.write("app_analysis_queue", [job])
-
-                        if analysis_result.get('success'):
+                    if analysis_result.get('success'):
                             # Store the food entry
                             ai_data = analysis_result.get('data', {})
                             category = analysis_result.get('category', 'food')

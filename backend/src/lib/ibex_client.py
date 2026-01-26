@@ -136,6 +136,7 @@ class IbexClient:
             sanitized_records.append(sanitized)
 
         print(f"IbexClient.write called with table: {table}")
+        print(f"Records to write: {json.dumps(sanitized_records, indent=2)}")
         return self._call({
             "operation": "WRITE",
             "table": table,

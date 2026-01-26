@@ -5,7 +5,7 @@ def respond(status_code, body, is_base64=False):
         "statusCode": status_code,
         "headers": {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Tenant-ID",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
             "Content-Type": "application/json" if not is_base64 else "application/octet-stream"
         },

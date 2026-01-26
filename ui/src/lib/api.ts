@@ -61,6 +61,9 @@ client.interceptors.request.use(async (config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add tenant header for multi-tenant support
+    // Use 'test' for local development, can be configured for different environments
+    config.headers['X-Tenant-ID'] = import.meta.env.VITE_TENANT_ID || 'test';
     return config;
 });
 
@@ -437,5 +440,6 @@ export const api = {
         }
     },
 
-    post: (url: string, data: any) => client.post(url, data)
+    post: (url: string, data: any) => client.post(url, data),
+    get: (url: string) => client.get(url)
 };

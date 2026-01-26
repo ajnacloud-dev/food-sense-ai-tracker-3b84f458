@@ -30,7 +30,7 @@ class LocalLambdaHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Api-Key')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Api-Key, X-Tenant-ID')
         self.end_headers()
 
     def _invoke_lambda(self, method):
@@ -38,67 +38,69 @@ class LocalLambdaHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         query_params = {k: v[0] for k, v in parse_qs(parsed_path.query).items()}
-        
-        headers = {k: v for k, v in self.headers.items()}
-        
-        # Read Body
+
+        # Handle body
         body = None
         if method in ['POST', 'PUT', 'PATCH']:
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length > 0:
-                body = self.rfile.read(content_length).decode('utf-8')
+                raw_body = self.rfile.read(content_length)
+                try:
+                    body = raw_body.decode('utf-8')
+                except:
+                    # If not UTF-8, might be binary (like an image)
+                    import base64
+                    body = base64.b64encode(raw_body).decode('utf-8')
 
-        # Mock Authorization Context (Development Mode)
-        # In production this comes from Cognito Authorizer
-        auth_header = headers.get('Authorization', '')
-        # If testing locally with real tokens, we might decode JWT here? 
-        # For simplicity, we pass raw header or mock ID if missing.
-        user_id = "local-dev-user"
-        # If client sends Bearer token, we might assume it's valid for local dev or let backend validate?
-        # Our backend currently checks 'claims' in 'requestContext'.
-        
+        # Construct event
         event = {
-            "path": path,
-            "httpMethod": method,
-            "headers": headers,
-            "queryStringParameters": query_params,
-            "body": body,
-            "pathParameters": {}, # Router populates this
-            "requestContext": {
-                "authorizer": {
-                    "claims": {
-                        "sub": user_id,
-                        "email": "dev@local.com"
-                    }
-                }
-            }
+            'httpMethod': method,
+            'path': path,
+            'queryStringParameters': query_params if query_params else None,
+            'headers': dict(self.headers),
+            'body': body,
+            'isBase64Encoded': False  # We handle base64 in the body itself if needed
         }
-        
-        # Invoke Handler
+
+        # Call Lambda Handler
         try:
             response = lambda_handler(event, {})
-        except Exception as e:
-            logger.error(f"Handler Error: {e}")
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
-            return
 
-        # Send Response
-        status_code = response.get('statusCode', 200)
-        self.send_response(status_code)
-        
-        resp_headers = response.get('headers', {})
-        for k, v in resp_headers.items():
-            self.send_header(k, v)
-        self.end_headers()
-        
-        resp_body = response.get('body', '')
-        if response.get('isBase64Encoded'):
-             import base64
-             self.wfile.write(base64.b64decode(resp_body))
-        else:
-             self.wfile.write(resp_body.encode('utf-8'))
+            # Send Response
+            status_code = response.get('statusCode', 200)
+            self.send_response(status_code)
+
+            # Send Headers
+            for header, value in response.get('headers', {}).items():
+                self.send_header(header, value)
+            self.end_headers()
+
+            # Send Body
+            body = response.get('body', '')
+            if response.get('isBase64Encoded'):
+                import base64
+                body = base64.b64decode(body)
+                self.wfile.write(body)
+            else:
+                if isinstance(body, dict):
+                    body = json.dumps(body)
+                self.wfile.write(body.encode('utf-8'))
+
+        except Exception as e:
+            logger.error(f"Error invoking lambda: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # Send error response
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            error_response = {
+                'error': str(e),
+                'type': type(e).__name__
+            }
+            self.wfile.write(json.dumps(error_response).encode('utf-8'))
 
     def do_GET(self):
         self._invoke_lambda('GET')
@@ -108,21 +110,19 @@ class LocalLambdaHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         self._invoke_lambda('PUT')
-        
+
     def do_DELETE(self):
         self._invoke_lambda('DELETE')
 
-def run(server_class=HTTPServer, handler_class=LocalLambdaHandler):
+    def do_PATCH(self):
+        self._invoke_lambda('PATCH')
+
+def run_server():
     server_address = ('', PORT)
-    print(f"Starting Local API Server on port {PORT}...")
-    print(f"Serving content from {SRC_DIR}/app.py")
-    httpd = server_class(server_address, handler_class)
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    httpd.server_close()
-    print("Server stopped.")
+    httpd = HTTPServer(server_address, LocalLambdaHandler)
+    logger.info(f"🚀 Local Lambda Server running on port {PORT}")
+    logger.info(f"   Access at: http://localhost:{PORT}")
+    httpd.serve_forever()
 
 if __name__ == '__main__':
-    run()
+    run_server()

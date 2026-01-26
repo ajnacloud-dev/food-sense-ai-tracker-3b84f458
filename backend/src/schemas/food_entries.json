@@ -52,18 +52,6 @@
             "type": "double",
             "required": false
         },
-        "ingredients": {
-            "type": "string",
-            "required": false
-        },
-        "extracted_nutrients": {
-            "type": "string",
-            "required": false
-        },
-        "confidence_score": {
-            "type": "double",
-            "required": false
-        },
         "created_at": {
             "type": "timestamp",
             "required": false

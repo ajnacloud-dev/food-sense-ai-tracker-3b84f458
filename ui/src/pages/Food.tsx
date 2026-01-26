@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Utensils, LayoutGrid, List } from "lucide-react";
+import { Plus, RefreshCw, Utensils, LayoutGrid, List, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,6 +15,9 @@ import { ModernFilterBar } from "@/components/common/ModernFilterBar";
 import { calculateVegetarianPercentage } from "@/utils/vegetarianUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAnalysisQueue } from "@/hooks/useAnalysisQueue";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 interface FoodEntry {
   id: string;
@@ -41,6 +44,9 @@ const Food = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  // Queue system
+  const { jobs, fetchJobs } = useAnalysisQueue();
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -207,7 +213,17 @@ const Food = () => {
       return;
     }
     fetchFoodEntries();
+    fetchJobs(); // Fetch queue jobs
   }, [user, navigate]);
+
+  // Refresh jobs periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchJobs();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchFoodEntries = async () => {
     if (!user) return;
@@ -359,6 +375,66 @@ const Food = () => {
           isFiltered={filteredEntries.length !== foodEntries.length}
           originalCount={foodEntries.length}
         />
+
+        {/* Queue Status Section */}
+        {jobs && jobs.length > 0 && (
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                  <h3 className="font-semibold text-gray-900">Analysis Queue</h3>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                    {jobs.filter(j => j.status === 'processing' || j.status === 'pending').length} Active
+                  </Badge>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {jobs.slice(0, 3).map((job) => (
+                  <div key={job.job_id} className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {job.status === 'pending' && (
+                          <Clock className="h-4 w-4 text-yellow-600" />
+                        )}
+                        {job.status === 'processing' && (
+                          <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+                        )}
+                        {job.status === 'completed' && (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        )}
+                        {job.status === 'failed' && (
+                          <XCircle className="h-4 w-4 text-red-600" />
+                        )}
+                        <div>
+                          <p className="font-medium text-sm text-gray-900">
+                            {job.description || 'AI-analyzed content'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {job.status === 'pending' && 'Waiting in queue...'}
+                            {job.status === 'processing' && `Processing... ${job.progress || 0}%`}
+                            {job.status === 'completed' && 'Analysis complete'}
+                            {job.status === 'failed' && 'Analysis failed'}
+                          </p>
+                        </div>
+                      </div>
+                      {job.status === 'processing' && job.progress > 0 && (
+                        <div className="w-24">
+                          <Progress value={job.progress} className="h-1" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {jobs.length > 3 && (
+                  <p className="text-xs text-gray-500 text-center pt-1">
+                    +{jobs.length - 3} more in queue
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Modern Filter Bar */}
         <ModernFilterBar

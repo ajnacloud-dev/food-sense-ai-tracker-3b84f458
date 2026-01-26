@@ -3,6 +3,7 @@ Tenant Management for Multi-tenant Architecture
 """
 
 import os
+import json
 from typing import Optional, Dict, Any
 
 class TenantManager:
@@ -15,33 +16,59 @@ class TenantManager:
     - Data isolation at namespace level in Ibex
     """
 
-    # Tenant configuration mapping
-    TENANT_CONFIG = {
-        "demo": {
-            "tenant_id": "demo-tenant",
-            "namespace": "demo",
-            "display_name": "Demo Organization",
-            "features": ["basic_analysis", "food_tracking"]
-        },
-        "test": {
-            "tenant_id": "test-tenant",
-            "namespace": "default",
-            "display_name": "Test Environment",
-            "features": ["all"]
-        },
-        "acme_corp": {
-            "tenant_id": "acme-corp-prod",
-            "namespace": "acme",
-            "display_name": "ACME Corporation",
-            "features": ["advanced_analysis", "food_tracking", "reporting", "queue"]
-        },
-        "health_co": {
-            "tenant_id": "health-co-prod",
-            "namespace": "healthco",
-            "display_name": "HealthCo Inc",
-            "features": ["advanced_analysis", "food_tracking", "nutrition_coaching"]
-        }
-    }
+    # Load tenant configuration from file
+    _config_loaded = False
+    _tenant_config = {}
+    _default_tenant = "test"
+    _feature_definitions = {}
+
+    @classmethod
+    def _load_config(cls):
+        """Load tenant configuration from JSON file"""
+        if cls._config_loaded:
+            return
+
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            'tenants.json'
+        )
+
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                cls._tenant_config = config.get('tenants', {})
+                cls._default_tenant = config.get('default_tenant', 'test')
+                cls._feature_definitions = config.get('feature_definitions', {})
+                cls._config_loaded = True
+                print(f"Loaded {len(cls._tenant_config)} tenant configurations")
+        except FileNotFoundError:
+            print(f"Warning: tenants.json not found at {config_path}, using defaults")
+            cls._tenant_config = {
+                "test": {
+                    "tenant_id": "test-tenant",
+                    "namespace": "default",
+                    "display_name": "Test Environment",
+                    "features": ["all"]
+                }
+            }
+            cls._config_loaded = True
+        except Exception as e:
+            print(f"Error loading tenant config: {e}")
+            cls._tenant_config = {
+                "test": {
+                    "tenant_id": "test-tenant",
+                    "namespace": "default",
+                    "display_name": "Test Environment",
+                    "features": ["all"]
+                }
+            }
+            cls._config_loaded = True
+
+    @classmethod
+    def get_tenant_config(cls, tenant_key: str) -> Optional[Dict[str, Any]]:
+        """Get configuration for a specific tenant"""
+        cls._load_config()
+        return cls._tenant_config.get(tenant_key)
 
     @classmethod
     def get_tenant_from_request(cls, event: Dict[str, Any]) -> Dict[str, Any]:
@@ -52,41 +79,35 @@ class TenantManager:
         1. X-Tenant-ID header (for testing)
         2. Tenant from JWT token
         3. Domain-based tenant detection
-        4. Default to 'test' tenant
+        4. Default to configured default tenant
         """
+        cls._load_config()
         headers = event.get('headers', {}) or {}
 
         # 1. Check explicit tenant header (for testing/development)
         tenant_header = headers.get('X-Tenant-ID') or headers.get('x-tenant-id')
-        if tenant_header and tenant_header in cls.TENANT_CONFIG:
-            return cls.TENANT_CONFIG[tenant_header]
+        if tenant_header and tenant_header in cls._tenant_config:
+            return cls._tenant_config[tenant_header]
 
         # 2. Extract from authorization token
         auth_header = headers.get('Authorization') or headers.get('authorization')
         if auth_header:
             # In production, decode JWT and extract tenant claim
             # For now, we'll use a simple approach
-            if 'acme' in auth_header.lower():
-                return cls.TENANT_CONFIG['acme_corp']
-            elif 'health' in auth_header.lower():
-                return cls.TENANT_CONFIG['health_co']
+            for key, config in cls._tenant_config.items():
+                if key in auth_header.lower():
+                    return config
 
         # 3. Domain-based tenant detection
         host = headers.get('Host') or headers.get('host') or ''
-        if 'acme' in host:
-            return cls.TENANT_CONFIG['acme_corp']
-        elif 'healthco' in host:
-            return cls.TENANT_CONFIG['health_co']
-        elif 'demo' in host:
-            return cls.TENANT_CONFIG['demo']
+        for key, config in cls._tenant_config.items():
+            domain_patterns = config.get('domain_patterns', [])
+            for pattern in domain_patterns:
+                if pattern in host:
+                    return config
 
-        # 4. Default to test tenant
-        return cls.TENANT_CONFIG['test']
-
-    @classmethod
-    def get_tenant_config(cls, tenant_key: str) -> Optional[Dict[str, Any]]:
-        """Get configuration for a specific tenant"""
-        return cls.TENANT_CONFIG.get(tenant_key)
+        # 4. Default to configured default tenant
+        return cls._tenant_config.get(cls._default_tenant, cls._tenant_config.get('test'))
 
     @classmethod
     def has_feature(cls, tenant_config: Dict[str, Any], feature: str) -> bool:
@@ -127,7 +148,8 @@ class TenantManager:
     @classmethod
     def list_tenants(cls) -> Dict[str, str]:
         """List all configured tenants"""
+        cls._load_config()
         return {
             key: config['display_name']
-            for key, config in cls.TENANT_CONFIG.items()
+            for key, config in cls._tenant_config.items()
         }
