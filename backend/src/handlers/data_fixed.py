@@ -33,6 +33,9 @@ def list_data(event, context):
     # Add app_ prefix if not present and handle special cases
     if table_name == 'users':
         db_table_name = 'app_users_v2'
+    elif table_name == 'food_entries':
+        # Use v2 table to avoid schema issues with Ibex
+        db_table_name = 'app_food_entries_v2'
     elif table_name and not table_name.startswith('app_'):
         db_table_name = f'app_{table_name}'
     else:
@@ -111,6 +114,9 @@ def create_data(event, context):
     # Add app_ prefix if not present and handle special cases
     if table_name == 'users':
         db_table_name = 'app_users_v2'
+    elif table_name == 'food_entries':
+        # Use v2 table to avoid schema issues with Ibex
+        db_table_name = 'app_food_entries_v2'
     elif table_name and not table_name.startswith('app_'):
         db_table_name = f'app_{table_name}'
     else:
@@ -199,6 +205,9 @@ def get_data_by_id(event, context):
     # Add app_ prefix if not present and handle special cases
     if table_name == 'users':
         db_table_name = 'app_users_v2'
+    elif table_name == 'food_entries':
+        # Use v2 table to avoid schema issues with Ibex
+        db_table_name = 'app_food_entries_v2'
     elif table_name and not table_name.startswith('app_'):
         db_table_name = f'app_{table_name}'
     else:
