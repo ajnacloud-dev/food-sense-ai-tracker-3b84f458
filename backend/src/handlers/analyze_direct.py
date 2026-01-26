@@ -35,35 +35,10 @@ def analyze_food(event, context):
     if not description and not image_url:
         return respond(400, {"error": "Missing description or imageUrl"})
 
-    # Step 1: Create entry with minimal fields
+    # Generate entry ID upfront for response
     entry_id = str(uuid.uuid4())
-    food_entry = {
-        "id": entry_id,
-        "user_id": user_id,
-        "description": f"Analyzing: {description[:50]}..." if description else "Analyzing image...",
-        "meal_type": "snack",  # Default until AI determines
-        "meal_date": datetime.utcnow().strftime('%Y-%m-%d'),
-        "meal_time": datetime.utcnow().strftime('%H:%M'),
-        "calories": 0,
-        "total_protein": 0,
-        "total_carbohydrates": 0,
-        "total_fats": 0,
-        "total_fiber": 0,
-        "total_sodium": 0,
-        "image_url": image_url or "",
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat()
-    }
 
-    # Save the initial entry (using v2 table to avoid schema issues)
-    result = db.write("app_food_entries_v2", [food_entry])
-
-    if not result.get('success'):
-        return respond(500, {"error": "Failed to create food entry"})
-
-    print(f"✅ Created food entry: {entry_id} with status=processing")
-
-    # Step 2: Process with AI
+    # Process with AI first (no initial write to avoid duplicates)
     try:
         print(f"🤖 Analyzing food: {description}")
         analysis_result = ai_service.process_request(
@@ -93,28 +68,30 @@ def analyze_food(event, context):
                 # Get proper food name
                 food_name = food_items[0].get('name') if food_items else description
 
-                # Update the entry with complete data
-                # Note: Using existing schema fields only
-                food_entry.update({
+                # Create entry with complete data (single write to avoid duplicates)
+                food_entry = {
+                    "id": entry_id,
+                    "user_id": user_id,
                     "description": food_name,
                     "meal_type": meal_type,
+                    "meal_date": datetime.utcnow().strftime('%Y-%m-%d'),
+                    "meal_time": datetime.utcnow().strftime('%H:%M'),
                     "calories": total_calories,
                     "total_protein": total_protein,
                     "total_carbohydrates": total_carbs,
                     "total_fats": total_fat,
                     "total_fiber": total_fiber,
                     "total_sodium": total_sodium,
+                    "image_url": image_url or "",
+                    "created_at": datetime.utcnow().isoformat(),
                     "updated_at": datetime.utcnow().isoformat()
-                })
+                }
 
-                # Note: Store AI data in description for now since extracted_nutrients might not exist
-                # The full analysis is returned in the response anyway
+                # Save the entry (single write)
+                write_result = db.write("app_food_entries_v2", [food_entry])
 
-                # Save the updated entry
-                update_result = db.write("app_food_entries_v2", [food_entry])
-
-                if update_result.get('success'):
-                    print(f"✅ Updated food entry: {entry_id} with AI results")
+                if write_result.get('success'):
+                    print(f"✅ Created food entry: {entry_id} with AI results")
 
                     return respond(200, {
                         "success": True,
@@ -127,15 +104,7 @@ def analyze_food(event, context):
                 else:
                     raise Exception("Failed to save AI results")
             else:
-                # Not a food item - delete the entry since it's not valid food
-                # We could also keep it with zero calories to show it was processed
-                food_entry.update({
-                    "description": f"Not food: {category}",
-                    "calories": 0,
-                    "updated_at": datetime.utcnow().isoformat()
-                })
-                db.write("app_food_entries_v2", [food_entry])
-
+                # Not a food item - don't create entry
                 return respond(400, {
                     "success": False,
                     "entry_id": entry_id,
@@ -147,14 +116,7 @@ def analyze_food(event, context):
     except Exception as e:
         print(f"❌ Analysis failed for {entry_id}: {e}")
 
-        # Update entry to show it failed - use description to indicate error
-        food_entry.update({
-            "description": f"Failed: {description[:30] if description else 'Unknown'}",
-            "calories": 0,
-            "updated_at": datetime.utcnow().isoformat()
-        })
-        db.write("app_food_entries_v2", [food_entry])
-
+        # Don't create entry for failed analyses
         return respond(500, {
             "success": False,
             "entry_id": entry_id,
