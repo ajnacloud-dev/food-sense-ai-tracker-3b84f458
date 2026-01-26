@@ -1,0 +1,291 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-01-26T12:00:00.000Z",
+  "resources": [
+    {
+      "_id": "req_health",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/health",
+      "name": "Health Check",
+      "description": "Check API health status",
+      "method": "GET",
+      "headers": [],
+      "_type": "request"
+    },
+    {
+      "_id": "req_queue_analysis",
+      "parentId": "fld_queue",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/queue/analysis",
+      "name": "Queue Food Analysis",
+      "description": "Queue a food item for background analysis",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"description\": \"chicken biryani with raita\",\n  \"imageUrl\": \"\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_job_status",
+      "parentId": "fld_queue",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/queue/status/{{ _.JOB_ID }}",
+      "name": "Get Job Status",
+      "description": "Check status of a queued analysis job",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_user_jobs",
+      "parentId": "fld_queue",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/queue/jobs",
+      "name": "Get User Jobs",
+      "description": "Get all jobs for current user",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_analyze",
+      "parentId": "fld_food",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/analyze",
+      "name": "Analyze Food (Direct)",
+      "description": "Directly analyze food (synchronous)",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"description\": \"grilled salmon with vegetables\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_food_entries",
+      "parentId": "fld_food",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/food_entries",
+      "name": "Get Food Entries",
+      "description": "Get all food entries for user",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_food",
+      "parentId": "fld_food",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/food_entries",
+      "name": "Create Food Entry",
+      "description": "Create a new food entry",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"description\": \"Apple\",\n  \"meal_type\": \"snack\",\n  \"calories\": 95,\n  \"total_protein\": 0.5,\n  \"total_carbohydrates\": 25,\n  \"total_fats\": 0.3\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_models",
+      "parentId": "fld_admin",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/models",
+      "name": "Get AI Models",
+      "description": "Get available AI models",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_prompts",
+      "parentId": "fld_admin",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/prompts",
+      "name": "Get Prompts",
+      "description": "Get system prompts",
+      "method": "GET",
+      "headers": [
+        {
+          "name": "X-Tenant-ID",
+          "value": "{{ _.TENANT_ID }}",
+          "disabled": false
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "fld_queue",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Queue System",
+      "description": "Background analysis queue endpoints",
+      "_type": "request_group"
+    },
+    {
+      "_id": "fld_food",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Food Analysis",
+      "description": "Food analysis and entry endpoints",
+      "_type": "request_group"
+    },
+    {
+      "_id": "fld_admin",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Admin",
+      "description": "Administrative endpoints",
+      "_type": "request_group"
+    },
+    {
+      "_id": "wrk_foodsense",
+      "parentId": null,
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Food Sense AI Tracker",
+      "description": "API collection for Food Sense AI Tracker backend",
+      "_type": "workspace"
+    },
+    {
+      "_id": "env_base",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Base Environment",
+      "data": {
+        "BASE_URL": "http://localhost:8000",
+        "TENANT_ID": "test",
+        "JOB_ID": "replace-with-actual-job-id"
+      },
+      "dataPropertyOrder": {
+        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+      },
+      "isPrivate": false,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_docker",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Docker Environment",
+      "data": {
+        "BASE_URL": "http://backend:8000",
+        "TENANT_ID": "test",
+        "JOB_ID": "replace-with-actual-job-id"
+      },
+      "dataPropertyOrder": {
+        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+      },
+      "isPrivate": false,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_acme",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "ACME Corp Tenant",
+      "data": {
+        "BASE_URL": "http://localhost:8000",
+        "TENANT_ID": "acme_corp",
+        "JOB_ID": "replace-with-actual-job-id"
+      },
+      "dataPropertyOrder": {
+        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+      },
+      "isPrivate": false,
+      "_type": "environment"
+    },
+    {
+      "_id": "env_healthco",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "HealthCo Tenant",
+      "data": {
+        "BASE_URL": "http://localhost:8000",
+        "TENANT_ID": "health_co",
+        "JOB_ID": "replace-with-actual-job-id"
+      },
+      "dataPropertyOrder": {
+        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+      },
+      "isPrivate": false,
+      "_type": "environment"
+    }
+  ]
+}

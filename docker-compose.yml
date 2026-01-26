@@ -1,0 +1,55 @@
+services:
+  # Backend - Python Lambda container (matches AWS Lambda deployment)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: food-app-backend
+    ports:
+      - "8000:8080"  # Lambda Runtime Interface Emulator port
+    environment:
+      - IBEX_API_URL=${IBEX_API_URL:-https://smartlink.ajna.cloud/ibexdb}
+      - IBEX_API_KEY=${IBEX_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - ENVIRONMENT=development
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend/src:/var/task/src:ro
+      - ./backend/src/lib:/var/task/lib:ro
+      - ./backend/local_server.py:/var/task/local_server.py:ro
+      - ./backend/pyproject.toml:/var/task/pyproject.toml:ro
+    networks:
+      - food-app-network
+    command: python local_server.py
+
+  # Frontend - React + Vite dev server (will be deployed to CloudFront + S3)
+  frontend:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile.dev
+    container_name: food-app-frontend
+    ports:
+      - "5173:8080"  # Vite dev server (host:container)
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./ui/src:/app/src:ro
+      - ./ui/public:/app/public:ro
+      - ./ui/index.html:/app/index.html:ro
+      - ./ui/vite.config.ts:/app/vite.config.ts:ro
+      - ./ui/tailwind.config.ts:/app/tailwind.config.ts:ro
+      - ./ui/tsconfig.json:/app/tsconfig.json:ro
+      - ./ui/tsconfig.app.json:/app/tsconfig.app.json:ro
+      - ./ui/tsconfig.node.json:/app/tsconfig.node.json:ro
+      # Exclude node_modules from volume mount
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - food-app-network
+    command: npm run dev -- --host 0.0.0.0
+
+networks:
+  food-app-network:
+    driver: bridge

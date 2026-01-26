@@ -1,0 +1,524 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Food App Backend API Tests
+meta:
+  id: wrk_foodapp_backend_2026
+  created: 1769395000000
+  modified: 1769395000000
+  description: Complete test suite for Food App Backend APIs with real OpenAI and Ibex integration
+collection:
+  - name: Food App Backend
+    meta:
+      id: fld_foodapp_main
+      created: 1769395000000
+      modified: 1769395000000
+      description: Production-grade API tests for Food Sense AI Tracker
+    children:
+      # ==== HEALTH & CONFIG ====
+      - url: "{{baseUrl}}/v1/auth/config"
+        name: "01. Health Check - Auth Config"
+        meta:
+          id: req_health_check
+          created: 1769395000000
+          modified: 1769395000000
+          description: Check if backend is running and auth config is available
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== USER MANAGEMENT ====
+      - url: "{{baseUrl}}/v1/users"
+        name: "02. List All Users"
+        meta:
+          id: req_list_users
+          created: 1769395000000
+          modified: 1769395000000
+          description: Get all users from the database
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/users?id={{userId}}"
+        name: "03. Get User by ID"
+        meta:
+          id: req_get_user
+          created: 1769395000000
+          modified: 1769395000000
+          description: Get specific user by ID
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/users"
+        name: "04. Create User"
+        meta:
+          id: req_create_user
+          created: 1769395000000
+          modified: 1769395000000
+          description: Create a new user
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "id": "test-user-{{$timestamp}}",
+              "email": "test{{$timestamp}}@example.com",
+              "full_name": "Test User",
+              "role": "user",
+              "user_type": "participant",
+              "is_subscribed": false,
+              "trial_used_today": false
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== AI ANALYSIS ====
+      - url: "{{baseUrl}}/v1/ai/analyze"
+        name: "05. AI Analysis - Food (Real OpenAI)"
+        meta:
+          id: req_ai_food
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test real OpenAI food analysis
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "description": "Grilled chicken breast with quinoa and steamed vegetables",
+              "image_url": null
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/ai/analyze"
+        name: "06. AI Analysis - Complex Meal"
+        meta:
+          id: req_ai_complex
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test AI with complex meal description
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "description": "Caesar salad with grilled salmon, parmesan cheese, croutons, and caesar dressing. Side of garlic bread and a glass of orange juice",
+              "image_url": null
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== FOOD ENTRIES ====
+      - url: "{{baseUrl}}/v1/food_entries"
+        name: "07. Create Food Entry"
+        meta:
+          id: req_create_food
+          created: 1769395000000
+          modified: 1769395000000
+          description: Create a new food entry
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "description": "Test meal from API collection",
+              "meal_type": "lunch",
+              "meal_date": "{{$date 'YYYY-MM-DD'}}",
+              "meal_time": "12:30",
+              "calories": 550,
+              "total_protein": 35,
+              "total_carbohydrates": 45,
+              "total_fats": 22,
+              "total_fiber": 8,
+              "total_sodium": 800,
+              "user_id": "{{userId}}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/food_entries?user_id={{userId}}&limit=10"
+        name: "08. List User Food Entries"
+        meta:
+          id: req_list_food
+          created: 1769395000000
+          modified: 1769395000000
+          description: Get food entries for a specific user
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/food_entries?order_by=created_at&order_dir=desc&limit=5"
+        name: "09. List Recent Food Entries (Sorted)"
+        meta:
+          id: req_list_food_sorted
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test sorting and pagination
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/food_entries/{{foodEntryId}}"
+        name: "10. Get Food Entry by ID"
+        meta:
+          id: req_get_food_by_id
+          created: 1769395000000
+          modified: 1769395000000
+          description: Get specific food entry
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== BATCH OPERATIONS ====
+      - url: "{{baseUrl}}/v1/food_entries"
+        name: "11. Batch Create Food Entries"
+        meta:
+          id: req_batch_food
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test batch creation
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            [
+              {
+                "description": "Breakfast - Oatmeal with berries",
+                "meal_type": "breakfast",
+                "calories": 320,
+                "total_protein": 12,
+                "total_carbohydrates": 58,
+                "total_fats": 6,
+                "user_id": "{{userId}}"
+              },
+              {
+                "description": "Snack - Apple with peanut butter",
+                "meal_type": "snack",
+                "calories": 195,
+                "total_protein": 7,
+                "total_carbohydrates": 21,
+                "total_fats": 10,
+                "user_id": "{{userId}}"
+              },
+              {
+                "description": "Dinner - Pasta with marinara sauce",
+                "meal_type": "dinner",
+                "calories": 480,
+                "total_protein": 18,
+                "total_carbohydrates": 72,
+                "total_fats": 14,
+                "user_id": "{{userId}}"
+              }
+            ]
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== PENDING ANALYSES ====
+      - url: "{{baseUrl}}/v1/pending_analyses"
+        name: "12. Create Pending Analysis"
+        meta:
+          id: req_pending_analysis
+          created: 1769395000000
+          modified: 1769395000000
+          description: Create a pending analysis entry
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "id": "pending-{{$timestamp}}",
+              "user_id": "{{userId}}",
+              "status": "pending",
+              "category": "food",
+              "description": "Large pizza with pepperoni and mushrooms",
+              "created_at": "{{$date 'YYYY-MM-DD HH:mm:ss'}}",
+              "updated_at": "{{$date 'YYYY-MM-DD HH:mm:ss'}}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/pending_analyses?user_id={{userId}}&status=pending"
+        name: "13. List Pending Analyses"
+        meta:
+          id: req_list_pending
+          created: 1769395000000
+          modified: 1769395000000
+          description: Get pending analyses for user
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== MEAL SUMMARIES ====
+      - url: "{{baseUrl}}/v1/meal_summaries"
+        name: "14. Create Meal Summary"
+        meta:
+          id: req_meal_summary
+          created: 1769395000000
+          modified: 1769395000000
+          description: Create meal summary
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "food_entry_id": "{{foodEntryId}}",
+              "dish_names": ["Grilled Chicken", "Quinoa", "Vegetables"],
+              "meal_suggestion": "Balanced and nutritious meal",
+              "classification_confidence": 0.95
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== WORKOUTS ====
+      - url: "{{baseUrl}}/v1/workouts"
+        name: "15. Create Workout"
+        meta:
+          id: req_create_workout
+          created: 1769395000000
+          modified: 1769395000000
+          description: Create workout entry
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "user_id": "{{userId}}",
+              "workout_name": "Morning Run",
+              "workout_type": "cardio",
+              "duration_minutes": 30,
+              "calories_burned": 300,
+              "workout_date": "{{$date 'YYYY-MM-DD'}}",
+              "notes": "5K run at moderate pace"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== RECEIPTS ====
+      - url: "{{baseUrl}}/v1/receipts"
+        name: "16. Create Receipt"
+        meta:
+          id: req_create_receipt
+          created: 1769395000000
+          modified: 1769395000000
+          description: Create receipt entry
+        method: POST
+        body:
+          mimeType: application/json
+          text: |-
+            {
+              "user_id": "{{userId}}",
+              "merchant_name": "Whole Foods",
+              "receipt_date": "{{$date 'YYYY-MM-DD'}}",
+              "total_amount": 67.43,
+              "tax_amount": 5.23,
+              "category": "groceries"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== ERROR HANDLING TESTS ====
+      - url: "{{baseUrl}}/v1/nonexistent_table"
+        name: "17. Test Invalid Table (Should Return Empty)"
+        meta:
+          id: req_invalid_table
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test graceful handling of non-existent tables
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      - url: "{{baseUrl}}/v1/food_entries"
+        name: "18. Test Invalid JSON (Should Fail)"
+        meta:
+          id: req_invalid_json
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test error handling for invalid JSON
+        method: POST
+        body:
+          mimeType: application/json
+          text: "{ invalid json }"
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== SYSTEM OPERATIONS ====
+      - url: "{{baseUrl}}/v1/system/initialize-schemas"
+        name: "19. Initialize Database Schemas"
+        meta:
+          id: req_init_schemas
+          created: 1769395000000
+          modified: 1769395000000
+          description: Initialize all database tables from schemas
+        method: POST
+        body:
+          mimeType: application/json
+          text: "{}"
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+      # ==== PERFORMANCE TESTS ====
+      - url: "{{baseUrl}}/v1/food_entries?limit=100"
+        name: "20. Performance Test - Large Query"
+        meta:
+          id: req_perf_test
+          created: 1769395000000
+          modified: 1769395000000
+          description: Test performance with large result set
+        method: GET
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: Authorization
+            value: Bearer {{authToken}}
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+
+# Environment Configuration
+environments:
+  - name: Local Development
+    meta:
+      id: env_local
+      created: 1769395000000
+      modified: 1769395000000
+    data:
+      baseUrl: http://localhost:8000
+      authToken: Bearer mock-token
+      userId: local-dev-user
+      foodEntryId: ""
+
+  - name: Production
+    meta:
+      id: env_prod
+      created: 1769395000000
+      modified: 1769395000000
+    data:
+      baseUrl: "{{ PRODUCTION_URL }}"
+      authToken: "{{ PRODUCTION_TOKEN }}"
+      userId: "{{ PRODUCTION_USER_ID }}"
+      foodEntryId: ""
+
+  - name: Staging
+    meta:
+      id: env_staging
+      created: 1769395000000
+      modified: 1769395000000
+    data:
+      baseUrl: "{{ STAGING_URL }}"
+      authToken: "{{ STAGING_TOKEN }}"
+      userId: "{{ STAGING_USER_ID }}"
+      foodEntryId: ""

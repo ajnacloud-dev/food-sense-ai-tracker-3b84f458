@@ -1,0 +1,503 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* NutriWealth Green Brand Colors */
+    --nutriwealth-primary: 142 71% 45%;
+    --nutriwealth-primary-hover: 142 71% 40%;
+    --nutriwealth-secondary: 142 76% 36%;
+    --nutriwealth-secondary-hover: 142 76% 31%;
+    --nutriwealth-accent: 38 92% 50%;
+    --nutriwealth-accent-hover: 38 92% 45%;
+    --nutriwealth-muted: 220 14% 96%;
+    --nutriwealth-border: 220 13% 91%;
+    --nutriwealth-surface: 142 20% 98%;
+    --nutriwealth-clinical: 142 15% 97%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-green-50/30 text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Professional typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl lg:text-5xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl lg:text-4xl;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl lg:text-3xl;
+  }
+
+  h4 {
+    @apply text-lg md:text-xl lg:text-2xl;
+  }
+}
+
+@layer components {
+  /* Modern NutriWealth Design System */
+  .nw-page-container {
+    @apply min-h-screen bg-gradient-to-br from-green-50/50 via-white to-green-50/30;
+  }
+
+  .nw-content-wrapper {
+    @apply p-4 md:p-6 lg:p-8 max-w-7xl mx-auto;
+  }
+
+  .nw-page-header {
+    @apply flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 md:mb-8;
+  }
+
+  .nw-page-title {
+    @apply text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 tracking-tight;
+  }
+
+  .nw-page-subtitle {
+    @apply text-sm md:text-base text-gray-600 mt-1 md:mt-2;
+  }
+
+  .nw-section-title {
+    @apply text-lg md:text-xl lg:text-2xl font-semibold text-gray-900 mb-3 md:mb-4;
+  }
+
+  /* Enhanced Modern Cards */
+  .nw-card {
+    @apply bg-white rounded-xl border border-green-100/50 shadow-sm hover:shadow-lg hover:border-green-200/50 transition-all duration-300;
+  }
+
+  .nw-card-modern {
+    @apply bg-white rounded-2xl border border-green-100/50 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden backdrop-blur-sm;
+  }
+
+  .nw-card-header {
+    @apply p-4 md:p-6 pb-3 md:pb-4;
+  }
+
+  .nw-card-content {
+    @apply p-4 md:p-6 pt-0;
+  }
+
+  .nw-card-clinical {
+    @apply bg-gradient-to-br from-white to-green-50/30 rounded-xl border border-green-200/50 shadow-sm hover:shadow-lg transition-all duration-300;
+  }
+
+  /* Enhanced Modern Buttons */
+  .nw-button-primary {
+    @apply bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5;
+  }
+
+  .nw-button-secondary {
+    @apply bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-md hover:shadow-lg;
+  }
+
+  .nw-button-outline {
+    @apply border border-green-300 hover:border-green-400 bg-white hover:bg-green-50 text-green-700 font-medium px-6 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm hover:shadow-md;
+  }
+
+  .nw-button-modern {
+    @apply bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium px-8 py-4 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg hover:shadow-xl transform hover:-translate-y-1;
+  }
+
+  /* Enhanced Modern Inputs */
+  .nw-input {
+    @apply w-full px-4 py-3 border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white;
+  }
+
+  .nw-input-modern {
+    @apply w-full px-4 py-3 border border-green-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-sm md:text-base shadow-sm;
+  }
+
+  /* Enhanced Modern Badges */
+  .nw-badge-success {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200;
+  }
+
+  .nw-badge-warning {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200;
+  }
+
+  .nw-badge-error {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200;
+  }
+
+  .nw-badge-info {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200;
+  }
+
+  .nw-badge-modern {
+    @apply inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase;
+  }
+
+  /* Enhanced Modern Sidebar Navigation */
+  .nw-sidebar-nav-item {
+    @apply flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 mx-2 relative;
+  }
+
+  .nw-sidebar-nav-item-active {
+    @apply bg-gradient-to-r from-green-50 to-green-100/50 text-green-700 border-r-4 border-green-600 shadow-sm backdrop-blur-sm;
+  }
+
+  .nw-sidebar-nav-item-active::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-1 bg-green-600 rounded-r-full;
+  }
+
+  .nw-sidebar-nav-item-inactive {
+    @apply text-gray-700 hover:text-green-700 hover:bg-green-50/50 hover:border-r-2 hover:border-green-300;
+  }
+
+  .nw-sidebar-nav-item-disabled {
+    @apply text-gray-300 cursor-not-allowed;
+  }
+
+  /* Enhanced Grid Systems */
+  .nw-stats-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8;
+  }
+
+  .nw-content-grid {
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8;
+  }
+
+  .nw-feature-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8;
+  }
+
+  /* Enhanced Permission Cards */
+  .nw-permission-card {
+    @apply border rounded-xl p-4 md:p-5 transition-all duration-300 hover:shadow-md;
+  }
+
+  .nw-permission-card-granted {
+    @apply bg-green-50 border-green-200 hover:bg-green-100/50;
+  }
+
+  .nw-permission-card-denied {
+    @apply bg-gray-50 border-gray-200 hover:bg-gray-100/50;
+  }
+
+  /* Enhanced Role Badges */
+  .nw-role-badge-participant {
+    @apply bg-green-100 text-green-800 border-green-200;
+  }
+
+  .nw-role-badge-caretaker {
+    @apply bg-blue-100 text-blue-800 border-blue-200;
+  }
+
+  .nw-role-badge-admin {
+    @apply bg-red-100 text-red-800 border-red-200;
+  }
+
+  /* Enhanced Status Indicators */
+  .nw-status-indicator {
+    @apply inline-flex items-center gap-2 text-sm font-medium;
+  }
+
+  .nw-status-active {
+    @apply text-green-700;
+  }
+
+  .nw-status-inactive {
+    @apply text-gray-500;
+  }
+
+  .nw-status-pending {
+    @apply text-yellow-700;
+  }
+
+  .nw-status-error {
+    @apply text-red-700;
+  }
+
+  /* Enhanced Loading States */
+  .nw-loading-spinner {
+    @apply animate-spin rounded-full border-2 border-green-200 border-t-green-600;
+  }
+
+  .nw-skeleton {
+    @apply animate-pulse bg-green-100 rounded;
+  }
+
+  /* Enhanced Transitions */
+  .nw-transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  .nw-transition-fast {
+    @apply transition-all duration-150 ease-in-out;
+  }
+
+  .nw-transition-slow {
+    @apply transition-all duration-500 ease-in-out;
+  }
+
+  /* Enhanced Shadows */
+  .nw-shadow-soft {
+    @apply shadow-sm hover:shadow-lg transition-shadow duration-300;
+  }
+
+  .nw-shadow-medium {
+    @apply shadow-md hover:shadow-xl transition-shadow duration-300;
+  }
+
+  .nw-shadow-strong {
+    @apply shadow-lg hover:shadow-2xl transition-shadow duration-300;
+  }
+
+  /* Enhanced Focus Ring */
+  .nw-focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
+  }
+
+  /* Enhanced Gradient Text */
+  .nw-text-gradient {
+    @apply bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent;
+  }
+
+  .nw-text-medical {
+    @apply bg-gradient-to-r from-green-700 to-green-800 bg-clip-text text-transparent;
+  }
+
+  /* Enhanced Divider */
+  .nw-divider {
+    @apply border-t border-green-200/50 my-6;
+  }
+
+  /* Enhanced Avatar */
+  .nw-avatar {
+    @apply inline-flex items-center justify-center rounded-full bg-green-100 text-green-700 font-semibold;
+  }
+
+  .nw-avatar-modern {
+    @apply inline-flex items-center justify-center rounded-full font-semibold shadow-md bg-gradient-to-br from-green-100 to-green-200 text-green-800;
+  }
+
+  /* Enhanced Modern Table */
+  .nw-table-modern {
+    @apply w-full rounded-xl overflow-hidden border border-green-200/50 bg-white shadow-sm;
+  }
+
+  .nw-table-header {
+    @apply bg-green-50/50 border-b border-green-200/50;
+  }
+
+  .nw-table-row {
+    @apply border-b border-green-100/50 hover:bg-green-50/30 transition-colors duration-200;
+  }
+
+  .nw-table-cell {
+    @apply px-4 py-3 text-sm;
+  }
+
+  /* Mobile Responsive Helpers */
+  .nw-mobile-stack {
+    @apply flex flex-col space-y-3 md:flex-row md:space-y-0 md:space-x-4;
+  }
+
+  .nw-mobile-grid {
+    @apply grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3;
+  }
+
+  /* Enhanced Touch Targets */
+  .nw-touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+}
+
+@layer utilities {
+  /* Scroll Utilities */
+  .nw-scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  .nw-hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .nw-hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Enhanced Glass Effect */
+  .nw-glass {
+    backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .nw-glass-clinical {
+    backdrop-filter: blur(16px);
+    background: rgba(248, 250, 252, 0.98);
+  }
+
+  /* Text Balance */
+  .nw-text-balance {
+    text-wrap: balance;
+  }
+
+  /* Safe Area */
+  .nw-safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .nw-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Professional Spacing */
+  .nw-medical-spacing {
+    @apply space-y-6 md:space-y-8;
+  }
+
+  /* Enhanced Data Display */
+  .nw-data-grid {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-4;
+  }
+
+  .nw-metric-display {
+    @apply text-center p-6 bg-white rounded-xl border border-green-200/50 shadow-sm hover:shadow-md transition-all duration-300;
+  }
+
+  .nw-metric-value {
+    @apply text-2xl md:text-3xl font-bold text-green-700;
+  }
+
+  .nw-metric-label {
+    @apply text-sm text-gray-600 mt-2 font-medium;
+  }
+}
+
+/* Professional Animations */
+@keyframes medical-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes clinical-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes green-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+  }
+}
+
+.nw-medical-pulse {
+  animation: medical-pulse 3s ease-in-out infinite;
+}
+
+.nw-clinical-slide-in {
+  animation: clinical-slide-in 0.6s ease-out;
+}
+
+.nw-green-glow {
+  animation: green-glow 2s ease-in-out infinite;
+}

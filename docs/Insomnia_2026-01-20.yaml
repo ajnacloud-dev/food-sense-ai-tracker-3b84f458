@@ -1,0 +1,880 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: Ibex DB - AWS API Gateway
+meta:
+  id: wrk_3a34164532a64f3189b7b043c1b87f5c
+  created: 1763161493737
+  modified: 1763161493737
+  description: ""
+collection:
+  - url: ""
+    name: New Request
+    meta:
+      id: req_4d95e0a17b8c4f87a81e348d47d98563
+      created: 1763161501511
+      modified: 1763161501511
+      isPrivate: false
+      description: ""
+      sortKey: -1763161501511
+    method: GET
+    headers:
+      - name: User-Agent
+        value: insomnia/12.0.0
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - name: Ibex DB - AWS API Gateway
+    meta:
+      id: fld_56a970b33c20495ea4bbd77b47c653f3
+      created: 1763161493746
+      modified: 1763161493746
+      sortKey: -1763161492562
+      description: >-
+        Complete test suite for AWS API Gateway production endpoint
+
+
+        ✨ NEW: Updated to use filters array format
+
+
+        Environment Options:
+
+        - Production - Custom Domain (RECOMMENDED):
+        https://smartlink.ajna.cloud/ibexdb
+
+        - AWS - API Gateway Direct:
+        https://gcmdpajl1d.execute-api.ap-south-1.amazonaws.com/dev
+
+
+        API Key: McuMsuWDXo1g9zqLBBzVy3uXsIKDklGT8GbIhpyl
+
+
+        Before running:
+
+        1. Select 'Production - Custom Domain' or 'AWS - API Gateway Direct'
+        environment
+
+        2. Ensure {{api_key}} variable is set
+
+        3. Run requests in order
+
+
+        Key Changes:
+
+        - filter → filters (array format)
+
+        - op → function (aggregations)
+    children:
+      - url: "{{baseUrl}}"
+        name: LIST_TABLES
+        meta:
+          id: req_8a3aa8c55b0b475a9c6b678c94b7f96e
+          created: 1763161493759
+          modified: 1767316541171
+          isPrivate: false
+          description: List all tables in namespace
+          sortKey: -1763161492561
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "LIST_TABLES",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: CREATE TABLE - products
+        meta:
+          id: req_ee6f1061380149d2a0425e068abee194
+          created: 1763161493774
+          modified: 1767316594760
+          isPrivate: false
+          description: Create a new products table
+          sortKey: -1763161492560
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "CREATE_TABLE",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "schema": {
+                "fields": {
+                  "product_id": {"type": "long", "required": true},
+                  "name": {"type": "string", "required": true},
+                  "category": {"type": "string", "required": false},
+                  "price": {"type": "double", "required": true},
+                  "stock": {"type": "integer", "required": false}
+                }
+              }
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: WRITE - Insert products
+        meta:
+          id: req_37d4c9cc3dca45b79b6152914f9f8905
+          created: 1763161493776
+          modified: 1763161493776
+          isPrivate: false
+          description: Insert 3 products
+          sortKey: -1763161492559
+        method: POST
+        body:
+          mimeType: text/plain
+          text: >-
+            {
+              "operation": "WRITE",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "records": [
+                {"product_id": 1, "name": "Laptop", "category": "Electronics", "price": 999.99, "stock": 50},
+                {"product_id": 2, "name": "Mouse", "category": "Electronics", "price": 29.99, "stock": 200},
+                {"product_id": 3, "name": "Desk", "category": "Furniture", "price": 299.99, "stock": 25}
+              ]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: QUERY - All products
+        meta:
+          id: req_8c308e8bba7847f589cd9f35709dddf4
+          created: 1763161493777
+          modified: 1763690562483
+          isPrivate: false
+          description: Query all products
+          sortKey: -1763161492558
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "limit": 10
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: QUERY - With filters (NEW FORMAT)
+        meta:
+          id: req_7f42c77864dd4c918b541e26b50f067f
+          created: 1763161493778
+          modified: 1763689329257
+          isPrivate: false
+          description: Query products with price filter (new array format)
+          sortKey: -1763161492557
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "filters": [
+                {"field": "category", "operator": "eq", "value": "Electronics"}
+              ],
+              "limit": 100
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: UPDATE - Single record
+        meta:
+          id: req_36091f3d65014dfd9df449414e3f351e
+          created: 1763161493779
+          modified: 1763689267832
+          isPrivate: false
+          description: Update laptop price (single record)
+          sortKey: -1763161492553
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "UPDATE",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "qr_codes",
+              "updates": {"product_name": "Paramesh Nalla"},
+              "filters": [
+                {"field": "_record_id", "operator": "eq", "value": "23456"}
+              ]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: QUERY - Count all products
+        meta:
+          id: req_9900ded7c4cb4e2a8b2ecfeb7955ec54
+          created: 1763161493779
+          modified: 1763161493779
+          isPrivate: false
+          description: Count total products (using function instead of op)
+          sortKey: -1763161492556
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "aggregations": [
+                {"function": "count", "field": null, "alias": "total_count"}
+              ]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: QUERY - Count with filters
+        meta:
+          id: req_dce2b23cb9d34c6dbda33103c54cd925
+          created: 1763161493779
+          modified: 1763161493779
+          isPrivate: false
+          description: Count affordable products (price <= 500)
+          sortKey: -1763161492555
+        method: POST
+        body:
+          mimeType: text/plain
+          text: >-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "filters": [
+                {"field": "price", "operator": "lte", "value": 500}
+              ],
+              "aggregations": [
+                {"function": "count", "field": null, "alias": "affordable_count"}
+              ]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: QUERY - Count by category
+        meta:
+          id: req_e040146c00034247b844eaf1c9e7f9e6
+          created: 1763161493779
+          modified: 1763161493779
+          isPrivate: false
+          description: Count products grouped by category
+          sortKey: -1763161492554
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "aggregations": [
+                {"function": "count", "field": null, "alias": "product_count"}
+              ],
+              "group_by": ["category"],
+              "sort": [{"field": "product_count", "order": "desc"}]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - Get latest version only
+        meta:
+          id: req_274c285d4c3f41bfb2ff2e823ee15ea7
+          created: 1763161493780
+          modified: 1763161493780
+          isPrivate: false
+          description: Get only the current state of Laptop
+          sortKey: -1763161492550
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "filters": [
+                {"field": "product_id", "operator": "eq", "value": 1}
+              ],
+              "sort": [{"field": "_version", "order": "desc"}],
+              "limit": 1
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - View all versions of Laptop
+        meta:
+          id: req_a058c6b2d2394e71b52dd8bb756df9ca
+          created: 1763161493780
+          modified: 1763161493780
+          isPrivate: false
+          description: View complete version history for Laptop product
+          sortKey: -1763161492551
+        method: POST
+        body:
+          mimeType: text/plain
+          text: >-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "filters": [
+                {"field": "product_id", "operator": "eq", "value": 1}
+              ],
+              "projection": ["_version", "_timestamp", "name", "price", "stock"],
+              "sort": [{"field": "_version", "order": "asc"}]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - Count versions per product
+        meta:
+          id: req_bd6e160205ad42cba2512ba07ff053db
+          created: 1763161493780
+          modified: 1763161493780
+          isPrivate: false
+          description: Count how many times each product was updated
+          sortKey: -1763161492548
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "aggregations": [
+                {"function": "count", "field": null, "alias": "version_count"}
+              ],
+              "group_by": ["name"],
+              "sort": [{"field": "version_count", "order": "desc"}],
+              "limit": 10
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: UPDATE - Bulk update (multiple records)
+        meta:
+          id: req_d18f4d07b6d94f209b9e000ea80bad24
+          created: 1763161493780
+          modified: 1763689290401
+          isPrivate: false
+          description: "Bulk update: Set stock to 1000 for all Electronics"
+          sortKey: -1763161492552
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "UPDATE",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "updates": {"stock": 0},
+              "filters": [
+                {"field": "category", "operator": "eq", "value": "Electronics"}
+              ]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - Track price changes
+        meta:
+          id: req_da4053bc594b43478645c3fbb8d95a68
+          created: 1763161493780
+          modified: 1763161493780
+          isPrivate: false
+          description: Track how Laptop price changed over time
+          sortKey: -1763161492549
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "filters": [
+                {"field": "product_id", "operator": "eq", "value": 1}
+              ],
+              "projection": ["_timestamp", "price", "_version"],
+              "sort": [{"field": "_timestamp", "order": "asc"}]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: DELETE - Soft delete
+        meta:
+          id: req_094e39abae064948bdbf5b3e89ad4c34
+          created: 1763161493781
+          modified: 1763161493781
+          isPrivate: false
+          description: Soft delete desk
+          sortKey: -1763161492545
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "DELETE",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "filters": [
+                {"field": "product_id", "operator": "eq", "value": 3}
+              ],
+              "mode": "soft"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: DESCRIBE_TABLE
+        meta:
+          id: req_3ece038b6f14446bbb2e5200cf18733c
+          created: 1763161493781
+          modified: 1763161493781
+          isPrivate: false
+          description: Get table schema and metadata
+          sortKey: -1763161492543
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "DESCRIBE_TABLE",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products"
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - Find changes today
+        meta:
+          id: req_7c9c3f48e13d4544a7d61c615023dd75
+          created: 1763161493781
+          modified: 1763161493781
+          isPrivate: false
+          description: Find all product changes made today
+          sortKey: -1763161492547
+        method: POST
+        body:
+          mimeType: text/plain
+          text: >-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{_['tenant_id']}}",
+              "namespace": "{{_['namespace']}}",
+              "table": "products",
+              "filters": [
+                {"field": "_timestamp", "operator": "gte", "value": "2025-11-14T00:00:00"},
+                {"field": "_timestamp", "operator": "lte", "value": "2025-11-14T23:59:59"}
+              ],
+              "projection": ["_timestamp", "_version", "name", "price"],
+              "sort": [{"field": "_timestamp", "order": "desc"}],
+              "limit": 50
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: TIME TRAVEL - Query at specific timestamp
+        meta:
+          id: req_8204738fee564b5bbb996650aae8056f
+          created: 1763161493781
+          modified: 1763689406230
+          isPrivate: false
+          description: Query products as they existed at specific time
+          sortKey: -1763161492546
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{_['tenant_id']}}",
+              "namespace": "{{_['namespace']}}",
+              "table": "products",
+              "as_of": "2025-11-14T05:32:00.000000",
+              "projection": ["_version", "_timestamp", "name", "price","stock"],
+            "filters": [
+                {"field": "category", "operator": "eq", "value": "Electronics"}
+              ],
+              "limit": 10
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - View soft-deleted products
+        meta:
+          id: req_90087b066c7049fa804f0f538a5c0e16
+          created: 1763161493781
+          modified: 1763161493781
+          isPrivate: false
+          description: Query soft-deleted products (normally hidden)
+          sortKey: -1763161492544
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "include_deleted": true,
+              "filters": [
+                {"field": "_deleted", "operator": "eq", "value": true}
+              ],
+              "projection": ["name", "_deleted_at", "_timestamp", "price"]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: COMPACT - Optimize files
+        meta:
+          id: req_04e3b38ccd5649beb1e79e7da663849b
+          created: 1763161493782
+          modified: 1763161493782
+          isPrivate: false
+          description: Compact table files and expire old snapshots
+          sortKey: -1763161492542
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "COMPACT",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "products",
+              "force": true,
+              "expire_snapshots": true,
+              "snapshot_retention_hours": 168
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: Query existing - users table
+        meta:
+          id: req_0bde9cee97e947749d7e7e1d1e1d648e
+          created: 1763161493782
+          modified: 1763161493782
+          isPrivate: false
+          description: Query existing users table
+          sortKey: -1763161492541
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "users",
+              "limit": 10
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+      - url: "{{baseUrl}}"
+        name: AUDIT - Users version history (existing data)
+        meta:
+          id: req_a42cb5e74f9c49448824c446294b5ddb
+          created: 1763161493782
+          modified: 1763161493782
+          isPrivate: false
+          description: View Alice's complete version history from existing users table
+          sortKey: -1763161492540
+        method: POST
+        body:
+          mimeType: text/plain
+          text: |-
+            {
+              "operation": "QUERY",
+              "tenant_id": "{{tenant_id}}",
+              "namespace": "{{namespace}}",
+              "table": "users",
+              "filters": [
+                {"field": "name", "operator": "eq", "value": "Alice"}
+              ],
+              "projection": ["_version", "_timestamp", "name", "email", "age"],
+              "sort": [{"field": "_version", "order": "asc"}]
+            }
+        headers:
+          - name: Content-Type
+            value: application/json
+          - name: x-api-key
+            value: "{{api_key}}"
+        settings:
+          renderRequestBody: true
+          encodeUrl: true
+          followRedirects: global
+          cookies:
+            send: true
+            store: true
+          rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_1c234f7cbdf677e813820fb13a91df6c53ef3ffb
+    created: 1763161501366
+    modified: 1763161501366
+environments:
+  name: Base Environment
+  meta:
+    id: env_1c234f7cbdf677e813820fb13a91df6c53ef3ffb
+    created: 1763161493784
+    modified: 1763161493784
+    isPrivate: false
