@@ -30,6 +30,14 @@ def list_data(event, context):
     schemas = context['schemas']
     table_name = event['pathParameters'].get('table')
 
+    # Add app_ prefix if not present and handle special cases
+    if table_name == 'users':
+        db_table_name = 'app_users_v2'
+    elif table_name and not table_name.startswith('app_'):
+        db_table_name = f'app_{table_name}'
+    else:
+        db_table_name = table_name
+
     # Return empty array for non-existent tables
     if table_name not in schemas:
         return respond(200, [])
@@ -70,7 +78,7 @@ def list_data(event, context):
         if offset > 0:
             kwargs["offset"] = offset
 
-        result = db.query(table_name, **kwargs)
+        result = db.query(db_table_name, **kwargs)
 
         if result and result.get('success'):
             data = result.get('data', {})
@@ -99,6 +107,14 @@ def create_data(event, context):
     db = context['db']
     schemas = context['schemas']
     table_name = event['pathParameters'].get('table')
+
+    # Add app_ prefix if not present and handle special cases
+    if table_name == 'users':
+        db_table_name = 'app_users_v2'
+    elif table_name and not table_name.startswith('app_'):
+        db_table_name = f'app_{table_name}'
+    else:
+        db_table_name = table_name
 
     # Parse body
     try:
@@ -147,7 +163,10 @@ def create_data(event, context):
         return respond(400, {"error": "No valid records"})
 
     try:
-        result = db.write(table_name, processed_records)
+        # Log what we're sending for debugging
+        print(f"Writing to {db_table_name}: {json.dumps(processed_records[:1] if processed_records else [], indent=2)}")
+
+        result = db.write(db_table_name, processed_records)
 
         if result and result.get('success'):
             written_records = result.get('data', {}).get('records', processed_records)
@@ -177,6 +196,14 @@ def get_data_by_id(event, context):
     table_name = event['pathParameters'].get('table')
     item_id = event['pathParameters'].get('id')
 
+    # Add app_ prefix if not present and handle special cases
+    if table_name == 'users':
+        db_table_name = 'app_users_v2'
+    elif table_name and not table_name.startswith('app_'):
+        db_table_name = f'app_{table_name}'
+    else:
+        db_table_name = table_name
+
     if table_name not in schemas:
         return respond(404, {"error": f"Resource {table_name} not found"})
 
@@ -195,7 +222,7 @@ def get_data_by_id(event, context):
             filters.append({"field": "user_id", "operator": "eq", "value": user_id})
 
     try:
-        result = db.query(table_name, filters=filters, limit=1)
+        result = db.query(db_table_name, filters=filters, limit=1)
 
         if result and result.get('success'):
             data = result.get('data', {})

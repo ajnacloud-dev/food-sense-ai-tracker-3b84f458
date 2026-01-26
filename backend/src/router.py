@@ -3,7 +3,7 @@ import re
 # Import handlers - use fixed version directly
 from handlers import data_fixed as data
 
-from handlers import auth, ai, storage
+from handlers import auth, ai, storage, queue
 
 # Route Definition
 # (Method, PathPattern, Handler)
@@ -18,7 +18,13 @@ ROUTES = [
     # AI
     ('POST', r'^/v1/ai/analyze$', ai.analyze),
 
-    # Storage (Path+ handled manually in regex)
+    # Queue System
+    ('POST', r'^/v1/queue/analysis$', queue.queue_analysis),
+    ('GET', r'^/v1/queue/status/(?P<job_id>[a-zA-Z0-9-]+)$', queue.get_job_status),
+    ('GET', r'^/v1/queue/jobs$', queue.get_user_jobs),
+
+    # Storage
+    ('POST', r'^/storage/upload$', storage.upload_file),
     ('GET', r'^/v1/storage/(?P<path>.+)$', storage.get_file),
 
     # Generic Data (Last to avoid collisions)

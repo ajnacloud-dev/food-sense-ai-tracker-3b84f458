@@ -355,32 +355,30 @@ export const api = {
         return queryBuilder;
     },
 
-    // Storage bucket shim - Use real backend storage
+    // Storage bucket shim - Return base64 directly for images
     storage: {
         from: (bucket: string) => ({
             upload: async (path: string, file: File) => {
                 try {
                     const base64Data = await compressImage(file);
 
-                    // Upload to backend storage endpoint
-                    const response = await client.post('/storage/upload', {
-                        bucket: bucket,
-                        path: path,
-                        file: base64Data,
-                        mime_type: file.type,
-                        size_bytes: file.size
-                    });
+                    // Return base64 data URL directly - no need to upload separately
+                    const dataUrl = `data:${file.type};base64,${base64Data}`;
 
-                    console.log('Storage upload response:', response.data);
-                    return { data: { path: response.data.path || path }, error: null };
+                    console.log('Image converted to base64 for direct storage');
+                    return { data: { path: dataUrl }, error: null };
 
                 } catch (e: any) {
-                    console.error('Storage Upload Error:', e);
+                    console.error('Image conversion error:', e);
                     return { data: null, error: { message: e.message } };
                 }
             },
             getPublicUrl: (path: string) => {
-                // Returns full URL from backend storage
+                // If it's already a data URL, return as-is
+                if (path && path.startsWith('data:')) {
+                    return { data: { publicUrl: path } };
+                }
+                // Otherwise assume it's a stored path
                 return { data: { publicUrl: `${API_URL}/v1/storage/${bucket}/${encodeURIComponent(path)}` } };
             }
         })

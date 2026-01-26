@@ -135,6 +135,7 @@ class IbexClient:
                     sanitized[key] = value
             sanitized_records.append(sanitized)
 
+        print(f"IbexClient.write called with table: {table}")
         return self._call({
             "operation": "WRITE",
             "table": table,

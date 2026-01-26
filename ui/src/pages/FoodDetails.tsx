@@ -65,6 +65,22 @@ const FoodDetails = () => {
 
       if (!entry) throw new Error("Entry not found");
 
+      // Parse JSON strings if they exist
+      if (entry.extracted_nutrients && typeof entry.extracted_nutrients === 'string') {
+        try {
+          entry.extracted_nutrients = JSON.parse(entry.extracted_nutrients);
+        } catch (e) {
+          console.error('Failed to parse extracted_nutrients:', e);
+        }
+      }
+      if (entry.ingredients && typeof entry.ingredients === 'string') {
+        try {
+          entry.ingredients = JSON.parse(entry.ingredients);
+        } catch (e) {
+          console.error('Failed to parse ingredients:', e);
+        }
+      }
+
       setFoodEntry(entry);
       setEditedData(entry);
     } catch (error: any) {
@@ -199,7 +215,7 @@ const FoodDetails = () => {
                   </div>
                   <div>
                     <h1 className="text-xl font-bold text-gray-900">
-                      {foodEntry.meal_type || 'Food Entry'}
+                      {foodEntry.description || foodEntry.meal_type || 'Food Entry'}
                     </h1>
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
                       <span className="flex items-center">
@@ -310,6 +326,31 @@ const FoodDetails = () => {
                 </TabsList>
 
                 <TabsContent value="meal-analysis" className="space-y-6">
+                  {/* Description & Meal Type */}
+                  {!editing && foodEntry.description && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Meal Details</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Description</p>
+                            <p className="text-sm">{foodEntry.description}</p>
+                          </div>
+                          {foodEntry.meal_type && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Meal Type</p>
+                              <Badge variant="secondary" className="capitalize">
+                                {foodEntry.meal_type}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Dishes */}
                   {dishNames.length > 0 && (
                     <Card>
@@ -369,22 +410,20 @@ const FoodDetails = () => {
                                 </div>
                               </div>
 
-                              {item.nutrition_values && (
-                                <div className="grid grid-cols-3 gap-2 text-xs">
-                                  <div className="text-center p-2 bg-gray-50 rounded">
-                                    <div className="font-medium">{item.nutrition_values.calories || 0}</div>
-                                    <div className="text-gray-500">cal</div>
-                                  </div>
-                                  <div className="text-center p-2 bg-gray-50 rounded">
-                                    <div className="font-medium">{item.nutrition_values.proteins || 0}g</div>
-                                    <div className="text-gray-500">protein</div>
-                                  </div>
-                                  <div className="text-center p-2 bg-gray-50 rounded">
-                                    <div className="font-medium">{item.nutrition_values.carbohydrates || 0}g</div>
-                                    <div className="text-gray-500">carbs</div>
-                                  </div>
+                              <div className="grid grid-cols-3 gap-2 text-xs">
+                                <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className="font-medium">{item.calories || item.nutrition_values?.calories || 0}</div>
+                                  <div className="text-gray-500">cal</div>
                                 </div>
-                              )}
+                                <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className="font-medium">{item.protein || item.nutrition_values?.proteins || 0}g</div>
+                                  <div className="text-gray-500">protein</div>
+                                </div>
+                                <div className="text-center p-2 bg-gray-50 rounded">
+                                  <div className="font-medium">{item.carbs || item.nutrition_values?.carbohydrates || 0}g</div>
+                                  <div className="text-gray-500">carbs</div>
+                                </div>
+                              </div>
                             </div>
                           ))}
 

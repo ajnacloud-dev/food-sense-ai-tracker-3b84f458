@@ -22,15 +22,26 @@ class AIService:
 
     def _get_default_model(self):
         try:
-            res = self.db.query("models", filters=[
+            print("Querying app_models for default model...")
+            res = self.db.query("app_models", filters=[
                 {"field": "is_active", "operator": "eq", "value": True},
                 {"field": "is_default", "operator": "eq", "value": True}
             ], limit=1)
-            models = res.get('data', [])
+            print(f"Query response: {res}")
+            data = res.get('data', {})
+            models = data.get('records', [])
             if models:
-                return models[0]
+                # Clean the record to remove metadata fields
+                model = models[0]
+                cleaned = {k: v for k, v in model.items() if not k.startswith('_')}
+                print(f"Found model: {cleaned.get('model_id')}")
+                return cleaned
+            else:
+                print("No models found in database")
         except Exception as e:
             print(f"Error fetching model: {e}")
+            import traceback
+            traceback.print_exc()
             
         return {
             "model_id": "gpt-4o-mini", 
@@ -39,19 +50,46 @@ class AIService:
         }
 
     def _get_prompt(self, category):
-        res = self.db.query("prompts", filters=[
-            {"field": "category", "operator": "eq", "value": category},
-            {"field": "is_active", "operator": "eq", "value": True}
-        ], limit=1)
-        
-        prompts = res.get('data', [])
-        if not prompts:
-            # Fallback prompts if DB is empty
+        try:
+            res = self.db.query("app_prompts", filters=[
+                {"field": "category", "operator": "eq", "value": category},
+                {"field": "is_active", "operator": "eq", "value": True}
+            ], limit=1)
+
+            print(f"Prompt query response for {category}: {res}")
+
+            if res and res.get('success'):
+                data = res.get('data', {})
+                prompts = data.get('records', [])
+                if prompts and len(prompts) > 0:
+                    # Clean the record to remove metadata fields
+                    prompt = prompts[0]
+                    cleaned = {k: v for k, v in prompt.items() if not k.startswith('_')}
+                    print(f"Found prompt for {category}")
+                    return cleaned
+        except Exception as e:
+            print(f"Error getting prompt: {e}")
+
+        # Fallback prompts if DB is empty or error
+        print(f"Using fallback prompt for {category}")
+        if category == "food":
+            return {
+                "system_prompt": """You are an expert nutritionist AI. Analyze food descriptions and images to provide detailed nutritional information.
+Always return valid JSON with this structure:
+{
+  "food_items": [{"name": "string", "calories": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "sodium": number}],
+  "total_calories": number,
+  "meal_type": "breakfast|lunch|dinner|snack",
+  "nutritional_summary": "string",
+  "health_notes": "string"
+}""",
+                "user_prompt_template": "Analyze this food: {description}"
+            }
+        else:
             return {
                 "system_prompt": "You are a helpful AI assistant. Return valid JSON.",
                 "user_prompt_template": "Analyze this: {description}"
             }
-        return prompts[0]
 
     def _classify_content(self, description):
         lower_desc = description.lower() if description else ""
@@ -112,13 +150,21 @@ class AIService:
 
         # 4. Call OpenAI
         try:
-            completion = self.client.chat.completions.create(
-                model=model_id,
-                messages=messages,
-                max_tokens=1500,
-                temperature=0,
-                response_format={"type": "json_object"}
-            )
+            # Use different parameters based on model
+            params = {
+                "model": model_id,
+                "messages": messages,
+                "temperature": 0,
+                "response_format": {"type": "json_object"}
+            }
+
+            # GPT-5.2 models use max_completion_tokens instead of max_tokens
+            if "gpt-5" in model_id.lower():
+                params["max_completion_tokens"] = 1500
+            else:
+                params["max_tokens"] = 1500
+
+            completion = self.client.chat.completions.create(**params)
             
             result_text = completion.choices[0].message.content
             usage = completion.usage
@@ -139,7 +185,7 @@ class AIService:
             }
             
             try:
-                self.db.write("api_costs", [log_entry])
+                self.db.write("app_api_costs", [log_entry])
             except Exception as e:
                 print(f"Failed to log cost: {e}")
 

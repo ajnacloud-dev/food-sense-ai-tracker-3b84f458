@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createPendingAnalysis } from "@/utils/pendingAnalysisService";
 import VoiceInput from "@/components/capture/VoiceInput";
 import PullToRefresh from "@/components/pwa/PullToRefresh";
+import { useAnalysisQueue } from "@/hooks/useAnalysisQueue";
 
 const Capture = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -26,6 +27,7 @@ const Capture = () => {
   const navigate = useNavigate();
   const { checkUsageLimits, incrementUsage, rollbackUsage } = useUsageCheck();
   const { user } = useAuth();
+  const { queueAnalysis } = useAnalysisQueue();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -97,44 +99,39 @@ const Capture = () => {
 
       setUploadProgress('Creating analysis record...');
 
-      // Step 4: Create pending analysis record
-      const pendingAnalysisId = await createPendingAnalysis(
-        user.id,
+      // Step 4: Queue the analysis job
+      setUploadProgress('Queueing analysis...');
+
+      const queueResult = await queueAnalysis(
         description || 'AI-analyzed content',
         fileUrl
       );
 
-      setUploadProgress('Starting AI analysis...');
+      if (!queueResult.success) {
+        throw new Error(queueResult.error || 'Failed to queue analysis');
+      }
 
-      // Step 5: Start analysis with enhanced error handling
-      // Step 5: Start analysis with enhanced error handling
-      const { error: asyncError } = await api.functions.invoke('async-analyze', {
-        body: {
-          pendingAnalysisId,
-          description,
-          imageUrl: fileUrl,
-          skipUsageCheck: true
+      // Success! Analysis is now running in background
+      toast.success("Analysis queued! 🚀", {
+        description: "You'll be notified when it's complete",
+        action: {
+          label: 'View Queue',
+          onClick: () => navigate('/queue')
         }
       });
 
-      if (asyncError) {
-        console.error('Failed to start async analysis:', asyncError);
-        throw new Error(asyncError.message || 'Failed to start analysis');
-      }
-
-      toast.success("AI analysis started! You'll be notified when complete.", {
-        description: "Check your dashboard for updates"
-      });
-
-      // Navigate back to dashboard with refresh flag
-      navigate("/dashboard", {
-        state: { shouldRefresh: true },
-        replace: true
-      });
-
-      // Reset form
+      // Reset form immediately - don't block UI
       setFile(null);
       setDescription("");
+      setLoading(false);
+      setUploadProgress('');
+
+      // Optional: Navigate to dashboard after a short delay
+      setTimeout(() => {
+        navigate("/dashboard", {
+          state: { shouldRefresh: true }
+        });
+      }, 1500);
 
     } catch (error: any) {
       console.error('Processing error:', error);

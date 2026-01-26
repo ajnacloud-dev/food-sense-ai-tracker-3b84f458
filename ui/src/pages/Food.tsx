@@ -224,10 +224,28 @@ const Food = () => {
       // Filter for current user and join
       const userEntries = entriesData
         .filter((e: any) => e.user_id === user.id)
-        .map((entry: any) => ({
-          ...entry,
-          food_items: itemsData ? itemsData.filter((i: any) => i.food_entry_id === entry.id) : []
-        }));
+        .map((entry: any) => {
+          // Parse JSON strings if they exist
+          if (entry.extracted_nutrients && typeof entry.extracted_nutrients === 'string') {
+            try {
+              entry.extracted_nutrients = JSON.parse(entry.extracted_nutrients);
+            } catch (e) {
+              console.error('Failed to parse extracted_nutrients:', e);
+            }
+          }
+          if (entry.ingredients && typeof entry.ingredients === 'string') {
+            try {
+              entry.ingredients = JSON.parse(entry.ingredients);
+            } catch (e) {
+              console.error('Failed to parse ingredients:', e);
+            }
+          }
+
+          return {
+            ...entry,
+            food_items: itemsData ? itemsData.filter((i: any) => i.food_entry_id === entry.id) : []
+          };
+        });
 
       // Sort desc
       userEntries.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

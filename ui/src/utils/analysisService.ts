@@ -190,13 +190,9 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
 
 export const uploadFile = async (file: File, userId: string) => {
   try {
-    // Mock implementation for local development
-    console.log(`Mock upload for file: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
+    console.log(`Uploading file: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
 
-    // Create a local object URL for the file (only works in current session)
-    const localUrl = URL.createObjectURL(file);
-
-    // Convert to base64 for storage in mock backend
+    // Convert to base64 for sending to backend
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve, reject) => {
       reader.onloadend = () => {
@@ -209,27 +205,14 @@ export const uploadFile = async (file: File, userId: string) => {
 
     const base64Data = await base64Promise;
 
-    // Store in localStorage as mock (for demo purposes)
-    const mockFileData = {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      data: base64Data,
-      userId: userId,
-      timestamp: Date.now()
-    };
+    console.log(`File converted to base64, ready for analysis`);
 
-    // Store last uploaded file in localStorage
-    localStorage.setItem('mock_last_upload', JSON.stringify(mockFileData));
-
-    console.log(`Mock file upload successful - stored in localStorage`);
-
-    // Return the base64 data URL which can be used directly in img tags
+    // Return the base64 data URL which will be sent to backend AI
     return base64Data;
 
   } catch (error) {
-    console.error('Mock file upload failed:', error);
-    throw new Error('File upload failed in mock mode. Please try again.');
+    console.error('File upload failed:', error);
+    throw new Error('File upload failed. Please try again.');
   }
 };
 

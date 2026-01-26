@@ -7,10 +7,13 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 try:
     from lib.ibex_client import IbexClient
+    print("Using new IbexClient from ibex_client.py")
 except ImportError:
     # Fallback to old client if new one doesn't exist
     from lib.ibex import IbexClient
+    print("Using old IbexClient from ibex.py")
 from lib.ai import AIService
+from lib.tenant_manager import TenantManager
 import router
 
 # --- Configuration Loading ---
@@ -68,8 +71,41 @@ CONTEXT = {
 
 def lambda_handler(event, context):
     """
-    Unified Entrypoint.
+    Unified Entrypoint with Multi-tenant Support.
     Delegates to Router.
     """
-    print(f"Context Initialized. Routing request...")
-    return router.route_request(event, CONTEXT)
+    # Get tenant configuration from request
+    tenant_config = TenantManager.get_tenant_from_request(event)
+    print(f"Processing request for tenant: {tenant_config['display_name']} ({tenant_config['tenant_id']})")
+
+    # Create tenant-specific database client
+    try:
+        tenant_db = TenantManager.create_ibex_client(tenant_config)
+        print(f"Tenant DB Client initialized for namespace: {tenant_config['namespace']}")
+    except Exception as e:
+        print(f"Tenant DB Initialization Error: {e}")
+        # Fallback to default db if tenant-specific fails
+        tenant_db = db
+
+    # Create tenant-specific AI service
+    try:
+        if tenant_db:
+            tenant_ai_service = AIService(tenant_db)
+            print("Tenant AI Service initialized successfully")
+        else:
+            tenant_ai_service = ai_service
+    except Exception as e:
+        print(f"Tenant AI Service Initialization Error: {e}")
+        tenant_ai_service = ai_service
+
+    # Build tenant-aware context
+    tenant_context = {
+        "db": tenant_db,
+        "ai_service": tenant_ai_service,
+        "schemas": SCHEMAS,
+        "config": CONFIG,
+        "tenant": tenant_config  # Include tenant info in context
+    }
+
+    print(f"Context Initialized for tenant. Routing request...")
+    return router.route_request(event, tenant_context)

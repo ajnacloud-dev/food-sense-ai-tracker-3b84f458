@@ -62,6 +62,9 @@ class IbexClient:
         })
 
     def query(self, table, filters=None, limit=50, sort=None):
+        # Add app_ prefix if not present
+        if not table.startswith('app_'):
+            table = f'app_{table}'
         payload = {
             "operation": "QUERY",
             "table": table,
@@ -71,10 +74,15 @@ class IbexClient:
             payload["filters"] = filters
         if sort:
             payload["sort"] = sort
-            
+
         return self._call(payload)
 
     def write(self, table, records):
+        print(f"IbexClient.write called with table: {table}")
+        # Add app_ prefix if not present
+        if not table.startswith('app_'):
+            table = f'app_{table}'
+            print(f"Added app_ prefix, new table name: {table}")
         return self._call({
             "operation": "WRITE",
             "table": table,
