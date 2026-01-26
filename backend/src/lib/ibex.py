@@ -17,19 +17,32 @@ class IbexClient:
     def _call(self, payload, timeout=20):
         # Merge base payload (tenant/namespace) with operation payload
         full_payload = {**self.base_payload, **payload}
-        
+
         try:
             response = requests.post(
-                self.api_url, 
-                headers=self.headers, 
-                json=full_payload, 
+                self.api_url,
+                headers=self.headers,
+                json=full_payload,
                 timeout=timeout
             )
             response.raise_for_status()
-            return response.json()
+
+            # Parse response and handle NaN values
+            response_text = response.text
+            # Replace NaN with null in the response
+            import re
+            response_text = re.sub(r'\bNaN\b', 'null', response_text)
+
+            return json.loads(response_text)
         except requests.exceptions.RequestException as e:
-            # Normalize error handling or logging here
+            # Log error details for debugging
             print(f"Ibex API Error: {str(e)}")
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_detail = e.response.json()
+                    print(f"Error details: {error_detail}")
+                except:
+                    print(f"Error response text: {e.response.text}")
             raise
 
     def list_tables(self):
@@ -41,6 +54,12 @@ class IbexClient:
             "table": table_name,
             "schema": schema
         }, timeout=29)
+
+    def describe_table(self, table_name):
+        return self._call({
+            "operation": "DESCRIBE_TABLE",
+            "table": table_name
+        })
 
     def query(self, table, filters=None, limit=50, sort=None):
         payload = {

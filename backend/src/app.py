@@ -5,7 +5,11 @@ import sys
 # Ensure src/ is in path
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
-from lib.ibex import IbexClient
+try:
+    from lib.ibex_client import IbexClient
+except ImportError:
+    # Fallback to old client if new one doesn't exist
+    from lib.ibex import IbexClient
 from lib.ai import AIService
 import router
 
@@ -39,10 +43,19 @@ NAMESPACE = CONFIG.get('namespace', "default")
 # Initialize Logic Services
 try:
     db = IbexClient(IBEX_API_URL, IBEX_API_KEY, TENANT_ID, NAMESPACE)
-    ai_service = AIService(db)
+    print("DB Client initialized successfully")
 except Exception as e:
-    print(f"Initialization Error: {e}")
+    print(f"DB Initialization Error: {e}")
     db = None
+
+try:
+    if db:
+        ai_service = AIService(db)
+        print("AI Service initialized successfully")
+    else:
+        ai_service = None
+except Exception as e:
+    print(f"AI Service Initialization Error: {e}")
     ai_service = None
 
 # Context to pass to handlers

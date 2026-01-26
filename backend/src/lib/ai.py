@@ -8,7 +8,17 @@ from openai import OpenAI
 class AIService:
     def __init__(self, db_client):
         self.db = db_client
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        # Initialize OpenAI client with explicit configuration
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is required")
+
+        # Create client with minimal configuration to avoid proxy conflicts
+        self.client = OpenAI(
+            api_key=api_key,
+            timeout=60.0,
+            max_retries=2
+        )
 
     def _get_default_model(self):
         try:

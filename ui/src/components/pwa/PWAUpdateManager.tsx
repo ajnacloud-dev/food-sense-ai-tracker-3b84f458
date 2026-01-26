@@ -37,10 +37,13 @@ const PWAUpdateManager = () => {
   }, []);
 
   useEffect(() => {
+    // DISABLED: Auto-update notifications to prevent annoying popups
+    return; // Exit early to disable all update notifications
+
     const now = Date.now();
-    
+
     // Prevent showing notification if we're already updating or recently showed one
-    if (isUpdatingRef.current || 
+    if (isUpdatingRef.current ||
         updateNotificationShown.current ||
         (now - lastNotificationTimestamp.current) < NOTIFICATION_DEBOUNCE) {
       return;

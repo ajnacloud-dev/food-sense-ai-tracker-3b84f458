@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { getCurrentUser, signOut as amplifySignOut, fetchAuthSession } from "aws-amplify/auth";
-import { Hub } from "aws-amplify/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface User {
   id: string;
   email?: string;
+  user_metadata?: {
+    full_name?: string;
+    user_type?: string;
+  };
 }
 
 interface AuthContextType {
@@ -29,12 +32,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const checkUser = async () => {
     try {
-      const currentUser = await getCurrentUser();
-      const session = await fetchAuthSession();
-      setUser({
-        id: currentUser.userId,
-        email: session.tokens?.idToken?.payload.email as string | undefined
-      });
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      setUser(data as User);
     } catch (error) {
       setUser(null);
     } finally {
@@ -44,25 +44,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     checkUser();
-
-    // Listen for Auth events
-    const unsubscribe = Hub.listen('auth', ({ payload }) => {
-      switch (payload.event) {
-        case 'signedIn':
-          checkUser();
-          break;
-        case 'signedOut':
-          setUser(null);
-          break;
-      }
-    });
-
-    return () => unsubscribe();
   }, []);
 
   const signOut = async () => {
     try {
-      await amplifySignOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       setUser(null);
     } catch (error) {
       console.error('Sign out failed:', error);

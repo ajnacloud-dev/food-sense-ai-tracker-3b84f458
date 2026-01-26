@@ -190,33 +190,46 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
 
 export const uploadFile = async (file: File, userId: string) => {
   try {
-    // Ensure storage bucket exists before attempting upload
-    await ensureStorageBucket();
+    // Mock implementation for local development
+    console.log(`Mock upload for file: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+    // Create a local object URL for the file (only works in current session)
+    const localUrl = URL.createObjectURL(file);
 
-    console.log(`Uploading file: ${fileName}, Size: ${file.size} bytes, Type: ${file.type}`);
+    // Convert to base64 for storage in mock backend
+    const reader = new FileReader();
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        resolve(base64String);
+      };
+      reader.onerror = reject;
+    });
+    reader.readAsDataURL(file);
 
-    const { error: uploadError, data: uploadData } = await api.storage
-      .from('uploads')
-      .upload(fileName, file);
+    const base64Data = await base64Promise;
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw new Error(`Upload failed: ${uploadError.message}`);
-    }
+    // Store in localStorage as mock (for demo purposes)
+    const mockFileData = {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      data: base64Data,
+      userId: userId,
+      timestamp: Date.now()
+    };
 
-    const { data: { publicUrl } } = api.storage
-      .from('uploads')
-      .getPublicUrl(fileName);
+    // Store last uploaded file in localStorage
+    localStorage.setItem('mock_last_upload', JSON.stringify(mockFileData));
 
-    console.log(`File uploaded successfully: ${publicUrl}`);
-    return publicUrl;
+    console.log(`Mock file upload successful - stored in localStorage`);
+
+    // Return the base64 data URL which can be used directly in img tags
+    return base64Data;
 
   } catch (error) {
-    console.error('File upload failed:', error);
-    throw error;
+    console.error('Mock file upload failed:', error);
+    throw new Error('File upload failed in mock mode. Please try again.');
   }
 };
 

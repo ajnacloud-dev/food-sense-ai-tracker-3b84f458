@@ -1,3 +1,7 @@
+import os
+import sys
+import json
+import logging
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from dotenv import load_dotenv
@@ -6,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-PORT = 3000
+PORT = int(os.environ.get('PORT', 8080))
 SRC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
 sys.path.append(SRC_DIR)
 

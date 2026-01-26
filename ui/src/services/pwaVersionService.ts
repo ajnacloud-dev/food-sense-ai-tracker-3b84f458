@@ -25,7 +25,7 @@ class PWAVersionService {
     this.loadSessionProcessedVersions();
     this.checkForCompletedUpdate();
     this.resetUpdateAttemptsIfNeeded();
-    console.log('PWAVersionService initialized with version:', this.currentVersion);
+    // console.log('PWAVersionService initialized with version:', this.currentVersion);
   }
 
   private getStoredVersion(): string | null {
@@ -40,7 +40,7 @@ class PWAVersionService {
     try {
       localStorage.setItem('pwa-app-version', version);
       this.currentVersion = version;
-      console.log('Version stored and updated successfully:', version);
+      // console.log('Version stored and updated successfully:', version);
     } catch (error) {
       console.error('Failed to store version:', error);
     }
@@ -68,7 +68,7 @@ class PWAVersionService {
   private markVersionAsProcessed(version: string): void {
     this.sessionProcessedVersions.add(version);
     this.saveSessionProcessedVersions();
-    console.log('Marked version as processed:', version);
+    // console.log('Marked version as processed:', version);
   }
 
   private isVersionProcessedThisSession(version: string): boolean {
@@ -99,7 +99,7 @@ class PWAVersionService {
     try {
       const targetVersion = localStorage.getItem('pwa-updating-to-version');
       if (targetVersion) {
-        console.log('Detected completed update to target version:', targetVersion);
+        // console.log('Detected completed update to target version:', targetVersion);
         
         // CRITICAL FIX: Update current version to target version
         this.setStoredVersion(targetVersion);
@@ -116,7 +116,7 @@ class PWAVersionService {
         // Clean up the update marker
         localStorage.removeItem('pwa-updating-to-version');
         
-        console.log('✅ Update completion processed - current version now:', this.currentVersion);
+        // console.log('✅ Update completion processed - current version now:', this.currentVersion);
         return;
       }
 
@@ -124,7 +124,7 @@ class PWAVersionService {
       if (!this.currentVersion) {
         const defaultVersion = 'v1.0.0';
         this.setStoredVersion(defaultVersion);
-        console.log('Set default version:', defaultVersion);
+        // console.log('Set default version:', defaultVersion);
       }
     } catch (error) {
       console.error('Failed to process completed update:', error);
@@ -142,7 +142,7 @@ class PWAVersionService {
       
       this.lastServerCheck = now;
 
-      console.log('Checking server version...');
+      // console.log('Checking server version...');
       
       const { data, error } = await supabase.functions.invoke('app-version');
       
@@ -151,7 +151,7 @@ class PWAVersionService {
         return null;
       }
 
-      console.log('Server responded with:', data);
+      // console.log('Server responded with:', data);
       return data as ServerVersionInfo;
     } catch (error) {
       console.error('Error checking server version:', error);
@@ -162,20 +162,20 @@ class PWAVersionService {
   async shouldForceUpdate(): Promise<boolean> {
     // Circuit breaker: prevent infinite update loops
     if (this.updateAttempts >= this.MAX_UPDATE_ATTEMPTS) {
-      console.log('❌ Maximum update attempts reached, preventing further updates');
+      // console.log('❌ Maximum update attempts reached, preventing further updates');
       return false;
     }
 
     // Don't check if update is already in progress
     if (this.updateInProgress) {
-      console.log('Update already in progress, skipping check');
+      // console.log('Update already in progress, skipping check');
       return false;
     }
 
     // Cooldown after successful update
     const now = Date.now();
     if (this.lastSuccessfulUpdate > 0 && (now - this.lastSuccessfulUpdate) < this.UPDATE_COOLDOWN) {
-      console.log('Update cooldown active, skipping check');
+      // console.log('Update cooldown active, skipping check');
       return false;
     }
 
@@ -185,24 +185,24 @@ class PWAVersionService {
       return false;
     }
 
-    console.log('🔍 Version comparison:', {
-      serverVersion: serverInfo.version,
-      currentVersion: this.currentVersion,
-      lastKnownServerVersion: this.lastKnownServerVersion,
-      forceUpdate: serverInfo.forceUpdate,
-      processedThisSession: this.isVersionProcessedThisSession(serverInfo.version),
-      updateAttempts: this.updateAttempts
-    });
+    // console.log('🔍 Version comparison:', {
+    //   serverVersion: serverInfo.version,
+    //   currentVersion: this.currentVersion,
+    //   lastKnownServerVersion: this.lastKnownServerVersion,
+    //   forceUpdate: serverInfo.forceUpdate,
+    //   processedThisSession: this.isVersionProcessedThisSession(serverInfo.version),
+    //   updateAttempts: this.updateAttempts
+    // });
 
     // Don't process the same version again in this session
     if (this.isVersionProcessedThisSession(serverInfo.version)) {
-      console.log('✅ Version already processed this session:', serverInfo.version);
+      // console.log('✅ Version already processed this session:', serverInfo.version);
       return false;
     }
 
     // CRITICAL FIX: Exact version match check
     if (this.currentVersion === serverInfo.version) {
-      console.log('✅ Already on latest version:', serverInfo.version);
+      // console.log('✅ Already on latest version:', serverInfo.version);
       this.markVersionAsProcessed(serverInfo.version);
       this.lastKnownServerVersion = serverInfo.version;
       return false;
@@ -210,17 +210,17 @@ class PWAVersionService {
 
     // Only update if there's a real version difference and we haven't processed it
     if (this.currentVersion && this.currentVersion !== serverInfo.version) {
-      console.log('🚀 Version mismatch detected - update needed:', {
-        from: this.currentVersion,
-        to: serverInfo.version
-      });
+      // console.log('🚀 Version mismatch detected - update needed:', {
+      //   from: this.currentVersion,
+      //   to: serverInfo.version
+      // });
       this.lastKnownServerVersion = serverInfo.version;
       return true;
     }
 
     // First time setup: set current version from server if we don't have one
     if (!this.currentVersion && serverInfo.version) {
-      console.log('📝 Setting initial version from server:', serverInfo.version);
+      // console.log('📝 Setting initial version from server:', serverInfo.version);
       this.setStoredVersion(serverInfo.version);
       this.lastKnownServerVersion = serverInfo.version;
       this.markVersionAsProcessed(serverInfo.version);
@@ -231,7 +231,7 @@ class PWAVersionService {
   }
 
   startUpdate(targetVersion: string): void {
-    console.log('🚀 Starting update to version:', targetVersion);
+    // console.log('🚀 Starting update to version:', targetVersion);
     this.updateInProgress = true;
     this.recordUpdateAttempt();
     this.markVersionAsProcessed(targetVersion);
@@ -239,14 +239,14 @@ class PWAVersionService {
     // Store the target version we're updating to
     try {
       localStorage.setItem('pwa-updating-to-version', targetVersion);
-      console.log('📝 Stored target version for update:', targetVersion);
+      // console.log('📝 Stored target version for update:', targetVersion);
     } catch (error) {
       console.error('Failed to store target version:', error);
     }
   }
 
   updateCurrentVersion(version: string): void {
-    console.log('✅ Manually updating current version to:', version);
+    // console.log('✅ Manually updating current version to:', version);
     this.setStoredVersion(version);
     this.lastKnownServerVersion = version;
     this.updateInProgress = false;
@@ -270,7 +270,7 @@ class PWAVersionService {
   }
 
   resetUpdateState(): void {
-    console.log('🔄 Resetting update state...');
+    // console.log('🔄 Resetting update state...');
     this.checkForCompletedUpdate();
     
     // Only reset if we're not in the middle of an update
@@ -279,7 +279,7 @@ class PWAVersionService {
       this.updateInProgress = false;
     }
     
-    console.log('Update state reset - current version:', this.currentVersion);
+    // console.log('Update state reset - current version:', this.currentVersion);
   }
 
   isUpdateInProgress(): boolean {
@@ -288,7 +288,7 @@ class PWAVersionService {
 
   // Emergency reset for debugging
   forceReset(): void {
-    console.log('🆘 Emergency reset triggered');
+    // console.log('🆘 Emergency reset triggered');
     this.sessionProcessedVersions.clear();
     this.saveSessionProcessedVersions();
     this.updateInProgress = false;
@@ -298,7 +298,7 @@ class PWAVersionService {
     localStorage.removeItem('pwa-update-attempts');
     localStorage.removeItem('pwa-last-update-attempt');
     localStorage.removeItem('pwa-updating-to-version');
-    console.log('Emergency reset completed');
+    // console.log('Emergency reset completed');
   }
 
   getUpdateStatus(): object {

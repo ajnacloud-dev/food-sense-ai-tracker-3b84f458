@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Brain, UserPlus } from "lucide-react";
 import { api } from "@/lib/api";
+import { backendApi } from "@/lib/api/client";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { InvitationCodeInput } from "@/components/auth/InvitationCodeInput";
-import { signIn, signUp, confirmSignUp } from "aws-amplify/auth";
+// import { signIn, signUp, confirmSignUp } from "aws-amplify/auth"; // Commented out - using mock auth
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -48,55 +49,54 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        await signIn({ username: email, password });
-        toast.success("Successfully signed in!");
-        navigate("/dashboard");
-      } else {
-        if (needsVerification) {
-          const { isSignUpComplete } = await confirmSignUp({
-            username: email,
-            confirmationCode: verificationCode
-          });
+        // Use mock authentication from backendApi
+        const { data, error } = await backendApi.auth.signInWithPassword({
+          email,
+          password
+        });
 
-          if (isSignUpComplete) {
-            toast.success("Account verified successfully! Please sign in.");
-            setIsLogin(true);
-            setNeedsVerification(false);
-          }
-          return;
+        if (error) {
+          throw error;
         }
 
-        const { userId } = await signUp({
-          username: email,
+        toast.success("Successfully signed in! (Mock Auth - Any email/password works)");
+        // Need to reload to update auth context
+        window.location.href = "/dashboard";
+      } else {
+        // For signup, skip verification in mock mode
+        const { data, error } = await backendApi.auth.signUp({
+          email,
           password,
           options: {
-            userAttributes: {
-              email,
-              name: fullName
+            data: {
+              full_name: fullName,
+              user_type: invitationCode ? 'caretaker' : 'participant'
             }
           }
         });
 
-        // Handle post-signup logic (invitation code) 
-        // Note: For real apps, redemption should happen after successful email verification.
-        // We'll prompt for verification code now.
-        setNeedsVerification(true);
-        toast.success("Sign up successful! Please check your email for the verification code.");
+        if (error) {
+          throw error;
+        }
 
-        // We still trigger the redeem-invitation to associate it, or do it after verification.
-        // For simplicity in this flow, we'll assume the user will verify.
-        if (invitationCode && userId) {
+        toast.success("Account created successfully! (Mock Auth - Signing you in...)");
+
+        // Handle invitation code if present
+        if (invitationCode && data?.user?.id) {
           try {
             await api.functions.invoke('redeem-invitation', {
               body: {
                 invitationCode,
-                userId: userId
+                userId: data.user.id
               }
             });
           } catch (redeemError) {
             console.error('Invitation redemption error:', redeemError);
           }
         }
+
+        // Auto sign in after signup with mock auth
+        window.location.href = "/dashboard";
       }
     } catch (error: any) {
       toast.error(error.message || "Authentication failed");
@@ -115,14 +115,12 @@ const Auth = () => {
           </div>
           <CardTitle className="flex items-center justify-center gap-2">
             {invitationCode && <UserPlus className="h-5 w-5 text-green-600" />}
-            {isLogin ? "Welcome Back" : needsVerification ? "Verify Account" : invitationCode ? "Join as Caretaker" : "Create Account"}
+            {isLogin ? "Welcome Back" : invitationCode ? "Join as Caretaker" : "Create Account"}
           </CardTitle>
           <CardDescription>
             {isLogin
               ? "Sign in to your account"
-              : needsVerification
-                ? `Enter the code sent to ${email}`
-                : invitationCode
+              : invitationCode
                   ? "Complete your signup to join as a caretaker"
                   : "Start your health journey today"
             }
@@ -130,69 +128,57 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            {needsVerification ? (
+            {!isLogin && (
               <div className="space-y-2">
-                <Label htmlFor="verificationCode">Verification Code</Label>
+                <Label htmlFor="fullName">Full Name</Label>
                 <Input
-                  id="verificationCode"
+                  id="fullName"
                   type="text"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  placeholder="123456"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
                 />
               </div>
-            ) : (
-              <>
-                {!isLogin && (
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                    />
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                {!isLogin && (
-                  <InvitationCodeInput
-                    value={invitationCode}
-                    onChange={setInvitationCode}
-                    disabled={loading}
-                    autoFilled={!!searchParams.get('invite')}
-                  />
-                )}
-              </>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            {!isLogin && (
+              <InvitationCodeInput
+                value={invitationCode}
+                onChange={setInvitationCode}
+                disabled={loading}
+                autoFilled={!!searchParams.get('invite')}
+              />
+            )}
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+              <strong>🔓 Mock Auth Mode:</strong> Use any email/password to login
+              <br />
+              <span className="text-xs">Example: test@example.com / password123</span>
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : needsVerification ? "Verify" : isLogin ? "Sign In" : "Create Account"}
+              {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
 
-          {!needsVerification && (
-            <div className="mt-4 text-center space-y-2">
+          <div className="mt-4 text-center space-y-2">
               <Button
                 variant="link"
                 onClick={() => setIsLogin(!isLogin)}
@@ -216,7 +202,6 @@ const Auth = () => {
                 </div>
               )}
             </div>
-          )}
         </CardContent>
       </Card>
     </div>
