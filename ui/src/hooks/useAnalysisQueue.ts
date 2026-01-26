@@ -3,6 +3,14 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 
+/**
+ * NOTE: This hook is deprecated. The backend queue system has been removed
+ * in favor of direct analysis via /v1/analyze endpoint.
+ *
+ * This hook is kept for backward compatibility but no longer uses queue endpoints.
+ * Consider using usePendingAnalyses for tracking analysis status instead.
+ */
+
 interface QueueJob {
   job_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -21,108 +29,51 @@ export const useAnalysisQueue = () => {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Queue a new analysis
+  // NOTE: Queue system removed - use direct analysis endpoint instead
   const queueAnalysis = async (description: string, imageUrl?: string) => {
     try {
-      const response = await api.post('/v1/queue/analysis', {
+      // Backend now uses direct analysis at /v1/analyze instead of queue
+      const response = await api.post('/v1/analyze', {
+        category: 'food',
         description,
-        imageUrl
+        image_url: imageUrl,
+        user_id: user?.id
       });
 
-      if (response.data.success) {
-        const jobId = response.data.job_id;
-
+      if (response.data) {
         // Show notification
-        toast.info('Analysis queued', {
-          description: 'Your food is being analyzed in the background',
+        toast.success('Analysis complete', {
+          description: 'Your food has been analyzed',
           duration: 3000
         });
 
-        // Start polling for this job
-        startPolling(jobId);
-
-        return { success: true, jobId };
+        return { success: true, result: response.data };
       } else {
-        throw new Error(response.data.error || 'Failed to queue analysis');
+        throw new Error('Failed to analyze');
       }
     } catch (error: any) {
-      console.error('Queue error:', error);
-      toast.error('Failed to queue analysis');
+      console.error('Analysis error:', error);
+      toast.error('Failed to analyze food');
       return { success: false, error: error.message };
     }
   };
 
   // Poll for job status
+  // NOTE: Polling removed - direct analysis is synchronous now
   const startPolling = (jobId: string) => {
-    // Clear existing interval
-    if (pollingInterval) {
-      clearInterval(pollingInterval);
-    }
-
-    // Poll every 2 seconds
-    const interval = setInterval(async () => {
-      try {
-        const response = await api.get(`/v1/queue/status/${jobId}`);
-        const job = response.data;
-
-        if (job.status === 'completed') {
-          clearInterval(interval);
-
-          // Show success notification
-          const result = job.result;
-          toast.success('Analysis Complete!', {
-            description: `${result.description} - ${result.calories} calories`,
-            duration: 5000,
-            action: {
-              label: 'View',
-              onClick: () => {
-                window.location.href = `/food/${result.food_entry_id}`;
-              }
-            }
-          });
-
-          // Request browser notification permission
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Food Analysis Complete', {
-              body: `${result.description} - ${result.calories} calories`,
-              icon: '/icon-192.png',
-              tag: jobId,
-              requireInteraction: false
-            });
-          }
-
-          // Refresh jobs list
-          fetchJobs();
-        } else if (job.status === 'failed') {
-          clearInterval(interval);
-
-          toast.error('Analysis Failed', {
-            description: job.error || 'Unknown error occurred',
-            duration: 5000
-          });
-        } else if (job.status === 'processing') {
-          // Update progress
-          toast.loading(`Analyzing... ${job.progress}%`, {
-            id: `progress-${jobId}`
-          });
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 2000);
-
-    setPollingInterval(interval);
+    // No-op: Direct analysis doesn't require polling
+    console.log('Polling not needed for direct analysis');
   };
 
   // Fetch all user jobs
+  // NOTE: Queue system removed from backend - returning empty array
   const fetchJobs = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
     try {
-      const response = await api.get('/v1/queue/jobs');
-      if (response.data.success) {
-        setJobs(response.data.jobs);
-      }
+      // Backend no longer has queue endpoints, return empty array
+      setJobs([]);
     } catch (error) {
       console.error('Failed to fetch jobs:', error);
     } finally {
