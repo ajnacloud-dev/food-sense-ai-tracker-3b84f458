@@ -14,14 +14,31 @@ def respond(status_code, body, is_base64=False):
     }
 
 def get_user_id(event):
-    """Extract user ID from Cognito authorizer claims or fallback."""
+    """Extract user ID from Cognito authorizer claims, request body, or headers."""
+    # Try Cognito claims first
     try:
         claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
         if 'sub' in claims:
             return claims['sub']
     except:
         pass
-    
-    # In production, this should likely fail if no user ID is found. 
-    # For now, we use a test fallback as requested.
-    return "test-user-id"
+
+    # Try request body
+    try:
+        body = json.loads(event.get('body', '{}'))
+        if 'user_id' in body and body['user_id']:
+            return body['user_id']
+    except:
+        pass
+
+    # Try headers
+    try:
+        headers = event.get('headers', {})
+        user_id = headers.get('X-User-ID') or headers.get('x-user-id')
+        if user_id:
+            return user_id
+    except:
+        pass
+
+    # No user ID found - return None instead of hardcoded value
+    return None
