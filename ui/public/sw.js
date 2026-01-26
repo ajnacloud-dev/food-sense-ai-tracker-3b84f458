@@ -84,7 +84,8 @@ self.addEventListener('fetch', (event) => {
       caches.open(DATA_CACHE).then(cache => {
         return fetch(request)
           .then(response => {
-            if (response.status === 200) {
+            // Only cache GET requests (Cache API doesn't support POST/PUT/DELETE)
+            if (response.status === 200 && request.method === 'GET') {
               cache.put(request, response.clone());
             }
             return response;

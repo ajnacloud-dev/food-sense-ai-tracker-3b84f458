@@ -29,31 +29,49 @@ export const useAnalysisQueue = () => {
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Queue a new analysis
-  // NOTE: Queue system removed - use direct analysis endpoint instead
+  // NOTE: Creates pending_analyses record and processes in background
   const queueAnalysis = async (description: string, imageUrl?: string) => {
     try {
-      // Backend now uses direct analysis at /v1/analyze instead of queue
-      const response = await api.post('/v1/analyze', {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Create pending analysis record
+      const analysisId = crypto.randomUUID();
+      const estimatedCompletion = new Date();
+      estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + 2);
+
+      await api.post('/v1/pending_analyses', {
+        id: analysisId,
+        user_id: user.id,
+        description: description || 'AI-analyzed content',
+        image_url: imageUrl,
+        status: 'processing',
+        category: 'food',
+        estimated_completion: estimatedCompletion.toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      // Process analysis in background (don't await)
+      api.post('/v1/analyze', {
         category: 'food',
         description,
         image_url: imageUrl,
-        user_id: user?.id
+        user_id: user.id,
+        pending_analysis_id: analysisId
+      }).then(response => {
+        console.log('Analysis completed:', response.data);
+        // Update pending_analyses to completed (backend should do this)
+      }).catch(error => {
+        console.error('Background analysis failed:', error);
+        // Update pending_analyses to failed (backend should do this)
       });
 
-      if (response.data) {
-        // Show notification
-        toast.success('Analysis complete', {
-          description: 'Your food has been analyzed',
-          duration: 3000
-        });
-
-        return { success: true, result: response.data };
-      } else {
-        throw new Error('Failed to analyze');
-      }
+      return { success: true, jobId: analysisId };
     } catch (error: any) {
-      console.error('Analysis error:', error);
-      toast.error('Failed to analyze food');
+      console.error('Queue error:', error);
+      toast.error('Failed to queue analysis');
       return { success: false, error: error.message };
     }
   };
