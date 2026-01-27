@@ -253,6 +253,50 @@ def get_data_by_id(event, context):
         return respond(500, {"error": str(e)})
 
 
+def delete_data(event, context):
+    """DELETE /v1/{table}/{id}"""
+    db = context['db']
+    schemas = context['schemas']
+    table_name = event['pathParameters'].get('table')
+    item_id = event['pathParameters'].get('id')
+
+    # Add app_ prefix if not present and handle special cases
+    if table_name == 'users':
+        db_table_name = 'app_users_v2'
+    elif table_name == 'food_entries':
+        db_table_name = 'app_food_entries_v2'
+    elif table_name and not table_name.startswith('app_'):
+        db_table_name = f'app_{table_name}'
+    else:
+        db_table_name = table_name
+
+    if table_name not in schemas:
+        return respond(404, {"error": f"Resource {table_name} not found"})
+
+    schema_fields = schemas[table_name].get('fields', {})
+
+    # Build filters
+    filters = [{"field": "id", "operator": "eq", "value": item_id}]
+
+    # Add user_id filter for user-scoped tables
+    if 'user_id' in schema_fields and table_name != 'users':
+        user_id = get_user_id(event)
+        if user_id:
+            filters.append({"field": "user_id", "operator": "eq", "value": user_id})
+
+    try:
+        # Delete the record
+        result = db.delete(db_table_name, filters=filters)
+
+        if result and result.get('success'):
+            return respond(204, None)
+        else:
+            return respond(404, {"error": "Record not found or not authorized"})
+    except Exception as e:
+        print(f"Delete error for {table_name}/{item_id}: {str(e)}")
+        return respond(500, {"error": str(e)})
+
+
 def initialize_schemas(event, context):
     """POST /v1/system/initialize-schemas"""
     db = context['db']
