@@ -37,19 +37,19 @@
             "required": false
         },
         "estimated_completion": {
-            "type": "timestamp",
+            "type": "string",
             "required": false
         },
         "completed_at": {
-            "type": "timestamp",
+            "type": "string",
             "required": false
         },
         "created_at": {
-            "type": "timestamp",
+            "type": "string",
             "required": true
         },
         "updated_at": {
-            "type": "timestamp",
+            "type": "string",
             "required": true
         }
     }

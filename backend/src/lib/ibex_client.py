@@ -29,6 +29,10 @@ class IbexClient:
     def _call(self, payload: Dict[str, Any], timeout: int = 20) -> Dict[str, Any]:
         """Make API call to Ibex with proper error handling."""
         full_payload = {**self.base_payload, **payload}
+        
+        # DEBUG: Log the FULL payload including tenant_id and namespace
+        if payload.get("operation") == "CREATE_TABLE":
+            print(f"FULL IBEX PAYLOAD (with tenant): {json.dumps(full_payload, indent=2)}")
 
         try:
             response = requests.post(
@@ -60,22 +64,46 @@ class IbexClient:
         except json.JSONDecodeError as e:
             raise Exception(f"Invalid JSON response from Ibex: {e}")
 
+    def create_database(self) -> Dict[str, Any]:
+        """Create the database if it doesn't exist."""
+        return self._call({"operation": "CREATE_DATABASE"})
+
     def list_tables(self) -> Dict[str, Any]:
         """List all tables in the namespace."""
         return self._call({"operation": "LIST_TABLES"})
 
-    def create_table(self, table_name: str, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a new table with the given schema."""
-        return self._call({
+    def create_table(self, table_name: str, schema: Dict[str, Any], if_not_exists: bool = True) -> Dict[str, Any]:
+        """Create a new table with the given schema.
+        
+        Args:
+            table_name: Name of the table to create
+            schema: Table schema definition
+            if_not_exists: If True, creates database and table if they don't exist (default: True)
+        """
+        payload = {
             "operation": "CREATE_TABLE",
             "table": table_name,
-            "schema": schema
-        }, timeout=29)
+            "schema": schema,
+            "if_not_exists": if_not_exists
+        }
+        # DEBUG: Log the exact payload being sent
+        print(f"IBEX CREATE_TABLE PAYLOAD: {json.dumps(payload, indent=2)}")
+        result = self._call(payload, timeout=29)
+        # DEBUG: Log the Ibex response
+        print(f"IBEX CREATE_TABLE RESPONSE for {table_name}: {json.dumps(result, indent=2)}")
+        return result
 
     def describe_table(self, table_name: str) -> Dict[str, Any]:
         """Get the schema of a table."""
         return self._call({
             "operation": "DESCRIBE_TABLE",
+            "table": table_name
+        })
+
+    def drop_table(self, table_name: str) -> Dict[str, Any]:
+        """Drop a table."""
+        return self._call({
+            "operation": "DROP_TABLE",
             "table": table_name
         })
 
@@ -125,22 +153,12 @@ class IbexClient:
         if not isinstance(records, list):
             records = [records]
 
-        # Sanitize records - remove None values that might cause issues
-        sanitized_records = []
-        for record in records:
-            sanitized = {}
-            for key, value in record.items():
-                # Skip None values for optional fields
-                if value is not None:
-                    sanitized[key] = value
-            sanitized_records.append(sanitized)
-
         print(f"IbexClient.write called with table: {table}")
-        print(f"Records to write: {json.dumps(sanitized_records, indent=2)}")
+        print(f"Records to write: {json.dumps(records, indent=2)}")
         return self._call({
             "operation": "WRITE",
             "table": table,
-            "records": sanitized_records
+            "records": records
         }, timeout=29)
 
     def update(self, table: str, filters: List[Dict], updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -178,3 +196,72 @@ class IbexClient:
             "table": table,
             "filters": filters
         }, timeout=29)
+
+    def get_upload_url(self, filename: str, content_type: str, expires_in: int = 300) -> Dict[str, Any]:
+        """Get a presigned S3 upload URL from Ibex."""
+        return self._call({
+            "operation": "GET_UPLOAD_URL",
+            "filename": filename,
+            "content_type": content_type,
+            "expires_in": expires_in
+        })
+
+    def get_download_url(self, file_key: str, expires_in: int = 3600) -> Dict[str, Any]:
+        """Get a presigned S3 download URL from Ibex."""
+        return self._call({
+            "operation": "GET_DOWNLOAD_URL",
+            "file_key": file_key,
+            "expires_in": expires_in
+        })
+
+    def upload_file(self, file_data: Any, filename: str, content_type: str) -> Dict[str, Any]:
+        """
+        Upload a file via Ibex presigned URL.
+        
+        Args:
+            file_data: Raw bytes or string content (or base64 string)
+            filename: Name of the file
+            content_type: MIME type
+            
+        Returns:
+            Dict with success, key, and url
+        """
+        # 1. Get presigned URL
+        res = self.get_upload_url(filename, content_type)
+        if not res.get('success'):
+            return {"success": False, "error": f"Failed to get upload URL: {res.get('error')}"}
+            
+        data = res.get('data')
+        if not data:
+            return {"success": False, "error": "No data in upload response"}
+
+        upload_url = data['upload_url']
+        file_key = data['file_key']
+        bucket = "managed-by-ibex"
+
+        # 2. Upload content via standard requests
+        try:
+            # Handle base64 string if passed directly
+            if isinstance(file_data, str) and 'base64,' in file_data:
+                import base64
+                header, file_data = file_data.split('base64,')
+                file_data = base64.b64decode(file_data)
+            elif isinstance(file_data, str):
+                file_data = file_data.encode('utf-8')
+
+            put_res = requests.put(
+                upload_url, 
+                data=file_data, 
+                headers={'Content-Type': content_type},
+                timeout=60
+            )
+            put_res.raise_for_status()
+            
+            return {
+                "success": True,
+                "key": file_key,
+                "url": file_key,  # Just return the key as the identifier
+                "bucket": bucket
+            }
+        except Exception as e:
+            return {"success": False, "error": f"Upload failed: {str(e)}"}

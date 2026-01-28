@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: food-app-backend
     ports:
-      - "8000:8080"  # Lambda Runtime Interface Emulator port
+      - "8000:8080" # Lambda Runtime Interface Emulator port
     environment:
       - IBEX_API_URL=${IBEX_API_URL:-https://smartlink.ajna.cloud/ibexdb}
       - IBEX_API_KEY=${IBEX_API_KEY}
@@ -30,7 +30,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: food-app-frontend
     ports:
-      - "5173:8080"  # Vite dev server (host:container)
+      - "5173:8080" # Vite dev server (host:container)
     environment:
       - VITE_API_URL=http://localhost:8000
     volumes:

@@ -6,7 +6,7 @@
         },
         "user_id": {
             "type": "string",
-            "required": true
+            "required": false
         },
         "file_path": {
             "type": "string",
@@ -18,7 +18,23 @@
         },
         "data": {
             "type": "string",
-            "required": true
+            "required": false
+        },
+        "s3_key": {
+            "type": "string",
+            "required": false
+        },
+        "s3_url": {
+            "type": "string",
+            "required": false
+        },
+        "storage_type": {
+            "type": "string",
+            "required": false
+        },
+        "bucket": {
+            "type": "string",
+            "required": false
         },
         "size_bytes": {
             "type": "integer",

@@ -10,7 +10,9 @@ from handlers import auth, ai, storage, analyze_direct
 # (Method, PathPattern, Handler)
 ROUTES = [
     # System
+    ('POST', r'^/v1/system/create-database$', data.create_database),
     ('POST', r'^/v1/system/initialize-schemas$', data.initialize_schemas),
+    ('POST', r'^/v1/system/reset-database$', data.reset_database),
 
     # Auth
     ('GET', r'^/v1/auth/config$', auth.get_config),

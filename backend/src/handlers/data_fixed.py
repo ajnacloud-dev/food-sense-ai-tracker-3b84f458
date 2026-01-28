@@ -24,23 +24,35 @@ def sanitize_json_response(data):
     return data
 
 
+
+TABLE_PREFIX = 'app_'
+SPECIAL_TABLES = {
+    'users': 'users_v4',
+    'food_entries': 'food_entries_v2'
+}
+
+def resolve_table_name(table_name):
+    """Resolves the database table name with correct prefix and version handling"""
+    if not table_name:
+        return None
+        
+    if table_name in SPECIAL_TABLES:
+        return f"{TABLE_PREFIX}{SPECIAL_TABLES[table_name]}"
+    
+    if table_name.startswith(TABLE_PREFIX):
+        return table_name
+        
+    return f"{TABLE_PREFIX}{table_name}"
+
+
 def list_data(event, context):
     """GET /v1/{table}"""
     db = context['db']
     schemas = context['schemas']
     table_name = event['pathParameters'].get('table')
-
-    # Add app_ prefix if not present and handle special cases
-    if table_name == 'users':
-        db_table_name = 'app_users_v2'
-    elif table_name == 'food_entries':
-        # Use v2 table to avoid schema issues with Ibex
-        db_table_name = 'app_food_entries_v2'
-    elif table_name and not table_name.startswith('app_'):
-        db_table_name = f'app_{table_name}'
-    else:
-        db_table_name = table_name
-
+    
+    db_table_name = resolve_table_name(table_name)
+    
     # Return empty array for non-existent tables
     if table_name not in schemas:
         return respond(200, [])
@@ -110,17 +122,8 @@ def create_data(event, context):
     db = context['db']
     schemas = context['schemas']
     table_name = event['pathParameters'].get('table')
-
-    # Add app_ prefix if not present and handle special cases
-    if table_name == 'users':
-        db_table_name = 'app_users_v2'
-    elif table_name == 'food_entries':
-        # Use v2 table to avoid schema issues with Ibex
-        db_table_name = 'app_food_entries_v2'
-    elif table_name and not table_name.startswith('app_'):
-        db_table_name = f'app_{table_name}'
-    else:
-        db_table_name = table_name
+    
+    db_table_name = resolve_table_name(table_name)
 
     # Parse body
     try:
@@ -133,6 +136,8 @@ def create_data(event, context):
 
     # Get schema
     schema = schemas.get(table_name, {})
+    if table_name == 'users':
+        print(f"DEBUG SCHEMA: {json.dumps(schema)}")
     schema_fields = schema.get('fields', {})
 
     # Process records
@@ -160,6 +165,10 @@ def create_data(event, context):
             # 1. The field exists in schema
             # 2. It's not already in the record
             # 3. It's NOT the users table (users table doesn't have user_id field!)
+            # Add user_id ONLY if:
+            # 1. The field exists in schema
+            # 2. It's not already in the record
+            # 3. It's NOT the users table (users table doesn't have user_id field!)
             if 'user_id' in schema_fields and 'user_id' not in record and table_name != 'users':
                 record['user_id'] = user_id
 
@@ -169,8 +178,18 @@ def create_data(event, context):
         return respond(400, {"error": "No valid records"})
 
     try:
-        # Log what we're sending for debugging
-        print(f"Writing to {db_table_name}: {json.dumps(processed_records[:1] if processed_records else [], indent=2)}")
+        # Log what we're sending for debugging (truncated)
+        def truncate_for_log(obj, max_len=100):
+            if isinstance(obj, dict):
+                return {k: truncate_for_log(v, max_len) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [truncate_for_log(i, max_len) for i in obj]
+            elif isinstance(obj, str) and len(obj) > max_len:
+                return obj[:max_len] + f"...({len(obj)} chars)"
+            return obj
+
+        log_payload = truncate_for_log(processed_records[:1] if processed_records else [])
+        print(f"Writing to {db_table_name}: {json.dumps(log_payload, indent=2)}")
 
         result = db.write(db_table_name, processed_records)
 
@@ -189,7 +208,9 @@ def create_data(event, context):
                 return respond(201, cleaned_records[0])
             return respond(201, cleaned_records)
         else:
-            return respond(500, {"error": "Failed to create records"})
+            error_msg = result.get('error') if result else "Unknown DB error"
+            print(f"Ibex write failed: {error_msg}")
+            return respond(500, {"error": f"Failed to create records: {error_msg}"})
     except Exception as e:
         print(f"Write error for {table_name}: {str(e)}")
         return respond(500, {"error": str(e)})
@@ -201,17 +222,8 @@ def get_data_by_id(event, context):
     schemas = context['schemas']
     table_name = event['pathParameters'].get('table')
     item_id = event['pathParameters'].get('id')
-
-    # Add app_ prefix if not present and handle special cases
-    if table_name == 'users':
-        db_table_name = 'app_users_v2'
-    elif table_name == 'food_entries':
-        # Use v2 table to avoid schema issues with Ibex
-        db_table_name = 'app_food_entries_v2'
-    elif table_name and not table_name.startswith('app_'):
-        db_table_name = f'app_{table_name}'
-    else:
-        db_table_name = table_name
+    
+    db_table_name = resolve_table_name(table_name)
 
     if table_name not in schemas:
         return respond(404, {"error": f"Resource {table_name} not found"})
@@ -259,16 +271,8 @@ def delete_data(event, context):
     schemas = context['schemas']
     table_name = event['pathParameters'].get('table')
     item_id = event['pathParameters'].get('id')
-
-    # Add app_ prefix if not present and handle special cases
-    if table_name == 'users':
-        db_table_name = 'app_users_v2'
-    elif table_name == 'food_entries':
-        db_table_name = 'app_food_entries_v2'
-    elif table_name and not table_name.startswith('app_'):
-        db_table_name = f'app_{table_name}'
-    else:
-        db_table_name = table_name
+    
+    db_table_name = resolve_table_name(table_name)
 
     if table_name not in schemas:
         return respond(404, {"error": f"Resource {table_name} not found"})
@@ -308,8 +312,10 @@ def initialize_schemas(event, context):
         existing = existing_response.get('data', {}).get('tables', [])
 
         for table, schema in schemas.items():
-            if table in existing:
-                results[table] = "Exists"
+            db_table_name = resolve_table_name(table)
+
+            if db_table_name in existing:
+                results[table] = f"Exists ({db_table_name})"
             else:
                 try:
                     # Convert schema to Ibex format
@@ -333,9 +339,11 @@ def initialize_schemas(event, context):
                             "type": ibex_type,
                             "required": field_config.get("required", False)
                         }
-
-                    db.create_table(table, ibex_schema)
-                    results[table] = "Created"
+                    
+                    print(f"Creating {db_table_name} with schema: {json.dumps(ibex_schema)}")
+                    # if_not_exists=True will auto-create database if it doesn't exist
+                    db.create_table(db_table_name, ibex_schema, if_not_exists=True)
+                    results[table] = f"Created ({db_table_name})"
                 except Exception as e:
                     print(f"Failed to create table {table}: {e}")
                     results[table] = f"Error: {str(e)}"
@@ -343,4 +351,46 @@ def initialize_schemas(event, context):
         return respond(200, results)
     except Exception as e:
         print(f"Schema initialization error: {e}")
+        return respond(500, {"error": str(e)})
+
+
+def create_database(event, context):
+    """POST /v1/system/create-database - Create database if it doesn't exist"""
+    db = context['db']
+    
+    try:
+        result = db.create_database()
+        if result and result.get('success'):
+            return respond(200, {"message": "Database created successfully"})
+        else:
+            return respond(500, {"error": "Failed to create database"})
+    except Exception as e:
+        # If database already exists, that's fine
+        if "already exists" in str(e).lower():
+            return respond(200, {"message": "Database already exists"})
+        print(f"Create database error: {e}")
+        return respond(500, {"error": str(e)})
+
+
+def reset_database(event, context):
+    """POST /v1/system/reset-database - WIPE ALL DATA"""
+    # WARNING: This deletes ALL tables. Use with caution.
+    db = context['db']
+    
+    results = {}
+    try:
+        existing_response = db.list_tables()
+        existing = existing_response.get('data', {}).get('tables', [])
+        
+        for table in existing:
+            try:
+                db.drop_table(table)
+                results[table] = "Dropped"
+            except Exception as e:
+                print(f"Failed to drop table {table}: {e}")
+                results[table] = f"Error: {str(e)}"
+                
+        return respond(200, results)
+    except Exception as e:
+        print(f"Reset database error: {e}")
         return respond(500, {"error": str(e)})

@@ -53,6 +53,28 @@ def analyze(event, context):
             # Get the first food item name for description
             food_name = food_items[0].get('name') if food_items else description
 
+            # Upload image to S3 if it's base64 (large string)
+            stored_image_url = image_url
+            s3_key = None
+            storage_type = None
+            
+            if image_url and len(str(image_url)) > 1000: # Assume base64 if long
+                try:
+                    print("Uploading analysis image to Ibex Storage...")
+                    # db is IbexClient
+                    # Use generic name since we don't know file type
+                    upload_res = db.upload_file(image_url, "ai-analysis.jpg", "image/jpeg")
+                    
+                    if upload_res['success']:
+                        stored_image_url = upload_res['key'] # Store just the key
+                        s3_key = upload_res['key']
+                        storage_type = 'ibex_s3'
+                        print(f"Image uploaded to Ibex: {s3_key}")
+                    else:
+                        print(f"Ibex upload failed: {upload_res.get('error')}")
+                except Exception as e:
+                    print(f"Ibex upload error: {e}")
+
             # Create food entry record
             food_entry = {
                 "id": str(uuid.uuid4()),
@@ -72,7 +94,9 @@ def analyze(event, context):
                 "confidence_score": 0.95,
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat(),
-                "image_url": image_url  # Store base64 image directly here
+                "image_url": stored_image_url,
+                "s3_key": s3_key,
+                "storage_type": storage_type
             }
 
             print(f"Storing food entry: {food_entry['description']}")

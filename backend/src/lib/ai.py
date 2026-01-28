@@ -115,6 +115,22 @@ Always return valid JSON with this structure:
         model_config = self._get_default_model()
         model_id = model_config.get('model_id')
         
+        # Resolve Ibex Storage Keys to accessible Presigned URLs
+        # If image_url looks like an S3 key (e.g. starts with "uploads/"), resolve it
+        if image_url and isinstance(image_url, str) and image_url.startswith('uploads/'):
+            try:
+                file_key = image_url
+                print(f"Resolving Stored File Key for analysis: {file_key}")
+                # db is IbexClient
+                res = self.db.get_download_url(file_key)
+                if res.get('success'):
+                    image_url = res['data']['download_url']
+                    print("Successfully resolved to presigned URL")
+                else:
+                    print(f"Failed to resolve File Key: {res.get('error')}")
+            except Exception as e:
+                print(f"Error resolving File Key: {e}")
+
         # 1. Classify
         category = self._classify_content(description)
         
