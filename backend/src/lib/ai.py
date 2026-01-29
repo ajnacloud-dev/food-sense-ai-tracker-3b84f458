@@ -40,14 +40,31 @@ class AIService:
                 print("No models found in database")
         except Exception as e:
             print(f"Error fetching model: {e}")
-            import traceback
-            traceback.print_exc()
+            # Don't print traceback to keep logs clean unless debugging
             
         return {
             "model_id": "gpt-4o-mini", 
             "input_cost_per_1k_tokens": 0.00015,
             "output_cost_per_1k_tokens": 0.0006
         }
+
+    def _load_prompt_from_file(self, filename: str) -> str:
+        """Load prompt content from local markdown file."""
+        try:
+            # Resolve path: backend/src/lib/ai.py -> backend/src/prompts
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            src_dir = os.path.dirname(current_dir)
+            prompts_dir = os.path.join(src_dir, 'prompts')
+            file_path = os.path.join(prompts_dir, filename)
+            
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    return f.read().strip()
+            print(f"Prompt file not found: {file_path}")
+            return None
+        except Exception as e:
+            print(f"Error reading prompt file {filename}: {e}")
+            return None
 
     def _get_prompt(self, category):
         try:
@@ -70,27 +87,62 @@ class AIService:
         except Exception as e:
             print(f"Error getting prompt: {e}")
 
-        # Fallback prompts if DB is empty or error
-        print(f"Using fallback prompt for {category}")
+        # Fallback: Load from Markdown Files
+        print(f"Using fallback prompt for {category} (File-based)")
+        
         if category == "food":
+            sys_prompt = self._load_prompt_from_file('food_system.md')
+            user_prompt = self._load_prompt_from_file('food_user.md')
+            
+            if sys_prompt and user_prompt:
+                return {
+                    "system_prompt": sys_prompt,
+                    "user_prompt_template": user_prompt
+                }
+            
+            # Hardcoded Fallback if files missing (should not happen, but ensuring compliance)
             return {
                 "system_prompt": """You are an expert nutritionist AI. Analyze food descriptions and images to provide detailed nutritional information.
+Determine meal type based on the food portion and composition (e.g. heavy dishes are Lunch/Dinner), using time only as a secondary hint.
+
 Always return valid JSON with this structure:
 {
   "food_items": [{"name": "string", "calories": number, "protein": number, "carbs": number, "fat": number, "fiber": number, "sodium": number}],
   "total_calories": number,
   "meal_type": "breakfast|lunch|dinner|snack",
+  "cuisine": "string", // e.g. "Indian", "Mediterranean", "American"
+  "dietary_tags": ["string"], // e.g. "High Protein", "Low Carb", "Keto Friendly", "Gluten Free"
   "nutritional_summary": "string",
-  "health_metrics": {
-      "health_score": number,  // 0-100 score based on nutritional value
-      "glycemic_index": "low|medium|high",
-      "summary": "string"
+  "health_assessment": {
+      "diabetes": { "rating": "Excellent|Good|Moderate|Poor", "suggestion": "string" },
+      "hypertension": { "rating": "Excellent|Good|Moderate|Poor", "suggestion": "string" }
   },
-  "micronutrients": ["string"], // e.g. "High in Vitamin C", "Rich in Iron"
+  "nutrition_focus": {
+      "nutrients_high": ["string"], // e.g. "Sodium", "Saturated Fat"
+      "nutrients_low": ["string"],  // e.g. "Fiber" 
+      "suggestion": "string"
+  },
   "health_notes": "string"
 }""",
                 "user_prompt_template": "Analyze this food: {description}"
             }
+                "user_prompt_template": "Analyze this food: {description}"
+            }
+        
+        elif category == "receipt":
+            sys_prompt = self._load_prompt_from_file('receipt_system.md')
+            user_prompt = self._load_prompt_from_file('receipt_user.md')
+            if sys_prompt and user_prompt:
+                return {"system_prompt": sys_prompt, "user_prompt_template": user_prompt}
+            return {"system_prompt": "Analyze receipt. Return JSON.", "user_prompt_template": "{description}"}
+
+        elif category == "workout":
+            sys_prompt = self._load_prompt_from_file('workout_system.md')
+            user_prompt = self._load_prompt_from_file('workout_user.md')
+            if sys_prompt and user_prompt:
+                return {"system_prompt": sys_prompt, "user_prompt_template": user_prompt}
+            return {"system_prompt": "Analyze workout. Return JSON.", "user_prompt_template": "{description}"}
+
         else:
             return {
                 "system_prompt": "You are a helpful AI assistant. Return valid JSON.",
@@ -106,7 +158,7 @@ Always return valid JSON with this structure:
         return "food"
 
     def _get_time_context(self):
-        # Default to UTC if no timezone provided (Future: User timezone)
+        # Default to UTC if no timezone provided
         now = datetime.now(pytz.utc)
         hour = now.hour
         
@@ -121,8 +173,7 @@ Always return valid JSON with this structure:
         model_config = self._get_default_model()
         model_id = model_config.get('model_id')
         
-        # Resolve Ibex Storage Keys to accessible Presigned URLs
-        # If image_url looks like an S3 key (e.g. starts with "uploads/"), resolve it
+        # Resolve S3 Key to URL if needed
         if image_url and isinstance(image_url, str) and image_url.startswith('uploads/'):
             try:
                 file_key = image_url
@@ -147,12 +198,14 @@ Always return valid JSON with this structure:
         
         time_context = self._get_time_context()
         
-        # Enhance prompt based on category
+        # Enhance prompt
+        # Simple substitution (Jinja2 optional in future)
         full_user_prompt = user_template.replace('{description}', description or '')
+        
         if category == 'food':
             full_user_prompt += f"\n\n{time_context}\nDetermine appropriate meal type. Provide nutrition estimates."
         elif category == 'receipt':
-            full_user_prompt += "\n\nExtract visible items only. Do not hallucinate."
+            full_user_prompt += "\n\nExtract visible items only."
             
         full_user_prompt += "\nReturn ONLY valid JSON."
 
@@ -172,7 +225,6 @@ Always return valid JSON with this structure:
 
         # 4. Call OpenAI
         try:
-            # Use different parameters based on model
             params = {
                 "model": model_id,
                 "messages": messages,
@@ -180,7 +232,6 @@ Always return valid JSON with this structure:
                 "response_format": {"type": "json_object"}
             }
 
-            # GPT-5.2 models use max_completion_tokens instead of max_tokens
             if "gpt-5" in model_id.lower():
                 params["max_completion_tokens"] = 1500
             else:

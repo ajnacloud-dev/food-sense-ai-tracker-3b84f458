@@ -68,7 +68,7 @@ def analyze_food(event, context):
                 # Get proper food name
                 food_name = food_items[0].get('name') if food_items else description
 
-                # Create entry with complete data (single write to avoid duplicates)
+                # Create entry with complete data
                 food_entry = {
                     "id": entry_id,
                     "user_id": user_id,
@@ -82,33 +82,121 @@ def analyze_food(event, context):
                     "total_fats": total_fat,
                     "total_fiber": total_fiber,
                     "total_sodium": total_sodium,
+                    "extracted_nutrients": json.dumps(ai_data),
                     "image_url": image_url or "",
                     "created_at": datetime.utcnow().isoformat(),
                     "updated_at": datetime.utcnow().isoformat()
                 }
 
-                # Save the entry (single write)
                 write_result = db.write("app_food_entries_v2", [food_entry])
 
                 if write_result.get('success'):
-                    print(f"✅ Created food entry: {entry_id} with AI results")
-
+                    print(f"✅ Created food entry: {entry_id}")
                     return respond(200, {
-                        "success": True,
-                        "entry_id": entry_id,
+                        "success": True, 
+                        "entry_id": entry_id, 
                         "status": "completed",
-                        "description": food_name,
-                        "calories": total_calories,
-                        "meal_type": meal_type
+                        "category": "food"
                     })
-                else:
-                    raise Exception("Failed to save AI results")
+
+            elif category == 'receipt':
+                # Receipt Logic
+                merchant = ai_data.get('merchant_name', 'Unknown Vendor')
+                date_str = ai_data.get('purchase_date') or datetime.utcnow().strftime('%Y-%m-%d')
+                total = ai_data.get('total_amount', 0.0)
+                
+                receipt_record = {
+                    "id": entry_id,
+                    "user_id": user_id,
+                    "vendor": merchant,
+                    "receipt_date": date_str,
+                    "total_amount": total,
+                    "currency": ai_data.get('currency', 'USD'),
+                    "category": ai_data.get('category', 'General'),
+                    "image_url": image_url or "",
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat()
+                }
+                
+                # Write Parent
+                db.write("app_receipts", [receipt_record])
+                
+                # Write Items
+                items = ai_data.get('items', [])
+                if items:
+                    item_records = []
+                    for item in items:
+                        item_records.append({
+                            "id": str(uuid.uuid4()),
+                            "receipt_id": entry_id,
+                            "name": item.get('name', 'Unknown Item'),
+                            "price": item.get('price', 0.0),
+                            "quantity": item.get('quantity', 1.0),
+                            "category": item.get('category'),
+                            "created_at": datetime.utcnow().isoformat()
+                        })
+                    db.write("app_receipt_items", item_records)
+                    
+                return respond(200, {
+                    "success": True,
+                    "entry_id": entry_id,
+                    "status": "completed",
+                    "category": "receipt",
+                    "merchant": merchant,
+                    "total": total
+                })
+
+            elif category == 'workout':
+                # Workout Logic
+                w_type = ai_data.get('workout_type', 'General')
+                duration = ai_data.get('duration_minutes', 0)
+                calories = ai_data.get('calories_burned_estimate', 0)
+                
+                workout_record = {
+                    "id": entry_id,
+                    "user_id": user_id,
+                    "workout_type": w_type,
+                    "duration_minutes": duration,
+                    "calories_burned": calories,
+                    "workout_date": ai_data.get('workout_date') or datetime.utcnow().strftime('%Y-%m-%d'),
+                    "notes": ai_data.get('notes'),
+                    "image_url": image_url or "",
+                    "created_at": datetime.utcnow().isoformat()
+                }
+                
+                # Write Parent
+                db.write("app_workouts", [workout_record])
+                
+                # Write Exercises
+                exercises = ai_data.get('exercises', [])
+                if exercises:
+                    ex_records = []
+                    for ex in exercises:
+                        ex_records.append({
+                            "id": str(uuid.uuid4()),
+                            "workout_id": entry_id,
+                            "exercise_name": ex.get('name', 'Exercise'),
+                            "sets": ex.get('sets'),
+                            "reps": ex.get('reps'),
+                            "weight": ex.get('weight_lbs'),
+                            "distance": ex.get('distance_miles'),
+                            "created_at": datetime.utcnow().isoformat()
+                        })
+                    db.write("app_workout_exercises", ex_records)
+
+                return respond(200, {
+                    "success": True,
+                    "entry_id": entry_id,
+                    "status": "completed",
+                    "category": "workout",
+                    "type": w_type
+                })
+
             else:
-                # Not a food item - don't create entry
                 return respond(400, {
                     "success": False,
                     "entry_id": entry_id,
-                    "error": f"Not a food item: {category}"
+                    "error": f"Unknown category: {category}"
                 })
         else:
             raise Exception(analysis_result.get('error', 'AI analysis failed'))

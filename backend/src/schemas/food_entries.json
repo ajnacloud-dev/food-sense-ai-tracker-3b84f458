@@ -59,6 +59,14 @@
         "updated_at": {
             "type": "timestamp",
             "required": false
+        },
+        "ingredients": {
+            "type": "string",
+            "required": false
+        },
+        "extracted_nutrients": {
+            "type": "string",
+            "required": false
         }
     }
 }

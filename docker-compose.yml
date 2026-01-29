@@ -17,6 +17,7 @@ services:
     volumes:
       - ./backend/src:/var/task/src:ro
       - ./backend/src/lib:/var/task/lib:ro
+      - ./backend/src/prompts:/var/task/prompts:ro
       - ./backend/local_server.py:/var/task/local_server.py:ro
       - ./backend/pyproject.toml:/var/task/pyproject.toml:ro
     networks:
