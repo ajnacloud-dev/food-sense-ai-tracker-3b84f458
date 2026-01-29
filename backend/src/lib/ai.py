@@ -81,6 +81,12 @@ Always return valid JSON with this structure:
   "total_calories": number,
   "meal_type": "breakfast|lunch|dinner|snack",
   "nutritional_summary": "string",
+  "health_metrics": {
+      "health_score": number,  // 0-100 score based on nutritional value
+      "glycemic_index": "low|medium|high",
+      "summary": "string"
+  },
+  "micronutrients": ["string"], // e.g. "High in Vitamin C", "Rich in Iron"
   "health_notes": "string"
 }""",
                 "user_prompt_template": "Analyze this food: {description}"

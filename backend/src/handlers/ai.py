@@ -103,7 +103,7 @@ def analyze(event, context):
 
             # Write to database - use food_entries table (which has the correct schema)
             try:
-                write_result = db.write("food_entries", [food_entry])
+                write_result = db.write("app_food_entries_v2", [food_entry])
 
                 if write_result and write_result.get('success'):
                     print(f"✅ Successfully stored food entry with ID: {food_entry['id']}")

@@ -21,8 +21,14 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/v1/system/initialize-schemas",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "system", "initialize-schemas"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"system",
+								"initialize-schemas"
+							]
 						},
 						"description": "Creates all database tables defined in backend/src/schemas/*.json\n\nTables created:\n- users\n- food_entries\n- food_items\n- workouts\n- workout_exercises\n- receipts\n- receipt_items\n- care_relationships\n- caretaker_notes\n- participant_permissions\n- health_assessments\n- images\n- invitation_codes\n- meal_summaries\n- models\n- participant_comments\n- pending_analyses\n- permission_requests\n- prompts\n- user_goals\n- user_notifications\n- api_costs\n- api_usage_log"
 					},
@@ -35,8 +41,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/auth/config",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "auth", "config"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"auth",
+								"config"
+							]
 						},
 						"description": "Simple health check endpoint. Returns Cognito configuration (empty in local dev)."
 					},
@@ -55,8 +67,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/auth/config",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "auth", "config"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"auth",
+								"config"
+							]
 						},
 						"description": "Returns Cognito User Pool configuration.\n\nLocal dev returns null values since Cognito is not yet set up."
 					},
@@ -78,8 +96,15 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/auth/invitations/redeem",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "auth", "invitations", "redeem"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"auth",
+								"invitations",
+								"redeem"
+							]
 						},
 						"description": "Redeems an invitation code for caretaker access.\n\nCurrently returns a placeholder success message."
 					},
@@ -98,8 +123,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/users",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "users"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"users"
+							]
 						},
 						"description": "Lists all users for the authenticated user.\n\nFilters by user_id automatically."
 					},
@@ -121,8 +151,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/users",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "users"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"users"
+							]
 						},
 						"description": "Creates a new user record in the database."
 					},
@@ -135,8 +170,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/users/user-123",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "users", "user-123"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"users",
+								"user-123"
+							]
 						},
 						"description": "Retrieves a specific user by ID.\n\nFilters by user_id to ensure data isolation."
 					},
@@ -155,8 +196,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/food_entries",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "food_entries"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"food_entries"
+							]
 						},
 						"description": "Lists all food entries for the authenticated user.\n\nSorted by created_at DESC."
 					},
@@ -178,8 +224,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/food_entries",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "food_entries"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"food_entries"
+							]
 						},
 						"description": "Creates a new food entry with nutritional information."
 					},
@@ -192,8 +243,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/food_entries/{{food_entry_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "food_entries", "{{food_entry_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"food_entries",
+								"{{food_entry_id}}"
+							]
 						},
 						"description": "Retrieves a specific food entry by ID."
 					},
@@ -212,8 +269,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/workouts",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "workouts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"workouts"
+							]
 						},
 						"description": "Lists all workouts for the authenticated user."
 					},
@@ -235,8 +297,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/workouts",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "workouts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"workouts"
+							]
 						},
 						"description": "Creates a new workout record."
 					},
@@ -249,8 +316,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/workouts/{{workout_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "workouts", "{{workout_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"workouts",
+								"{{workout_id}}"
+							]
 						},
 						"description": "Retrieves a specific workout by ID."
 					},
@@ -269,8 +342,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/receipts",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "receipts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"receipts"
+							]
 						},
 						"description": "Lists all receipts for the authenticated user."
 					},
@@ -292,8 +370,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/receipts",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "receipts"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"receipts"
+							]
 						},
 						"description": "Creates a new receipt record."
 					},
@@ -306,8 +389,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/receipts/{{receipt_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "receipts", "{{receipt_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"receipts",
+								"{{receipt_id}}"
+							]
 						},
 						"description": "Retrieves a specific receipt by ID."
 					},
@@ -326,8 +415,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/care_relationships",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "care_relationships"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"care_relationships"
+							]
 						},
 						"description": "Lists all care relationships (participant-caretaker connections)."
 					},
@@ -349,8 +443,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/care_relationships",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "care_relationships"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"care_relationships"
+							]
 						},
 						"description": "Creates a new care relationship between participant and caretaker."
 					},
@@ -378,10 +477,16 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/ai/analyze",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "ai", "analyze"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"ai",
+								"analyze"
+							]
 						},
-						"description": "Analyzes food description using AI (OpenAI GPT-4).\n\n**Note:** Requires OpenAI API key and AI Service to be initialized.\n\nReturns nutritional estimates and meal type classification."
+						"description": "Analyzes food description using AI (OpenAI GPT-4).\n\n**Note:** Requires OpenAI API key and AI Service to be initialized.\n\nReturns detailed nutritional estimates, meal type classification, and **Health Metrics** (Score, Glycemic Index, Micronutrients)."
 					},
 					"response": []
 				},
@@ -401,8 +506,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/ai/analyze",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "ai", "analyze"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"ai",
+								"analyze"
+							]
 						},
 						"description": "Analyzes food from image URL using GPT-4 Vision.\n\n**Note:** Requires OpenAI API key with GPT-4 Vision access."
 					},
@@ -424,8 +535,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/ai/analyze",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "ai", "analyze"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"ai",
+								"analyze"
+							]
 						},
 						"description": "Analyzes workout description and estimates calories burned.\n\nAutomatically classifies as workout category."
 					},
@@ -447,8 +564,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/ai/analyze",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "ai", "analyze"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"ai",
+								"analyze"
+							]
 						},
 						"description": "Extracts items from receipt image using AI.\n\nAutomatically classifies as receipt category."
 					},
@@ -467,8 +590,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/storage/images/profile.jpg",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "storage", "images", "profile.jpg"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"storage",
+								"images",
+								"profile.jpg"
+							]
 						},
 						"description": "Retrieves a file from storage.\n\nCurrently queries the 'images' table in Ibex database.\n\nFuture: Will use S3 presigned URLs."
 					},
@@ -487,8 +617,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/user_goals",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "user_goals"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"user_goals"
+							]
 						}
 					},
 					"response": []
@@ -509,8 +644,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/user_goals",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "user_goals"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"user_goals"
+							]
 						}
 					},
 					"response": []
@@ -528,8 +668,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/v1/user_notifications",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "user_notifications"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"user_notifications"
+							]
 						}
 					},
 					"response": []
@@ -550,8 +695,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/v1/user_notifications",
-							"host": ["{{base_url}}"],
-							"path": ["v1", "user_notifications"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"v1",
+								"user_notifications"
+							]
 						}
 					},
 					"response": []

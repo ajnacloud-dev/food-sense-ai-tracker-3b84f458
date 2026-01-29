@@ -3,6 +3,34 @@ import uuid
 from datetime import datetime
 from utils.http import respond
 
+def get_upload_url_endpoint(event, context):
+    """POST /storage/upload-url - Get a presigned upload URL for direct binary upload"""
+    db = context['db']
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except:
+        return respond(400, {"error": "Invalid JSON"})
+
+    filename = body.get('filename') or f"{uuid.uuid4()}.jpg"
+    content_type = body.get('content_type', 'image/jpeg')
+
+    try:
+        # Get presigned URL from Ibex
+        res = db.get_upload_url(filename, content_type)
+        if not res.get('success'):
+             return respond(500, {"error": f"Failed to get upload URL: {res.get('error')}"})
+        
+        data = res.get('data', {})
+        return respond(200, {
+            "success": True,
+            "upload_url": data.get('upload_url'),
+            "file_key": data.get('file_key'),
+            "instructions": "Send a PUT request to 'upload_url' with the binary file data."
+        })
+    except Exception as e:
+        return respond(500, {"error": str(e)})
+
+
 def upload_file(event, context):
     """POST /storage/upload - Upload a file to storage"""
     db = context['db']

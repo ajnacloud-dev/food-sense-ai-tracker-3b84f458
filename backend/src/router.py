@@ -24,6 +24,7 @@ ROUTES = [
 
     # Storage
     ('POST', r'^/storage/upload$', storage.upload_file),
+    ('POST', r'^/v1/storage/upload-url$', storage.get_upload_url_endpoint), # New: Get Presigned URL
     ('GET', r'^/v1/storage/(?P<path>.+)$', storage.get_file),
 
     # Generic Data (Last to avoid collisions)

@@ -211,6 +211,77 @@
       "_type": "request_group"
     },
     {
+      "_id": "fld_storage",
+      "parentId": "wrk_foodsense",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "name": "Storage (Binary Upload)",
+      "description": "Direct file upload endpoints",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_get_upload_url",
+      "parentId": "fld_storage",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/storage/upload-url",
+      "name": "1. Get Upload URL",
+      "description": "Get a presigned S3 URL for uploading a binary file.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"filename\": \"my-image.jpg\",\n\t\"content_type\": \"image/jpeg\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_upload_put",
+      "parentId": "fld_storage",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "PASTE_UPLOAD_URL_here_FROM_STEP_1",
+      "name": "2. Upload File (Binary)",
+      "description": "Upload the actual file bytes to the URL returned in Step 1. Select 'Binary' body type.",
+      "method": "PUT",
+      "body": {
+        "mimeType": "application/octet-stream"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "image/jpeg"
+        }
+      ],
+      "_type": "request"
+    },
+    {
+      "_id": "req_analyze_s3",
+      "parentId": "fld_storage",
+      "modified": 1706275200000,
+      "created": 1706275200000,
+      "url": "{{ _.BASE_URL }}/v1/ai/analyze",
+      "name": "3. Analyze Uploaded Image",
+      "description": "Analyze the file using the Key returned in Step 1.",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"description\": \"Analyze this uploaded image\",\n\t\"imageUrl\": \"PASTE_FILE_KEY_HERE_FROM_STEP_1\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "_type": "request"
+    },
+    {
       "_id": "wrk_foodsense",
       "parentId": null,
       "modified": 1706275200000,
@@ -231,7 +302,11 @@
         "JOB_ID": "replace-with-actual-job-id"
       },
       "dataPropertyOrder": {
-        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+        "&": [
+          "BASE_URL",
+          "TENANT_ID",
+          "JOB_ID"
+        ]
       },
       "isPrivate": false,
       "_type": "environment"
@@ -248,7 +323,11 @@
         "JOB_ID": "replace-with-actual-job-id"
       },
       "dataPropertyOrder": {
-        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+        "&": [
+          "BASE_URL",
+          "TENANT_ID",
+          "JOB_ID"
+        ]
       },
       "isPrivate": false,
       "_type": "environment"
@@ -265,7 +344,11 @@
         "JOB_ID": "replace-with-actual-job-id"
       },
       "dataPropertyOrder": {
-        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+        "&": [
+          "BASE_URL",
+          "TENANT_ID",
+          "JOB_ID"
+        ]
       },
       "isPrivate": false,
       "_type": "environment"
@@ -282,7 +365,11 @@
         "JOB_ID": "replace-with-actual-job-id"
       },
       "dataPropertyOrder": {
-        "&": ["BASE_URL", "TENANT_ID", "JOB_ID"]
+        "&": [
+          "BASE_URL",
+          "TENANT_ID",
+          "JOB_ID"
+        ]
       },
       "isPrivate": false,
       "_type": "environment"
