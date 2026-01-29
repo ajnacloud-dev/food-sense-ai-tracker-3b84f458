@@ -4,8 +4,8 @@ import { Amplify } from 'aws-amplify';
 import App from './App.tsx'
 import './index.css'
 
-// Enhanced service worker registration with better update handling
-if ('serviceWorker' in navigator) {
+// Only register service worker in production to avoid caching issues during development
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
@@ -36,6 +36,24 @@ if ('serviceWorker' in navigator) {
         console.log('SW registration failed: ', registrationError);
       });
   });
+} else if ('serviceWorker' in navigator) {
+  // In development: unregister service workers and clear caches
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(registration => {
+      registration.unregister();
+      console.log('🧹 Unregistered service worker for development');
+    });
+  });
+
+  // Clear all caches
+  if ('caches' in window) {
+    caches.keys().then(names => {
+      names.forEach(name => {
+        caches.delete(name);
+        console.log('🧹 Cleared cache:', name);
+      });
+    });
+  }
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';

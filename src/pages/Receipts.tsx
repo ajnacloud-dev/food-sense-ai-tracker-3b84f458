@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Receipt, Plus, LayoutGrid, List } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
@@ -36,7 +36,7 @@ const Receipts = () => {
   const [receipts, setReceipts] = useState<ReceiptEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');
@@ -59,21 +59,14 @@ const Receipts = () => {
 
   const fetchReceipts = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
+      const response = await fetch(`${API_URL}/v1/receipts`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch receipts');
       }
 
-      const { data, error } = await supabase
-        .from('receipts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setReceipts(data || []);
+      const data = await response.json();
+      setReceipts(data.receipts || []);
     } catch (error: any) {
       console.error('Error fetching receipts:', error);
       toast.error("Failed to load receipts");
@@ -84,12 +77,13 @@ const Receipts = () => {
 
   const deleteReceipt = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('receipts')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(`${API_URL}/v1/receipts/${id}`, {
+        method: 'DELETE'
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to delete receipt');
+      }
 
       toast.success("Receipt deleted successfully");
       fetchReceipts();
@@ -257,8 +251,8 @@ const Receipts = () => {
                 <List className="h-4 w-4" />
               </Button>
             </div>
-            <Button 
-              onClick={() => navigate("/capture")} 
+            <Button
+              onClick={() => navigate("/capture")}
               className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
             >
               <Plus className="h-4 w-4" />
@@ -306,13 +300,13 @@ const Receipts = () => {
                   {receipts.length === 0 ? "No receipts yet" : "No receipts match your filters"}
                 </h3>
                 <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  {receipts.length === 0 
+                  {receipts.length === 0
                     ? "Start tracking your expenses by adding your first receipt with our smart AI analysis"
                     : "Try adjusting your filters or search terms to find what you're looking for"
                   }
                 </p>
                 {receipts.length === 0 && (
-                  <Button 
+                  <Button
                     onClick={() => navigate("/capture")}
                     className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
                   >

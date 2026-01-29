@@ -126,8 +126,6 @@ Always return valid JSON with this structure:
 }""",
                 "user_prompt_template": "Analyze this food: {description}"
             }
-                "user_prompt_template": "Analyze this food: {description}"
-            }
         
         elif category == "receipt":
             sys_prompt = self._load_prompt_from_file('receipt_system.md')

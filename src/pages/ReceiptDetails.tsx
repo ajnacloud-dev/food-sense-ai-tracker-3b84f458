@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit, Save, X, Receipt, DollarSign, Store, CreditCard, Calendar, Hash, MapPin, Clock, FileText, ShoppingCart } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import ReceiptAnalysisDebug from "@/components/receipts/ReceiptAnalysisDebug";
 import { ReceiptItemCorrection } from "@/components/receipts/ReceiptItemCorrection";
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface ReceiptEntry {
   id: string;
@@ -39,21 +40,13 @@ const ReceiptDetails = () => {
 
   const fetchReceipt = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
+      const response = await fetch(`${API_URL}/v1/receipts/${id}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch receipt');
       }
 
-      const { data, error } = await supabase
-        .from('receipts')
-        .select('*')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) throw error;
-
+      const data = await response.json();
       setReceipt(data);
       setEditedData(data);
     } catch (error: any) {
@@ -67,12 +60,15 @@ const ReceiptDetails = () => {
 
   const handleSave = async () => {
     try {
-      const { error } = await supabase
-        .from('receipts')
-        .update(editedData)
-        .eq('id', id);
+      const response = await fetch(`${API_URL}/v1/receipts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editedData)
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to update receipt');
+      }
 
       setReceipt({ ...receipt!, ...editedData });
       setEditing(false);
@@ -179,7 +175,7 @@ const ReceiptDetails = () => {
                     <Save className="h-4 w-4 mr-2" />
                     Save
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => {setEditing(false); setEditedData(receipt);}}>
+                  <Button variant="outline" size="sm" onClick={() => { setEditing(false); setEditedData(receipt); }}>
                     <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
@@ -222,21 +218,21 @@ const ReceiptDetails = () => {
                       <span className="font-medium">{formatCurrency(receiptData.subtotal)}</span>
                     </div>
                   )}
-                  
+
                   {receiptData?.tax_details?.map((tax: any, index: number) => (
                     <div key={index} className="flex justify-between text-sm">
                       <span className="text-gray-600">Tax ({(tax.tax_rate * 100).toFixed(1)}%):</span>
                       <span>{formatCurrency(tax.tax_amount || 0)}</span>
                     </div>
                   ))}
-                  
+
                   {receiptData?.discount_details?.map((discount: any, index: number) => (
                     <div key={index} className="flex justify-between text-sm text-green-600">
                       <span>Discount ({discount.discount_name}):</span>
                       <span>-{formatCurrency(discount.discount_amount || 0)}</span>
                     </div>
                   ))}
-                  
+
                   <div className="border-t pt-3 flex justify-between font-semibold text-lg">
                     <span>Total:</span>
                     <span className="text-green-600">{formatCurrency(receiptData?.total || receipt.total_amount)}</span>
@@ -396,7 +392,7 @@ const ReceiptDetails = () => {
                                       ) : '-'}
                                     </td>
                                     <td className="py-3 text-sm">
-                                      {item.category && item.subcategory 
+                                      {item.category && item.subcategory
                                         ? `${item.category} > ${item.subcategory}`
                                         : item.category || '-'
                                       }
@@ -432,7 +428,7 @@ const ReceiptDetails = () => {
                                 )}
                                 {item.category && (
                                   <div className="text-xs text-gray-500">
-                                    {item.category && item.subcategory 
+                                    {item.category && item.subcategory
                                       ? `${item.category} > ${item.subcategory}`
                                       : item.category
                                     }

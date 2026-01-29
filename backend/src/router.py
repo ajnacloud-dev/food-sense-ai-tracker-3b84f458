@@ -3,7 +3,7 @@ import re
 # Import handlers - use fixed version directly
 from handlers import data_fixed as data
 
-from handlers import auth, ai, storage, analyze_direct
+from handlers import auth, ai, storage, analyze_direct, receipts
 # Note: queue removed - using simpler analyze_direct approach
 
 # Route Definition
@@ -17,6 +17,10 @@ ROUTES = [
     # Auth
     ('GET', r'^/v1/auth/config$', auth.get_config),
     ('POST', r'^/v1/auth/invitations/redeem$', auth.redeem_invitation),
+
+    # Receipts (before generic data routes)
+    ('GET', r'^/v1/receipts/(?P<id>[a-zA-Z0-9-]+)$', receipts.get_receipt_with_items),
+    ('GET', r'^/v1/receipts$', receipts.list_receipts),
 
     # AI - Simple direct analysis (no complex queue)
     ('POST', r'^/v1/analyze$', analyze_direct.analyze_food),
