@@ -1,7 +1,5 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { backendApi } from '@/lib/api/client';
+import React, { createContext, useContext } from 'react';
+import { useUserData } from './UserDataContext';
 
 interface UserTypeContextType {
   userType: 'participant' | 'caretaker' | null;
@@ -20,63 +18,11 @@ export const useUserType = () => {
 };
 
 export const UserTypeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [userType, setUserType] = useState<'participant' | 'caretaker' | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchUserType = async () => {
-    if (!user) {
-      console.log('UserTypeContext: No user, resetting state');
-      setUserType(null);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      console.log('UserTypeContext: Fetching user type for:', user.email);
-
-      // In local mode, we don't have real user data, so handle gracefully
-      const isLocalMode = window.location.hostname === 'localhost';
-
-      if (isLocalMode && user.id === 'local-dev-user') {
-        console.log('UserTypeContext: Local mode, using default participant type');
-        setUserType('participant');
-        return;
-      }
-
-      const { data: userData, error } = await backendApi
-        .from('users')
-        .select('user_type')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        // In local mode, this is expected - don't log as error
-        if (!isLocalMode) {
-          console.error('UserTypeContext: Error fetching user type:', error);
-        }
-        // Default to participant if error
-        setUserType('participant');
-      } else {
-        const type = userData?.user_type as 'participant' | 'caretaker' || 'participant';
-        console.log('UserTypeContext: User type fetched:', type);
-        setUserType(type);
-      }
-    } catch (error) {
-      console.error('UserTypeContext: Error:', error);
-      setUserType('participant');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUserType();
-  }, [user]);
+  // Get data from centralized context instead of making duplicate API calls
+  const { userType, isLoading, refreshData } = useUserData();
 
   const refreshUserType = async () => {
-    await fetchUserType();
+    await refreshData();
   };
 
   return (

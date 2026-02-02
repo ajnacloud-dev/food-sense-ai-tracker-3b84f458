@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { initializeLocalAuth } from "@/config/local";
+import { UserDataProvider } from "@/contexts/UserDataContext";
 import { UserTypeProvider } from "@/contexts/UserTypeContext";
 import { RoleProvider } from "@/contexts/RoleContext";
 import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
@@ -95,10 +96,11 @@ function AppOptimized() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <UserTypeProvider>
-          <RoleProvider>
-            <CaretakerDataProvider>
-              <NotificationProvider>
+        <UserDataProvider>
+          <UserTypeProvider>
+            <RoleProvider>
+              <CaretakerDataProvider>
+                <NotificationProvider>
                 <Router>
                   <div className="min-h-screen bg-background w-full">
                     <PWAUpdateManager />
@@ -156,6 +158,7 @@ function AppOptimized() {
             </CaretakerDataProvider>
           </RoleProvider>
         </UserTypeProvider>
+        </UserDataProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

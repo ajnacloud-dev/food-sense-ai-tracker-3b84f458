@@ -1,7 +1,5 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '@/lib/api';
-import { useAuth } from './AuthContext';
+import { useUserData } from './UserDataContext';
 import { useUserType } from './UserTypeContext';
 
 interface ParticipantData {
@@ -34,114 +32,50 @@ export const useCaretakerData = () => {
 };
 
 export const CaretakerDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
   const { userType } = useUserType();
+  const { participantData: relationshipData, isLoading, error: dataError, refreshData } = useUserData();
+
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
-  const [participants, setParticipants] = useState<ParticipantData[]>([]);
   const [participantData, setParticipantData] = useState<ParticipantData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchParticipants = async () => {
-    if (!user || userType !== 'caretaker') {
-      setLoading(false);
-      return;
+  // Transform relationship data to participant format
+  const participants: ParticipantData[] = relationshipData.map((rel: any) => ({
+    id: rel.user?.id || rel.user_id,
+    full_name: rel.user?.full_name || 'Unknown',
+    email: rel.user?.email || '',
+    caretaker_type: rel.caretaker_type || 'family_member',
+    status: rel.status || 'active',
+    health_score: 85 // Default health score
+  }));
+
+  useEffect(() => {
+    // Auto-select first participant if none selected and we have participants
+    if (!selectedParticipantId && participants.length > 0 && userType === 'caretaker') {
+      const firstParticipant = participants[0];
+      setSelectedParticipantId(firstParticipant.id);
+      setParticipantData(firstParticipant);
+      console.log('CaretakerDataContext: Auto-selected first participant:', firstParticipant);
+    } else if (selectedParticipantId) {
+      // Update participant data if already selected
+      const currentParticipant = participants.find(p => p.id === selectedParticipantId);
+      setParticipantData(currentParticipant || null);
     }
-
-    try {
-      setError(null);
-      console.log('Fetching participants for caretaker:', user.id);
-
-      console.log('Fetching participants for caretaker:', user.id);
-
-      // Fetch relationships
-      const { data: relationshipsData } = await api.from('care_relationships').select();
-      const relationships = relationshipsData
-        ?.filter((r: any) => r.caretaker_id === user.id && r.status === 'active') || [];
-
-      // Fetch users for manual join
-      const { data: allUsers } = await api.from('users').select();
-
-      const participantList: ParticipantData[] = [];
-
-      for (const rel of relationships) {
-        const userData = allUsers?.find((u: any) => u.id === rel.user_id);
-        if (userData) {
-          participantList.push({
-            id: userData.id,
-            full_name: userData.full_name || 'Unknown',
-            email: userData.email,
-            caretaker_type: rel.caretaker_type || 'family_member',
-            status: rel.status || 'active',
-            health_score: 85 // Default health score
-          });
-        }
-      }
-
-      console.log('Fetched participants:', participantList);
-      setParticipants(participantList);
-
-      // Auto-select first participant if none selected and we have participants
-      if (!selectedParticipantId && participantList.length > 0) {
-        const firstParticipant = participantList[0];
-        setSelectedParticipantId(firstParticipant.id);
-        setParticipantData(firstParticipant);
-        console.log('Auto-selected first participant:', firstParticipant);
-      } else if (selectedParticipantId) {
-        // Update participant data if already selected
-        const currentParticipant = participantList.find(p => p.id === selectedParticipantId);
-        setParticipantData(currentParticipant || null);
-      }
-
-    } catch (error) {
-      console.error('Error in fetchParticipants:', error);
-      setError('Failed to load participants');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedParticipantId, participants, userType]);
 
   const refreshParticipants = async () => {
-    setLoading(true);
-    await fetchParticipants();
-  };
-
-  useEffect(() => {
-    if (user && userType === 'caretaker') {
-      fetchParticipants();
-    } else {
-      setLoading(false);
-    }
-  }, [user, userType]);
-
-  // Update participant data when selectedParticipantId changes
-  useEffect(() => {
-    if (selectedParticipantId && participants.length > 0) {
-      const participant = participants.find(p => p.id === selectedParticipantId);
-      setParticipantData(participant || null);
-      console.log('Updated participant data:', participant);
-    } else {
-      setParticipantData(null);
-    }
-  }, [selectedParticipantId, participants]);
-
-  const handleSetSelectedParticipantId = (id: string | null) => {
-    console.log('Setting selected participant ID:', id);
-    setSelectedParticipantId(id);
+    await refreshData();
   };
 
   return (
-    <CaretakerDataContext.Provider
-      value={{
-        selectedParticipantId,
-        setSelectedParticipantId: handleSetSelectedParticipantId,
-        participants,
-        participantData,
-        loading,
-        error,
-        refreshParticipants,
-      }}
-    >
+    <CaretakerDataContext.Provider value={{
+      selectedParticipantId,
+      setSelectedParticipantId,
+      participants,
+      participantData,
+      loading: isLoading,
+      error: dataError,
+      refreshParticipants
+    }}>
       {children}
     </CaretakerDataContext.Provider>
   );
