@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { backendApi } from "@/lib/api/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
 import SimpleRoleBasedLayout from "@/components/layout/SimpleRoleBasedLayout";
@@ -63,22 +63,20 @@ const CaretakerReceiptDetailsContent = () => {
         setError(null);
         console.log('Fetching receipt:', id, 'for participant:', selectedParticipantId);
         
-        const { data: receiptData, error } = await backendApi
-          .from('receipts')
-          .select(`
-            *,
-            receipt_items (*)
-          `)
-          .eq('id', id)
-          .eq('user_id', selectedParticipantId)
-          .single();
+        // Use the specific receipt endpoint to get receipt with items
+        const response = await api.get(`/v1/receipts/${id}`);
 
-        if (error) {
-          if (error.code === 'PGRST116') {
-            setError('Receipt not found or you don\'t have permission to view it.');
-            return;
-          }
-          throw error;
+        if (!response.data) {
+          setError('Receipt not found or you don\'t have permission to view it.');
+          return;
+        }
+
+        const receiptData = response.data;
+
+        // Verify this receipt belongs to the selected participant
+        if (receiptData.user_id !== selectedParticipantId) {
+          setError('Receipt not found or you don\'t have permission to view it.');
+          return;
         }
 
         console.log('Successfully fetched receipt:', receiptData);

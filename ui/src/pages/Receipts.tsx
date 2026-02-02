@@ -57,24 +57,22 @@ const Receipts = () => {
   const { user } = useAuth(); // Use auth context
 
   useEffect(() => {
-    if (user) {
-      fetchReceipts();
-    }
-  }, [user]);
+    // In local mode, we can fetch receipts even without user authentication
+    fetchReceipts();
+  }, []);
 
   const fetchReceipts = async () => {
     try {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+      // Use the specific receipts endpoint
+      const response = await api.get('/v1/receipts');
 
-      const { data: allReceipts } = await api.from('receipts').select();
+      // Backend returns {receipts: [...], total: number}
+      const userReceipts = response.data?.receipts || [];
 
-      const userReceipts = allReceipts ? allReceipts.filter((r: any) => r.user_id === user.id) : [];
-      // Sort desc
+      // Backend already sorts by created_at desc, but we can ensure it
       userReceipts.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+      console.log('Fetched receipts:', userReceipts.length);
       setReceipts(userReceipts);
     } catch (error: any) {
       console.error('Error fetching receipts:', error);
@@ -86,9 +84,8 @@ const Receipts = () => {
 
   const deleteReceipt = async (id: string) => {
     try {
-      const { error } = await api.from('receipts').delete().eq('id', id);
-
-      if (error) throw error;
+      // Use the direct DELETE endpoint for receipts
+      await api.delete(`/v1/app_receipts/${id}`);
 
       toast.success("Receipt deleted successfully");
       fetchReceipts();

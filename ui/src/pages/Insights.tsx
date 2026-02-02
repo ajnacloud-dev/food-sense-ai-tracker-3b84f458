@@ -64,7 +64,7 @@ const Insights = () => {
       const foodData = allFood?.filter((i: any) => i.user_id === user.id);
 
       // Fetch receipts data
-      const { data: allReceipts } = await api.from('receipts').select();
+      const { data: allReceipts } = await api.from('app_receipts').select();
       const receiptsData = allReceipts?.filter((i: any) => i.user_id === user.id);
 
       // Fetch workouts data

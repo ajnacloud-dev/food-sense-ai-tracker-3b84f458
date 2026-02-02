@@ -1,10 +1,18 @@
+"""
+Modern API Router with Clean Handler Imports
+"""
+
 import re
+from typing import Dict, Any
 
-# Import handlers - use fixed version directly
-from handlers import data_fixed as data
+# Import modernized handlers
+from handlers import data  # Now using modernized data handler
+from handlers import auth, storage, receipts
+from handlers import analyze  # Using improved analyze handler
+from handlers import analyze_async  # Async analysis with SQS
+from handlers import model_config  # Model configuration management
 
-from handlers import auth, ai, storage, analyze_direct, receipts
-# Note: queue removed - using simpler analyze_direct approach
+# Note: Using improved analyze handler with two-stage AI processing
 
 # Route Definition
 # (Method, PathPattern, Handler)
@@ -22,9 +30,20 @@ ROUTES = [
     ('GET', r'^/v1/receipts/(?P<id>[a-zA-Z0-9-]+)$', receipts.get_receipt_with_items),
     ('GET', r'^/v1/receipts$', receipts.list_receipts),
 
-    # AI - Simple direct analysis (no complex queue)
-    ('POST', r'^/v1/analyze$', analyze_direct.analyze_food),
-    ('POST', r'^/v1/ai/analyze$', analyze_direct.analyze_food),  # Keep old route for compatibility
+    # AI - Optimized two-stage analysis
+    ('POST', r'^/v1/analyze$', analyze.analyze_food),
+    ('POST', r'^/v1/ai/analyze$', analyze.analyze_food),  # Legacy route
+
+    # Async Analysis (with SQS)
+    ('POST', r'^/v1/analyze/async$', analyze_async.submit_analysis),
+    ('GET', r'^/v1/analyze/status/(?P<entry_id>[a-zA-Z0-9-]+)$', analyze_async.get_analysis_status),
+
+    # Model Configuration
+    ('GET', r'^/v1/models/config$', model_config.list_model_configs),
+    ('GET', r'^/v1/models/config/(?P<use_case>[a-zA-Z0-9_]+)$', model_config.get_model_config),
+    ('PUT', r'^/v1/models/config/(?P<use_case>[a-zA-Z0-9_]+)$', model_config.update_model_config),
+    ('GET', r'^/v1/models/available$', model_config.list_available_models),
+    ('POST', r'^/v1/models/test$', model_config.test_model),
 
     # Storage
     ('POST', r'^/storage/upload$', storage.upload_file),
@@ -35,8 +54,8 @@ ROUTES = [
     ('GET', r'^/v1/(?P<table>[a-zA-Z0-9_]+)$', data.list_data),
     ('POST', r'^/v1/(?P<table>[a-zA-Z0-9_]+)$', data.create_data),
     ('GET', r'^/v1/(?P<table>[a-zA-Z0-9_]+)/(?P<id>[a-zA-Z0-9-]+)$', data.get_data_by_id),
-    ('PUT', r'^/v1/(?P<table>[a-zA-Z0-9_]+)/(?P<id>[a-zA-Z0-9-]+)$', data.update_data if hasattr(data, 'update_data') else data.create_data),
-    ('DELETE', r'^/v1/(?P<table>[a-zA-Z0-9_]+)/(?P<id>[a-zA-Z0-9-]+)$', data.delete_data if hasattr(data, 'delete_data') else data.get_data_by_id),
+    ('PUT', r'^/v1/(?P<table>[a-zA-Z0-9_]+)/(?P<id>[a-zA-Z0-9-]+)$', data.update_data),
+    ('DELETE', r'^/v1/(?P<table>[a-zA-Z0-9_]+)/(?P<id>[a-zA-Z0-9-]+)$', data.delete_data),
 ]
 
 def route_request(event, context):

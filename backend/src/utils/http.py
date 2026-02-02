@@ -1,44 +1,133 @@
-import json
+"""
+HTTP utilities for Lambda handlers with improved auth and CORS
+"""
 
-def respond(status_code, body, is_base64=False):
+import json
+import os
+from typing import Any, Dict, Optional, Union
+
+
+def get_allowed_origins():
+    """Get allowed CORS origins from environment"""
+    # Default origins for different environments
+    env = os.environ.get('ENVIRONMENT', 'development')
+
+    if env == 'production':
+        # Production domains
+        return [
+            'https://app.nutriwealth.com',
+            'https://www.nutriwealth.com'
+        ]
+    elif env == 'staging':
+        return [
+            'https://staging.nutriwealth.com',
+            'http://localhost:5173'  # Still allow local frontend in staging
+        ]
+    else:  # development
+        return [
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:3000',
+            'http://localhost:8081',  # Frontend running on port 8081
+            'http://127.0.0.1:5173'
+        ]
+
+
+def get_cors_headers(event: Dict[str, Any] = None) -> Dict[str, str]:
+    """Get appropriate CORS headers based on request origin"""
+    if not event:
+        event = {}
+
+    origin = event.get('headers', {}).get('origin', '')
+    allowed_origins = get_allowed_origins()
+
+    # Check if origin is allowed
+    if origin in allowed_origins:
+        cors_origin = origin
+    elif os.environ.get('ENVIRONMENT') == 'development':
+        # In development, allow any origin
+        cors_origin = '*'
+    else:
+        # In production/staging, use first allowed origin as default
+        cors_origin = allowed_origins[0] if allowed_origins else '*'
+
+    return {
+        'Access-Control-Allow-Origin': cors_origin,
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-User-Id,X-Tenant-Id',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS,PATCH',
+        'Access-Control-Allow-Credentials': 'true' if cors_origin != '*' else 'false'
+    }
+
+
+def respond(status_code, body, is_base64=False, event=None):
+    """
+    Create a Lambda response with proper CORS headers
+
+    Args:
+        status_code: HTTP status code
+        body: Response body (dict, list, string, or None)
+        is_base64: Whether body is base64 encoded
+        event: Original event (for CORS origin detection)
+    """
+    # Get CORS headers
+    cors_headers = get_cors_headers(event)
+
+    # Add content type if not base64
+    if not is_base64:
+        cors_headers['Content-Type'] = 'application/json'
+    else:
+        cors_headers['Content-Type'] = 'application/octet-stream'
+
+    # Format body
+    if body is None:
+        formatted_body = ''
+    elif isinstance(body, (dict, list)):
+        formatted_body = json.dumps(body, default=str)
+    else:
+        formatted_body = body
+
     return {
         "statusCode": status_code,
-        "headers": {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Tenant-ID",
-            "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-            "Content-Type": "application/json" if not is_base64 else "application/octet-stream"
-        },
-        "body": body if is_base64 else json.dumps(body),
+        "headers": cors_headers,
+        "body": formatted_body if is_base64 else formatted_body,
         "isBase64Encoded": is_base64
     }
 
+
 def get_user_id(event):
-    """Extract user ID from Cognito authorizer claims, request body, or headers."""
-    # Try Cognito claims first
-    try:
-        claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
-        if 'sub' in claims:
-            return claims['sub']
-    except:
-        pass
+    """
+    Get user ID from event using the configured auth provider
 
-    # Try request body
+    This function acts as a bridge to the auth provider system
+    """
     try:
-        body = json.loads(event.get('body', '{}'))
-        if 'user_id' in body and body['user_id']:
-            return body['user_id']
-    except:
-        pass
+        # Import here to avoid circular dependencies
+        from lib.auth_provider import AuthFactory
+        provider = AuthFactory.get_provider()
+        return provider.get_user_id(event)
+    except ImportError:
+        # Fallback to old behavior if auth_provider not available
+        print("Warning: auth_provider not available, using legacy auth")
 
-    # Try headers
-    try:
-        headers = event.get('headers', {})
-        user_id = headers.get('X-User-ID') or headers.get('x-user-id')
-        if user_id:
-            return user_id
-    except:
-        pass
+        # Try Cognito claims first
+        try:
+            claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+            if 'sub' in claims:
+                return claims['sub']
+        except:
+            pass
 
-    # No user ID found - return None instead of hardcoded value
-    return None
+        # Try headers
+        try:
+            headers = event.get('headers', {})
+            user_id = headers.get('X-User-ID') or headers.get('x-user-id')
+            if user_id:
+                return user_id
+        except:
+            pass
+
+        # No user ID found - return None instead of hardcoded value
+        return None
+    except Exception as e:
+        print(f"Error getting user ID: {e}")
+        return None

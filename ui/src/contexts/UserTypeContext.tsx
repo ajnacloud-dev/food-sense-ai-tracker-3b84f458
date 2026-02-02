@@ -36,6 +36,15 @@ export const UserTypeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsLoading(true);
       console.log('UserTypeContext: Fetching user type for:', user.email);
 
+      // In local mode, we don't have real user data, so handle gracefully
+      const isLocalMode = window.location.hostname === 'localhost';
+
+      if (isLocalMode && user.id === 'local-dev-user') {
+        console.log('UserTypeContext: Local mode, using default participant type');
+        setUserType('participant');
+        return;
+      }
+
       const { data: userData, error } = await backendApi
         .from('users')
         .select('user_type')
@@ -43,7 +52,10 @@ export const UserTypeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .single();
 
       if (error) {
-        console.error('UserTypeContext: Error fetching user type:', error);
+        // In local mode, this is expected - don't log as error
+        if (!isLocalMode) {
+          console.error('UserTypeContext: Error fetching user type:', error);
+        }
         // Default to participant if error
         setUserType('participant');
       } else {

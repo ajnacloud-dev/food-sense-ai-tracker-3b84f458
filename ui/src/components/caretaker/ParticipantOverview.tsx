@@ -60,7 +60,7 @@ const ParticipantOverview = ({ participantId, onBack }: ParticipantOverviewProps
           .select('*', { count: 'exact', head: true })
           .eq('user_id', participantId),
         backendApi
-          .from('receipts')
+          .from('app_receipts')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', participantId),
         backendApi

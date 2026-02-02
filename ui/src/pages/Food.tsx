@@ -48,13 +48,24 @@ const Food = () => {
   // Queue system
   const { jobs, fetchJobs } = useAnalysisQueue();
 
-  // Filter states
+  // Filter states - Default to last 3 days
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date-desc');
   const [selectedMealType, setSelectedMealType] = useState('all');
   const [selectedDietType, setSelectedDietType] = useState('all');
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  // Default to 3 days ago for start date
+  const [startDate, setStartDate] = useState<Date | undefined>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 3);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+  // Default to today for end date
+  const [endDate, setEndDate] = useState<Date | undefined>(() => {
+    const date = new Date();
+    date.setHours(23, 59, 59, 999);
+    return date;
+  });
 
   const getMealTypeFromEntry = (entry: FoodEntry) => {
     return entry.extracted_nutrients?.meal_summary?.meal_type ||
@@ -216,11 +227,11 @@ const Food = () => {
     fetchJobs(); // Fetch queue jobs
   }, [user, navigate]);
 
-  // Refresh jobs periodically
+  // Refresh jobs periodically (reduced frequency for performance)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchJobs();
-    }, 5000); // Refresh every 5 seconds
+    }, 30000); // Refresh every 30 seconds (was 5 seconds - too aggressive)
 
     return () => clearInterval(interval);
   }, []);
@@ -231,15 +242,16 @@ const Food = () => {
     try {
       console.log('Fetching food entries for user:', user.id);
 
-      // Fetch entries and items separately for client-side join
-      const { data: entriesData } = await api.from('food_entries').select();
-      const { data: itemsData } = await api.from('food_items').select();
+      // Fetch only current user's entries - NO food_items needed!
+      const { data: entriesData } = await api.from('food_entries')
+        .select()
+        .eq('user_id', user.id)
+        .limit(50);  // Limit for performance
 
       if (!entriesData) throw new Error("Failed to fetch entries");
 
-      // Filter for current user and join
+      // Process entries (removed food_items join - not used in UI)
       const userEntries = entriesData
-        .filter((e: any) => e.user_id === user.id)
         .map((entry: any) => {
           // Parse JSON strings if they exist
           if (entry.extracted_nutrients && typeof entry.extracted_nutrients === 'string') {
@@ -259,7 +271,7 @@ const Food = () => {
 
           return {
             ...entry,
-            food_items: itemsData ? itemsData.filter((i: any) => i.food_entry_id === entry.id) : []
+            food_items: []  // Empty array - not using food_items in display
           };
         });
 

@@ -1,0 +1,640 @@
+{
+  "info": {
+    "name": "NutriWealth Backend API",
+    "description": "Complete API collection for NutriWealth Food & Wellness Tracker",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-User-Id",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{userId}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "dev-user-1",
+      "type": "string"
+    },
+    {
+      "key": "foodEntryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "receiptId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "workoutId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Initialize Schemas",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/system/initialize-schemas",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "system", "initialize-schemas"]
+            }
+          }
+        },
+        {
+          "name": "Create Database",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/system/create-database",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "system", "create-database"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Get Auth Config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/config",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "config"]
+            }
+          }
+        },
+        {
+          "name": "Redeem Invitation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"INVITE-123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/invitations/redeem",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "auth", "invitations", "redeem"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Analysis",
+      "item": [
+        {
+          "name": "Analyze Food",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.entry_id) {",
+                  "    pm.collectionVariables.set('foodEntryId', response.entry_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Grilled chicken breast with quinoa and steamed broccoli\",\n    \"imageUrl\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "analyze"]
+            }
+          }
+        },
+        {
+          "name": "Analyze Receipt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.entry_id) {",
+                  "    pm.collectionVariables.set('receiptId', response.entry_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Receipt from Whole Foods Market, Total: $67.89, Date: 01/29/2024, Items: Organic milk $5.99, Whole wheat bread $3.49, Avocados $8.99\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "analyze"]
+            }
+          }
+        },
+        {
+          "name": "Analyze Workout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.entry_id) {",
+                  "    pm.collectionVariables.set('workoutId', response.entry_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Morning run: 5 miles in 42 minutes, followed by 3 sets of pushups (20 reps each) and 3 sets of squats (15 reps each)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "analyze"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Food Entries",
+      "item": [
+        {
+          "name": "Create Food Entry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.id) {",
+                  "    pm.collectionVariables.set('foodEntryId', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"description\": \"Caesar Salad with Grilled Chicken\",\n    \"calories\": 420,\n    \"total_protein\": 35,\n    \"total_carbohydrates\": 20,\n    \"total_fats\": 22,\n    \"total_fiber\": 5,\n    \"total_sodium\": 890,\n    \"meal_type\": \"lunch\",\n    \"meal_date\": \"2024-01-29\",\n    \"meal_time\": \"12:30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/food_entries",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "food_entries"]
+            }
+          }
+        },
+        {
+          "name": "List Food Entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/food_entries?limit=10&order_by=created_at&order_dir=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "food_entries"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "order_by",
+                  "value": "created_at"
+                },
+                {
+                  "key": "order_dir",
+                  "value": "desc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Food Entry by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/food_entries/{{foodEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "food_entries", "{{foodEntryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Food Entry",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"calories\": 450,\n    \"notes\": \"Added extra dressing and croutons\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/food_entries/{{foodEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "food_entries", "{{foodEntryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Food Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/food_entries/{{foodEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "food_entries", "{{foodEntryId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Receipts",
+      "item": [
+        {
+          "name": "Create Receipt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.id) {",
+                  "    pm.collectionVariables.set('receiptId', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"vendor\": \"Trader Joe's\",\n    \"receipt_date\": \"2024-01-29\",\n    \"total_amount\": 89.45,\n    \"currency\": \"USD\",\n    \"category\": \"Groceries\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "receipts"]
+            }
+          }
+        },
+        {
+          "name": "Add Receipt Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"receipt_id\": \"{{receiptId}}\",\n    \"name\": \"Organic Bananas\",\n    \"price\": 2.99,\n    \"quantity\": 1,\n    \"category\": \"Produce\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipt_items",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "receipt_items"]
+            }
+          }
+        },
+        {
+          "name": "List Receipts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "receipts"]
+            }
+          }
+        },
+        {
+          "name": "Get Receipt with Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/receipts/{{receiptId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "receipts", "{{receiptId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workouts",
+      "item": [
+        {
+          "name": "Create Workout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.id) {",
+                  "    pm.collectionVariables.set('workoutId', response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"workout_type\": \"Strength Training\",\n    \"duration_minutes\": 45,\n    \"calories_burned\": 320,\n    \"workout_date\": \"2024-01-29\",\n    \"notes\": \"Upper body focus - chest and back\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/workouts",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "workouts"]
+            }
+          }
+        },
+        {
+          "name": "Add Exercise",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"workout_id\": \"{{workoutId}}\",\n    \"exercise_name\": \"Bench Press\",\n    \"sets\": 4,\n    \"reps\": 10,\n    \"weight\": 155\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/workout_exercises",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "workout_exercises"]
+            }
+          }
+        },
+        {
+          "name": "List Workouts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/workouts",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "workouts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "item": [
+        {
+          "name": "Get Upload URL",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"filename\": \"food-photo.jpg\",\n    \"content_type\": \"image/jpeg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/storage/upload-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "storage", "upload-url"]
+            }
+          }
+        },
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bucket\": \"uploads\",\n    \"path\": \"test-image.png\",\n    \"file\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==\",\n    \"mime_type\": \"image/png\",\n    \"size_bytes\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/storage/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["storage", "upload"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"newuser@example.com\",\n    \"name\": \"New User\",\n    \"role\": \"participant\",\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users"]
+            }
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/users?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health Data",
+      "item": [
+        {
+          "name": "Create Health Assessment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"assessment_type\": \"Weekly Check-in\",\n    \"weight\": 175.5,\n    \"blood_pressure_systolic\": 120,\n    \"blood_pressure_diastolic\": 80,\n    \"heart_rate\": 72,\n    \"blood_sugar\": 95,\n    \"notes\": \"Feeling good, energy levels high\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/health_assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "health_assessments"]
+            }
+          }
+        },
+        {
+          "name": "Create User Goal",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"goal_type\": \"Weight Loss\",\n    \"target_value\": 170,\n    \"current_value\": 175.5,\n    \"target_date\": \"2024-06-01\",\n    \"description\": \"Lose 5.5 pounds by summer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/user_goals",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "user_goals"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

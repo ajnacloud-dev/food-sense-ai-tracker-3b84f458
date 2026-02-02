@@ -1,0 +1,267 @@
+name: Deploy Backend to Lambda (OIDC)
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - develop
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-lambda-oidc.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: nutriwealth-backend
+  PYTHON_VERSION: '3.11'
+
+# Required for OIDC
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -r src/requirements.txt
+          uv pip install --system pytest pytest-cov pytest-asyncio black flake8
+
+      - name: Run linting
+        run: |
+          black --check src/
+          flake8 src/ --max-line-length=120 --ignore=E203,W503
+        continue-on-error: true
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml
+        continue-on-error: true
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+    defaults:
+      run:
+        working-directory: backend
+    outputs:
+      image-tag: ${{ steps.image.outputs.tag }}
+      image-uri: ${{ steps.image.outputs.uri }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          fi
+
+      # Use OIDC to authenticate with AWS
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-nutriwealth
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image metadata
+        id: image
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="${{ steps.env.outputs.environment }}-${TIMESTAMP}-${SHORT_SHA}"
+          URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${TAG}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "uri=${URI}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          push: true
+          tags: |
+            ${{ steps.image.outputs.uri }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.env.outputs.environment }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/arm64
+
+  deploy:
+    name: Deploy to Lambda
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    environment:
+      name: ${{ needs.build.outputs.environment }}
+      url: ${{ steps.deploy.outputs.function-url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          fi
+
+      # Use OIDC to authenticate with AWS
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-nutriwealth
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Lambda function code
+        id: deploy
+        run: |
+          FUNCTION_NAME="nutriwealth-backend-${{ steps.env.outputs.environment }}"
+
+          # Update function code
+          aws lambda update-function-code \
+            --function-name ${FUNCTION_NAME} \
+            --image-uri ${{ needs.build.outputs.image-uri }} \
+            --publish \
+            --output json > deploy-output.json
+
+          VERSION=$(jq -r '.Version' deploy-output.json)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          # Update or create alias
+          aws lambda update-alias \
+            --function-name ${FUNCTION_NAME} \
+            --name ${{ steps.env.outputs.environment }} \
+            --function-version ${VERSION} 2>/dev/null || \
+          aws lambda create-alias \
+            --function-name ${FUNCTION_NAME} \
+            --name ${{ steps.env.outputs.environment }} \
+            --function-version ${VERSION}
+
+          # Get function URL if exists
+          FUNCTION_URL=$(aws lambda get-function-url-config \
+            --function-name ${FUNCTION_NAME} \
+            --query FunctionUrl \
+            --output text 2>/dev/null || echo "")
+          echo "function-url=${FUNCTION_URL}" >> $GITHUB_OUTPUT
+
+      - name: Wait for Lambda update
+        run: |
+          FUNCTION_NAME="nutriwealth-backend-${{ steps.env.outputs.environment }}"
+          aws lambda wait function-updated --function-name ${FUNCTION_NAME}
+
+      - name: Update environment variables
+        run: |
+          FUNCTION_NAME="nutriwealth-backend-${{ steps.env.outputs.environment }}"
+
+          # Prepare environment variables based on environment
+          if [[ "${{ steps.env.outputs.environment }}" == "prod" ]]; then
+            AUTH_MODE="oidc"  # Use OIDC for production
+            LOG_LEVEL="WARNING"
+            ENABLE_SQS="true"
+          elif [[ "${{ steps.env.outputs.environment }}" == "staging" ]]; then
+            AUTH_MODE="oidc"  # Use OIDC for staging
+            LOG_LEVEL="INFO"
+            ENABLE_SQS="true"
+          else
+            AUTH_MODE="local"
+            LOG_LEVEL="DEBUG"
+            ENABLE_SQS="false"
+          fi
+
+          # Update function configuration
+          aws lambda update-function-configuration \
+            --function-name ${FUNCTION_NAME} \
+            --environment "Variables={
+              ENVIRONMENT=${{ steps.env.outputs.environment }},
+              AUTH_MODE=${AUTH_MODE},
+              LOG_LEVEL=${LOG_LEVEL},
+              ENABLE_SQS=${ENABLE_SQS},
+              IBEX_API_URL=${{ secrets.IBEX_API_URL }},
+              IBEX_API_KEY=${{ secrets.IBEX_API_KEY }},
+              TENANT_ID=${{ secrets.TENANT_ID }},
+              OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},
+              GROQ_API_KEY=${{ secrets.GROQ_API_KEY }},
+              ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }},
+              S3_BUCKET=${{ secrets.S3_BUCKET }},
+              AI_PROCESSING_QUEUE_URL=${{ secrets.AI_PROCESSING_QUEUE_URL }},
+              OIDC_ISSUER=${{ secrets.OIDC_ISSUER }},
+              OIDC_AUDIENCE=${{ secrets.OIDC_AUDIENCE }},
+              OIDC_JWKS_URI=${{ secrets.OIDC_JWKS_URI }}
+            }"
+
+      - name: Create deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🚀 Deployment Summary
+
+          **Environment:** ${{ steps.env.outputs.environment }}
+          **Function:** nutriwealth-backend-${{ steps.env.outputs.environment }}
+          **Version:** ${{ steps.deploy.outputs.version }}
+          **Image:** ${{ needs.build.outputs.image-uri }}
+          **URL:** ${{ steps.deploy.outputs.function-url }}
+          **Auth:** OIDC
+
+          ### Deployment Details
+          - **Trigger:** ${{ github.event_name }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Commit:** ${{ github.sha }}
+          - **Actor:** ${{ github.actor }}
+          - **Time:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          EOF

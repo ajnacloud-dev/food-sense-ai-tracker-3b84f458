@@ -47,7 +47,7 @@ export const ReceiptItemCorrection = ({ receiptId, items, onItemsUpdated }: Rece
     try {
       // Update the receipt items in the database
       const { error } = await backendApi
-        .from('receipts')
+        .from('app_receipts')
         .update({
           items: { items: editedItems },
           updated_at: new Date().toISOString()

@@ -51,7 +51,7 @@ const DetailedCaptureView = ({ participantId, captureType, captureId, onBack }: 
         error = response.error;
       } else if (captureType === 'receipt') {
         const response = await backendApi
-          .from('receipts')
+          .from('app_receipts')
           .select('*')
           .eq('id', captureId)
           .eq('user_id', participantId)

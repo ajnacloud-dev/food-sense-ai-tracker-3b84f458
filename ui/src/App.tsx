@@ -1,8 +1,10 @@
 
+import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { initializeLocalAuth } from "@/config/local";
 import { UserTypeProvider } from "@/contexts/UserTypeContext";
 import { RoleProvider } from "@/contexts/RoleContext";
 import { CaretakerDataProvider } from "@/contexts/CaretakerDataContext";
@@ -31,6 +33,7 @@ import ReceiptDetails from "./pages/ReceiptDetails";
 import ParticipantPermissions from "./pages/ParticipantPermissions";
 import Pricing from "./pages/Pricing";
 import Capture from "./pages/Capture";
+import Queue from "./pages/Queue";
 import Admin from "./pages/Admin";
 import Insights from "./pages/Insights";
 import Billing from "./pages/Billing";
@@ -43,6 +46,11 @@ import RoleBasedRoute from "./components/routes/RoleBasedRoute";
 const queryClient = new QueryClient();
 
 function App() {
+  // Initialize local auth on app start
+  useEffect(() => {
+    initializeLocalAuth();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -66,6 +74,7 @@ function App() {
                       <Route path="/pricing" element={<Pricing />} />
                       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
                       <Route path="/capture" element={<PrivateRoute><Capture /></PrivateRoute>} />
+                      <Route path="/queue" element={<PrivateRoute><Queue /></PrivateRoute>} />
                       <Route path="/food" element={<PrivateRoute><Food /></PrivateRoute>} />
                       <Route path="/food/:id" element={<PrivateRoute><FoodDetails /></PrivateRoute>} />
                       <Route path="/workouts" element={<PrivateRoute><Workouts /></PrivateRoute>} />

@@ -1,7 +1,12 @@
 import json
 import uuid
+import os
+import base64
 from datetime import datetime
 from utils.http import respond
+
+# Import table name resolution from data handler
+from .data import resolve_table_name
 
 def get_upload_url_endpoint(event, context):
     """POST /storage/upload-url - Get a presigned upload URL for direct binary upload"""
@@ -15,20 +20,20 @@ def get_upload_url_endpoint(event, context):
     content_type = body.get('content_type', 'image/jpeg')
 
     try:
-        # Get presigned URL from Ibex
+        # Always use real Ibex/S3 - no mocking
         res = db.get_upload_url(filename, content_type)
         if not res.get('success'):
-             return respond(500, {"error": f"Failed to get upload URL: {res.get('error')}"})
-        
+            return respond(500, {"error": f"Failed to get upload URL: {res.get('error')}"}, event=event)
+
         data = res.get('data', {})
         return respond(200, {
             "success": True,
             "upload_url": data.get('upload_url'),
             "file_key": data.get('file_key'),
             "instructions": "Send a PUT request to 'upload_url' with the binary file data."
-        })
+        }, event=event)
     except Exception as e:
-        return respond(500, {"error": str(e)})
+        return respond(500, {"error": str(e)}, event=event)
 
 
 def upload_file(event, context):
@@ -50,15 +55,12 @@ def upload_file(event, context):
         return respond(400, {"error": "Missing file data"})
 
     try:
-        # Use IbexClient to upload
-        # db is IbexClient instance
-        
-        # Upload to S3 via Ibex
+        # Always use real S3 via IbexClient - no mocking
         result = db.upload_file(file_data, path, mime_type)
-        
+
         if not result['success']:
-             return respond(500, {"error": f"Upload failed: {result.get('error')}"})
-            
+            return respond(500, {"error": f"Upload failed: {result.get('error')}"}, event=event)
+
         s3_key = result['key']
         s3_url = result['url']
 
@@ -81,8 +83,9 @@ def upload_file(event, context):
             "created_at": datetime.utcnow().isoformat()
         }
 
-        # write to 'images' table
-        db_result = db.write("images", [record])
+        # write to 'images' table with proper table name resolution
+        db_table_name = resolve_table_name("images")  # Use the resolver for consistency
+        db_result = db.write(db_table_name, [record])
 
         if db_result.get('success'):
             return respond(200, {
@@ -112,7 +115,9 @@ def get_file(event, context):
         # Also check s3_key if passed? logic might need adjustment if path_param is s3 key. 
         # For now assume path_param matches what we stored in 'file_path'.
         
-        result = db.query("images", filters=filters, limit=1)
+        # Use correct table name with resolution
+        db_table_name = resolve_table_name("images")
+        result = db.query(db_table_name, filters=filters, limit=1)
         
         items = result.get('data', [])
         if not items:
@@ -149,4 +154,4 @@ def get_file(event, context):
             
         return respond(200, data, is_base64=True)
     except Exception as e:
-        return respond(500, {"error": str(e)})
+        return respond(500, {"error": str(e)}, event=event)

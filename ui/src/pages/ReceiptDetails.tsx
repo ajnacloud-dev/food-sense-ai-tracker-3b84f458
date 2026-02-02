@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Edit, Save, X, Receipt, DollarSign, Store, CreditCard, Calendar, Hash, MapPin, Clock, FileText, ShoppingCart } from "lucide-react";
-import { backendApi } from "@/lib/api/client";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import ReceiptAnalysisDebug from "@/components/receipts/ReceiptAnalysisDebug";
@@ -39,23 +39,15 @@ const ReceiptDetails = () => {
 
   const fetchReceipt = async () => {
     try {
-      const { data: { user } } = await backendApi.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
+      // Use the specific receipt endpoint to get receipt with items
+      const response = await api.get(`/v1/receipts/${id}`);
+
+      if (!response.data) {
+        throw new Error("Receipt not found");
       }
 
-      const { data, error } = await backendApi
-        .from('receipts')
-        .select('*')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) throw error;
-
-      setReceipt(data);
-      setEditedData(data);
+      setReceipt(response.data);
+      setEditedData(response.data);
     } catch (error: any) {
       console.error('Error fetching receipt:', error);
       toast.error("Failed to load receipt");
@@ -67,12 +59,8 @@ const ReceiptDetails = () => {
 
   const handleSave = async () => {
     try {
-      const { error } = await backendApi
-        .from('receipts')
-        .update(editedData)
-        .eq('id', id);
-
-      if (error) throw error;
+      // Use the PUT endpoint to update receipt
+      await api.put(`/v1/app_receipts/${id}`, editedData);
 
       setReceipt({ ...receipt!, ...editedData });
       setEditing(false);
@@ -145,7 +133,7 @@ const ReceiptDetails = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between py-4">
               <div className="flex items-center space-x-4">
-                <Button variant="outline" size="sm" onClick={() => navigate("/receipts")}>
+                <Button variant="outline" size="sm" onClick={() => navigate("/app_receipts")}>
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
                 </Button>

@@ -99,24 +99,35 @@ const Capture = () => {
 
       setUploadProgress('Creating analysis record...');
 
-      // Step 4: Queue the analysis job
-      setUploadProgress('Queueing analysis...');
+      // Step 4: Call analyze endpoint directly
+      setUploadProgress('Analyzing with GPT-5.2...');
 
-      const queueResult = await queueAnalysis(
-        description || 'AI-analyzed content',
-        fileUrl
-      );
+      const analyzeResponse = await fetch('/v1/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('mock_token') || user.id}`
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          description: description || 'AI-analyzed content',
+          image_url: fileUrl || ''
+        })
+      });
 
-      if (!queueResult.success) {
-        throw new Error(queueResult.error || 'Failed to queue analysis');
+      if (!analyzeResponse.ok) {
+        const error = await analyzeResponse.json();
+        throw new Error(error.error || 'Failed to analyze');
       }
 
-      // Success! Analysis is now running in background
-      toast.success("Analysis queued! 🚀", {
-        description: "You'll be notified when it's complete",
+      const result = await analyzeResponse.json();
+
+      // Success! Analysis completed
+      toast.success("Analysis completed! 🚀", {
+        description: `${result.summary?.description || 'Food analyzed'}: ${result.summary?.calories || 0} calories`,
         action: {
-          label: 'View Queue',
-          onClick: () => navigate('/queue')
+          label: 'View Details',
+          onClick: () => navigate(`/food/${result.entry_id}`)
         }
       });
 

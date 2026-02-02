@@ -54,6 +54,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       setIsLoading(true);
+      const isLocalMode = window.location.hostname === 'localhost';
       console.log('RoleContext: Checking roles for user:', user.email, user.id);
 
       // Check active caretaker relationships
@@ -63,13 +64,13 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('caretaker_id', user.id)
         .eq('status', 'active');
 
-      if (caretakerError) {
+      if (caretakerError && !isLocalMode) {
         console.error('RoleContext: Error checking caretaker relationships:', caretakerError);
       }
 
       const hasActiveCaretakerRels = (caretakerRelationships?.length || 0) > 0;
       console.log('RoleContext: Active caretaker relationships:', hasActiveCaretakerRels);
-      
+
       setIsCaretaker(hasActiveCaretakerRels);
       setHasCaretakerRelationships(hasActiveCaretakerRels);
 
@@ -80,7 +81,9 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', user.id)
         .limit(1);
 
-      if (foodError) console.error('RoleContext: Food entries error:', foodError);
+      if (foodError && !isLocalMode) {
+        console.error('RoleContext: Food entries error:', foodError);
+      }
 
       const hasPersonalData = (foodEntries && foodEntries.length > 0);
       console.log('RoleContext: Has personal data:', hasPersonalData);
@@ -88,17 +91,26 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsParticipant(hasPersonalData);
 
       // Check subscription status
-      const { data: userData, error: userError } = await backendApi
-        .from('users')
-        .select('is_subscribed')
-        .eq('id', user.id)
-        .single();
-      
-      if (userError) {
-        console.error('RoleContext: User data error:', userError);
+      if (isLocalMode && user.id === 'local-dev-user') {
+        // In local mode, skip database check
+        console.log('RoleContext: Local mode, using default subscription status');
+        setHasSubscription(false);
+      } else {
+        const { data: userData, error: userError } = await backendApi
+          .from('users')
+          .select('is_subscribed')
+          .eq('id', user.id)
+          .single();
+
+        if (userError) {
+          // In local mode, this is expected - don't log as error
+          if (!isLocalMode) {
+            console.error('RoleContext: User data error:', userError);
+          }
+        }
+
+        setHasSubscription(userData?.is_subscribed || false);
       }
-      
-      setHasSubscription(userData?.is_subscribed || false);
 
       // Simplified role determination
       let determinedPrimaryRole: 'participant' | 'caretaker' | null = null;

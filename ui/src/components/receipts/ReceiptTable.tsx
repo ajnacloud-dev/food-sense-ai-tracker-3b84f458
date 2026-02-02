@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { Calendar as CalendarDate } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { backendApi } from "@/lib/api/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ReceiptEntry {
@@ -60,30 +60,36 @@ export const ReceiptTable = ({
       setLoading(true);
       console.log('ReceiptTable: Fetching receipts for user:', targetUserId);
 
-      let query = backendApi
-        .from('receipts')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .order('created_at', { ascending: false });
+      // Use the specific receipts endpoint
+      // The backend automatically filters by the authenticated user
+      const response = await api.get('/v1/receipts');
 
+      const allReceipts = response.data?.receipts || [];
+
+      // If we need to filter for a specific participant (in caretaker view)
+      let filteredReceipts = allReceipts;
+      if (participantId && participantId !== user?.id) {
+        // Note: This may need backend support for caretaker viewing participant receipts
+        filteredReceipts = allReceipts.filter((r: ReceiptEntry) => r.user_id === participantId);
+      }
+
+      // Apply client-side filters
       if (filters.date) {
         const formattedDate = format(filters.date, 'yyyy-MM-dd');
-        query = query.gte('created_at', `${formattedDate} 00:00:00`).lte('created_at', `${formattedDate} 23:59:59`);
+        filteredReceipts = filteredReceipts.filter((r: ReceiptEntry) => {
+          const receiptDate = r.created_at.split('T')[0];
+          return receiptDate === formattedDate;
+        });
       }
 
       if (filters.category) {
-        query = query.ilike('category', `%${filters.category}%`);
+        filteredReceipts = filteredReceipts.filter((r: ReceiptEntry) =>
+          r.category?.toLowerCase().includes(filters.category.toLowerCase())
+        );
       }
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('ReceiptTable: Error fetching receipts:', error);
-        throw error;
-      }
-
-      console.log('ReceiptTable: Fetched receipts:', data?.length || 0);
-      setReceipts(data || []);
+      console.log('ReceiptTable: Fetched receipts:', filteredReceipts.length);
+      setReceipts(filteredReceipts);
     } catch (error) {
       console.error('ReceiptTable: Error:', error);
       toast.error('Failed to fetch receipts');

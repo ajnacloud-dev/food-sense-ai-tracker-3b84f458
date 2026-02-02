@@ -1,0 +1,99 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      release-url: ${{ steps.create-release.outputs.html_url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+
+          # Format changelog for GitHub release
+          cat > CHANGELOG.md << EOF
+          ## 🚀 Release ${{ github.event.inputs.version }}
+
+          ### 📝 Changes
+          ${CHANGELOG}
+
+          ### 🔧 Environment
+          - **Target:** ${{ github.event.inputs.environment }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Commit:** ${{ github.sha }}
+
+          ### 📦 Docker Image
+          \`\`\`
+          nutriwealth-backend:${{ github.event.inputs.version }}
+          \`\`\`
+
+          ### 🚀 Deployment
+          This release will be automatically deployed to **${{ github.event.inputs.environment }}** environment.
+          EOF
+
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          release_name: Release ${{ github.event.inputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ github.event.inputs.environment == 'staging' }}
+
+  deploy-release:
+    name: Deploy Release
+    needs: create-release
+    uses: ./.github/workflows/deploy-lambda.yml
+    with:
+      environment: ${{ github.event.inputs.environment }}
+    secrets: inherit
+
+  notify:
+    name: Notify Team
+    runs-on: ubuntu-latest
+    needs: [create-release, deploy-release]
+    if: always()
+
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            📦 Release ${{ github.event.inputs.version }} created and deployed
+            🎯 Environment: ${{ github.event.inputs.environment }}
+            📝 Release: ${{ needs.create-release.outputs.release-url }}
+            👤 Released by: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true

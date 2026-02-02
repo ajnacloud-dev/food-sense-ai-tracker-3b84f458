@@ -4,12 +4,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Clock, CheckCircle, XCircle, Loader2, RefreshCw, Bell } from "lucide-react";
-import { useAnalysisQueue } from "@/hooks/useAnalysisQueue";
+import { usePendingAnalyses } from "@/hooks/usePendingAnalyses";
+import { useAuth } from "@/contexts/AuthContext";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { formatDistanceToNow } from "date-fns";
 
 const Queue = () => {
-  const { jobs, loading, fetchJobs, requestNotificationPermission } = useAnalysisQueue();
+  const { user } = useAuth();
+  const { pendingAnalyses: jobs, loading, fetchPendingAnalyses: fetchJobs } = usePendingAnalyses(user?.id);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        console.log('Notifications enabled');
+      }
+    }
+  };
 
   useEffect(() => {
     // Refresh jobs every 5 seconds
@@ -92,7 +103,7 @@ const Queue = () => {
         ) : (
           <div className="space-y-4">
             {jobs.map((job) => (
-              <Card key={job.job_id} className="hover:shadow-lg transition-shadow">
+              <Card key={job.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -117,27 +128,27 @@ const Queue = () => {
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between text-sm text-gray-600">
                         <span>Analyzing with GPT-5.2...</span>
-                        <span>{job.progress}%</span>
+                        <span>50%</span>
                       </div>
-                      <Progress value={job.progress} className="h-2" />
+                      <Progress value={50} className="h-2" />
                     </div>
                   )}
 
                   {/* Completed Result */}
-                  {job.status === 'completed' && job.result && (
+                  {job.status === 'completed' && job.analysis_result && (
                     <div className="bg-green-50 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-green-900">
-                            {job.result.description}
+                            {job.analysis_result.description || job.description}
                           </p>
                           <p className="text-sm text-green-700 mt-1">
-                            {job.result.calories} calories • {job.result.meal_type}
+                            {job.analysis_result.calories || 0} calories • {job.analysis_result.meal_type || job.category}
                           </p>
                         </div>
                         <Button
                           size="sm"
-                          onClick={() => window.location.href = `/food/${job.result.food_entry_id}`}
+                          onClick={() => window.location.href = `/food/${job.analysis_result.food_entry_id || job.id}`}
                         >
                           View Details
                         </Button>
@@ -146,15 +157,15 @@ const Queue = () => {
                   )}
 
                   {/* Failed Error */}
-                  {job.status === 'failed' && job.error && (
+                  {job.status === 'failed' && job.error_message && (
                     <div className="bg-red-50 rounded-lg p-4">
-                      <p className="text-sm text-red-700">{job.error}</p>
+                      <p className="text-sm text-red-700">{job.error_message}</p>
                     </div>
                   )}
 
                   {/* Job Info */}
                   <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-                    <span>Job ID: {job.job_id.slice(0, 8)}...</span>
+                    <span>Job ID: {job.id.slice(0, 8)}...</span>
                     {job.completed_at && (
                       <span>
                         Completed {formatDistanceToNow(new Date(job.completed_at), { addSuffix: true })}

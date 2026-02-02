@@ -56,14 +56,22 @@ const FoodDetails = () => {
   }, [id, user, navigate]);
 
   const fetchFoodDetails = async () => {
-    if (!user) return;
+    if (!user || !id) return;
 
     try {
-      // Mock Single Select (or use generic API if it supports filtering)
-      const { data: allEntries } = await api.from('food_entries').select();
-      const entry = allEntries?.find((e: any) => e.id === id && e.user_id === user.id);
+      // Fetch specific entry by ID - much more efficient!
+      const { data: entries } = await api.from('food_entries')
+        .select()
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .limit(1);
 
-      if (!entry) throw new Error("Entry not found");
+      const entry = entries?.[0];
+
+      if (!entry) {
+        console.error(`Entry not found: ${id}`);
+        throw new Error("Entry not found");
+      }
 
       // Parse JSON strings if they exist
       if (entry.extracted_nutrients && typeof entry.extracted_nutrients === 'string') {

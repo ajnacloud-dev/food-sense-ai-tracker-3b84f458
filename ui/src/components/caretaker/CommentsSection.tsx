@@ -56,10 +56,11 @@ const CommentsSection = ({ participantId, contentType, contentId, isCaretaker = 
 
   const fetchComments = async () => {
     if (fetchingComments) return; // Prevent multiple simultaneous fetches
-    
+
     try {
       setFetchingComments(true);
-      const { data: { user } } = await backendApi.auth.getUser();
+      const userResponse = await backendApi.auth.getUser();
+      const user = userResponse?.data;
       if (!user || !isMountedRef.current) return;
 
       let query = backendApi

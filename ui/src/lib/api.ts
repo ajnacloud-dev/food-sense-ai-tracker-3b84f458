@@ -35,7 +35,8 @@ const compressImage = async (file: File): Promise<string> => {
 };
 
 // Environment variable for the API Gateway URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// In development, use relative URLs to leverage Vite proxy
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 import { fetchAuthSession } from 'aws-amplify/auth';
 
@@ -280,6 +281,51 @@ export const api = {
                 }
             },
 
+            delete: async function() {
+                try {
+                    // Build the DELETE request URL with filters
+                    const params = new URLSearchParams();
+
+                    // Add filters to identify which records to delete
+                    for (const filter of this._filters) {
+                        if (filter.op === 'eq' && filter.column === 'id') {
+                            // For delete by ID, use the REST pattern
+                            const url = `/v1/${this._table}/${filter.value}`;
+                            console.log(`Deleting from ${url}`);
+                            const response = await client.delete(url);
+                            return { data: response.data, error: null };
+                        }
+                    }
+
+                    // If no ID filter, return error (for safety)
+                    console.error('Delete requires an ID filter');
+                    return { data: null, error: new Error('Delete requires an ID filter') };
+                } catch (error: any) {
+                    console.error(`Error deleting from ${this._table}:`, error);
+                    return { data: null, error: error.response?.data?.error || error };
+                }
+            },
+
+            update: async function(updates: any) {
+                try {
+                    // Find the ID from filters
+                    for (const filter of this._filters) {
+                        if (filter.op === 'eq' && filter.column === 'id') {
+                            const url = `/v1/${this._table}/${filter.value}`;
+                            console.log(`Updating ${url}:`, updates);
+                            const response = await client.put(url, updates);
+                            return { data: response.data, error: null };
+                        }
+                    }
+
+                    console.error('Update requires an ID filter');
+                    return { data: null, error: new Error('Update requires an ID filter') };
+                } catch (error: any) {
+                    console.error(`Error updating ${this._table}:`, error);
+                    return { data: null, error: error.response?.data?.error || error };
+                }
+            },
+
             eq: function(column: string, value: any) {
                 this._filters.push({ column, op: 'eq', value });
                 return this;
@@ -441,5 +487,7 @@ export const api = {
     },
 
     post: (url: string, data: any) => client.post(url, data),
-    get: (url: string) => client.get(url)
+    get: (url: string) => client.get(url),
+    put: (url: string, data: any) => client.put(url, data),
+    delete: (url: string) => client.delete(url)
 };

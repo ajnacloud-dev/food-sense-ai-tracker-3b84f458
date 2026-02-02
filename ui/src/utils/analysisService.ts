@@ -124,7 +124,7 @@ export const insertAnalysisResult = async (userId: string, category: string, ana
         };
 
         const { data, error } = await api
-          .from('receipts')
+          .from('app_receipts')
           .insert(receiptData)
         //.select('id')
         //.single();
@@ -192,27 +192,57 @@ export const uploadFile = async (file: File, userId: string) => {
   try {
     console.log(`Uploading file: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
 
-    // Convert to base64 for sending to backend
-    const reader = new FileReader();
-    const base64Promise = new Promise<string>((resolve, reject) => {
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        resolve(base64String);
-      };
-      reader.onerror = reject;
+    // Step 1: Get presigned upload URL from backend
+    const response = await fetch('/v1/storage/upload-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('mock_token') || 'dev-user-1'}`
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        content_type: file.type,
+        size_bytes: file.size
+      })
     });
-    reader.readAsDataURL(file);
 
-    const base64Data = await base64Promise;
+    if (!response.ok) {
+      throw new Error(`Failed to get upload URL: ${response.statusText}`);
+    }
 
-    console.log(`File converted to base64, ready for analysis`);
+    const { upload_url, key, bucket } = await response.json();
+    console.log(`Got presigned URL for S3 upload to key: ${key}`);
 
-    // Return the base64 data URL which will be sent to backend AI
-    return base64Data;
+    // Step 2: Upload file directly to S3 using presigned URL
+    const uploadResponse = await fetch(upload_url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type
+      }
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload to S3: ${uploadResponse.statusText}`);
+    }
+
+    console.log(`File uploaded successfully to S3: ${key}`);
+
+    // Return the S3 key (not base64) which backend will resolve to presigned URL
+    return key;
 
   } catch (error) {
     console.error('File upload failed:', error);
-    throw new Error('File upload failed. Please try again.');
+
+    // Fallback to base64 if S3 upload fails (for dev/testing)
+    console.log('Falling back to base64 encoding...');
+    const reader = new FileReader();
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+    });
+    reader.readAsDataURL(file);
+    return await base64Promise;
   }
 };
 

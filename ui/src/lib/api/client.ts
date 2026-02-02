@@ -1,9 +1,24 @@
 /**
  * Backend API Client
- * Replaces Supabase with backend API at http://localhost:8000/v1
+ * Works with both local development (via Vite proxy) and cloud deployment
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { LOCAL_USER, IS_LOCAL_MODE } from '@/config/local';
+
+// In development, use relative URLs so Vite proxy handles them
+// In production, use the environment variable or default
+const API_BASE_URL = import.meta.env.DEV
+  ? '' // Empty string means relative URLs, which will use Vite proxy
+  : (import.meta.env.VITE_API_URL || 'https://api.nutriwealth.com');
+
+// Helper to get auth headers
+function getAuthHeaders() {
+  const token = localStorage.getItem('mock_token') || 'dev-user-1';
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
 
 interface ApiResponse<T = any> {
   data: T | null;
@@ -77,12 +92,12 @@ class BackendApiClient {
       password: string;
     }): Promise<ApiResponse<AuthResponse>> => {
       // For now, use mock authentication
-      // TODO: Implement proper backend authentication
+      // In local mode, always use consistent dev user
       const mockUser: User = {
-        id: 'local-dev-user',
+        id: IS_LOCAL_MODE ? LOCAL_USER.id : credentials.email.split('@')[0],
         email: credentials.email,
         user_metadata: {
-          full_name: 'Development User',
+          full_name: IS_LOCAL_MODE ? LOCAL_USER.name : 'User',
           user_type: 'participant',
         },
       };
@@ -297,6 +312,11 @@ class BackendApiClient {
         return this;
       },
 
+      is: function(column: string, value: any) {
+        this._filters.push({ column, operator: 'is', value });
+        return this;
+      },
+
       order: function(column: string, options?: { ascending?: boolean }) {
         this._orderBy = { column, ascending: options?.ascending ?? true };
         return this;
@@ -346,12 +366,7 @@ class BackendApiClient {
           const url = `${API_BASE_URL}/v1/${this._table}${queryString ? `?${queryString}` : ''}`;
 
           const response = await fetch(url, {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(localStorage.getItem('auth_token') && {
-                Authorization: `Bearer ${localStorage.getItem('auth_token')}`
-              })
-            }
+            headers: getAuthHeaders()
           });
 
           if (!response.ok) {
@@ -363,6 +378,12 @@ class BackendApiClient {
               for (const filter of this._filters) {
                 if (filter.operator === 'eq') {
                   data = data.filter((item: any) => item[filter.column] === filter.value);
+                } else if (filter.operator === 'is') {
+                  if (filter.value === null) {
+                    data = data.filter((item: any) => item[filter.column] === null || item[filter.column] === undefined);
+                  } else {
+                    data = data.filter((item: any) => item[filter.column] === filter.value);
+                  }
                 }
               }
 
@@ -398,6 +419,31 @@ class BackendApiClient {
     };
 
     return queryBuilder;
+  }
+
+  // Real-time features (stubbed for local development)
+  channel(name: string) {
+    console.log(`Mock channel created: ${name}`);
+    return {
+      on: (event: string, options: any, callback: any) => {
+        console.log(`Mock subscription to ${event} on channel ${name}`);
+        // Return the channel object for chaining
+        return {
+          subscribe: () => {
+            console.log(`Mock channel ${name} subscribed`);
+            return { status: 'SUBSCRIBED' };
+          }
+        };
+      },
+      subscribe: () => {
+        console.log(`Mock channel ${name} subscribed`);
+        return { status: 'SUBSCRIBED' };
+      }
+    };
+  }
+
+  removeChannel(channel: any) {
+    console.log('Mock channel removed');
   }
 
   // Edge functions (for invitation redemption, etc.)

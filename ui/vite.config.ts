@@ -9,7 +9,26 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8081,
+    proxy: {
+      // Proxy all /v1 API calls to backend in development
+      '/v1': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log('proxy error', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('Sending Request to the Target:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+          });
+        },
+      }
+    }
   },
   plugins: [
     react(),
@@ -22,8 +41,8 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/localhost:8000\/v1\/.*/,
-            handler: 'NetworkFirst',
+            urlPattern: /^http:\/\/localhost:8080\/v1\/.*/,
+            handler: 'NetworkOnly', // Changed from NetworkFirst to avoid duplicate requests in dev
             options: {
               cacheName: 'api-cache',
               expiration: {
@@ -109,7 +128,7 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       devOptions: {
-        enabled: true,
+        enabled: false, // Disable service worker in development to avoid duplicate requests
         type: 'module'
       }
     })

@@ -1,7 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { Amplify } from 'aws-amplify';
-import App from './App.tsx'
+import AppOptimized from './AppOptimized.tsx'
 import './index.css'
 
 // Only register service worker in production to avoid caching issues during development
@@ -56,7 +56,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   }
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Get auth mode from environment
+const AUTH_MODE = import.meta.env.VITE_AUTH_MODE || 'local';
+const IS_DEVELOPMENT = import.meta.env.DEV;
 
 async function init() {
   const container = document.getElementById("root");
@@ -65,34 +67,39 @@ async function init() {
   }
   const root = createRoot(container);
 
-  try {
-    // Fetch Auth Config from Backend
-    const response = await fetch(`${API_URL}/v1/auth/config`);
-    if (!response.ok) throw new Error('Failed to fetch auth config');
+  // Only configure Amplify in production/cloud mode
+  if (AUTH_MODE === 'cognito' && !IS_DEVELOPMENT) {
+    try {
+      // In production, fetch auth config from backend
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiUrl}/v1/auth/config`);
 
-    const config = await response.json();
+      if (response.ok) {
+        const config = await response.json();
 
-    if (config.userPoolId && config.userPoolClientId) {
-      Amplify.configure({
-        Auth: {
-          Cognito: {
-            userPoolId: config.userPoolId,
-            userPoolClientId: config.userPoolClientId,
-            loginWith: {
-              email: true
+        if (config.userPoolId && config.userPoolClientId) {
+          Amplify.configure({
+            Auth: {
+              Cognito: {
+                userPoolId: config.userPoolId,
+                userPoolClientId: config.userPoolClientId,
+                loginWith: {
+                  email: true
+                }
+              }
             }
-          }
+          });
+          console.log('✅ Amplify configured with Cognito for production');
         }
-      });
-      console.log('Amplify initialized with backend config');
-    } else {
-      console.warn('Amplify configuration missing in backend response, falling back to mock');
+      }
+    } catch (error) {
+      console.error('Failed to configure Cognito:', error);
     }
-  } catch (error) {
-    console.error('Error initializing Amplify:', error);
-  } finally {
-    root.render(<App />);
+  } else {
+    console.log(`🔧 Running in ${IS_DEVELOPMENT ? 'development' : AUTH_MODE} mode`);
   }
+
+  root.render(<AppOptimized />);
 }
 
 init();
