@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Cloned repositories (managed separately)
+backend/
+ui/
+
 # Dependencies
 node_modules/
 ui/node_modules/
