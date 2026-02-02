@@ -109,7 +109,7 @@ class IbexClient:
 
     def query(self, table: str, filters: Optional[List[Dict]] = None,
               limit: int = 50, sort: Optional[List[Dict]] = None,
-              offset: int = 0) -> Dict[str, Any]:
+              offset: int = 0, skip_versioning: bool = True) -> Dict[str, Any]:
         """
         Query records from a table.
 
@@ -119,6 +119,7 @@ class IbexClient:
             limit: Maximum number of records to return
             sort: List of sort conditions [{"field": "created_at", "order": "desc"}]
             offset: Number of records to skip
+            skip_versioning: True for read-only operations (bypasses expensive window functions)
 
         Returns:
             Query result with records
@@ -126,7 +127,8 @@ class IbexClient:
         payload = {
             "operation": "QUERY",
             "table": table,
-            "limit": min(limit, 1000)  # Cap at 1000 for safety
+            "limit": min(limit, 1000),  # Cap at 1000 for safety
+            "skip_versioning": skip_versioning  # Optimization for read-only queries
         }
 
         if filters:

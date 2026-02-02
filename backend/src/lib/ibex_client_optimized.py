@@ -206,9 +206,11 @@ class OptimizedIbexClient:
 
     # Optimized Query Method
     def query(self, table: str, filters: List[Dict] = None, limit: int = 100,
-              offset: int = 0, sort: List[Dict] = None, use_cache: bool = True) -> Dict[str, Any]:
+              offset: int = 0, sort: List[Dict] = None, use_cache: bool = True,
+              skip_versioning: bool = True) -> Dict[str, Any]:
         """
         Optimized query with caching
+        skip_versioning: True for read-only operations (bypasses expensive window functions)
         """
         # For single ID lookups, use special cache
         if filters and len(filters) == 1 and filters[0].get("field") == "id":
@@ -221,7 +223,8 @@ class OptimizedIbexClient:
             "operation": "QUERY",
             "table": table,
             "limit": limit,
-            "offset": offset
+            "offset": offset,
+            "skip_versioning": skip_versioning  # Add optimization flag
         }
 
         if filters:
